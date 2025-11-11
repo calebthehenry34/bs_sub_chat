@@ -1662,22 +1662,22 @@ const messagesContainer=document.getElementById('chatMessages'),
 
 function prefill(text){ chatInput.value=text; sendMessage(); }
 
-// Save state, send to login, and come back to THIS page with ?resume=1
+// Save state, send to login, and return to subscription support page with ?resume=1
 function requireAuthAndContinue(intent, payload = {}) {
   try {
-    const returnPath = window.location.pathname + window.location.search; // <— exact chat page
+    // Always return to subscription support page after authentication
+    const returnPath = '/pages/subscription-support';
     const state = {
       intent,
       payload,
-      returnPath,                     // <— NEW
+      returnPath,
       chatHistory: conversationHistory,
       ts: Date.now()
     };
     sessionStorage.setItem('supportChatResumeState', JSON.stringify(state));
 
-    // Build a relative path like /pages/xyz?resume=1 (not a hash)
-    const hasQuery = window.location.search && window.location.search.length > 0;
-    const returnTo = returnPath + (hasQuery ? '&' : '?') + 'resume=1';
+    // Build return URL with resume flag
+    const returnTo = returnPath + '?resume=1';
 
     window.location.href = '{{ routes.account_login_url }}?return_url=' + encodeURIComponent(returnTo);
   } catch (e) {
