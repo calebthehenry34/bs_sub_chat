@@ -1452,35 +1452,6 @@ window.customerSubscriptions = [];
 // UI EVENT HANDLERS
 // ============================================================================
 
-// Start Over button: spin on click + reset chat
-(function startOverButtonWithSpin(){
-  const btn = document.getElementById('startOverBtn');
-  if(!btn) return;
-
-  btn.addEventListener('click', ()=>{
-    btn.classList.add('spinning');
-    btn.disabled = true;
-
-    try{
-      sessionStorage.removeItem('supportChatResumeState');
-      localStorage.removeItem('supportChatResumeState');
-    }catch(_){}
-
-    addMessage('system','Conversation restarted');
-
-    setTimeout(()=>{
-      resetChat();
-      if(typeof window.__setInputHeightVar === 'function'){
-        requestAnimationFrame(window.__setInputHeightVar);
-      }
-      btn.classList.remove('spinning');
-      btn.disabled = false;
-      const ta = document.getElementById('chatInput');
-      ta && ta.focus();
-    }, 450);
-  });
-})();
-
 // ============================================================================
 // MOBILE KEYBOARD FIX
 // ============================================================================
@@ -1998,6 +1969,35 @@ function resetChat(){
   currentStep=0;
   chatStarted=false;
 }
+
+// Start Over button: spin on click + reset chat
+(function startOverButtonWithSpin(){
+  const btn = document.getElementById('startOverBtn');
+  if(!btn) return;
+
+  btn.addEventListener('click', ()=>{
+    btn.classList.add('spinning');
+    btn.disabled = true;
+
+    try{
+      sessionStorage.removeItem('supportChatResumeState');
+      localStorage.removeItem('supportChatResumeState');
+    }catch(_){}
+
+    addMessage('system','Conversation restarted');
+
+    setTimeout(()=>{
+      resetChat();
+      if(typeof window.__setInputHeightVar === 'function'){
+        requestAnimationFrame(window.__setInputHeightVar);
+      }
+      btn.classList.remove('spinning');
+      btn.disabled = false;
+      const ta = document.getElementById('chatInput');
+      ta && ta.focus();
+    }, 450);
+  });
+})();
 
 // Consolidated scrollToBottom function - uses the comprehensive implementation if available
 function scrollToBottom(){
