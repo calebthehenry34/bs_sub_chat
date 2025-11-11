@@ -1999,7 +1999,14 @@ function resetChat(){
   chatStarted=false;
 }
 
-function scrollToBottom(){ setTimeout(()=>{chatContent.scrollTop=chatContent.scrollHeight;},100); }
+// Consolidated scrollToBottom function - uses the comprehensive implementation if available
+function scrollToBottom(){
+  if(window.__scrollToBottom) {
+    window.__scrollToBottom({force: true});
+  } else {
+    setTimeout(()=>{chatContent.scrollTop=chatContent.scrollHeight;},100);
+  }
+}
 
 /* ---------- Intent routing ---------- */
 function sendMessage(){
@@ -2901,152 +2908,6 @@ function toggleTopics(){
   }
 }
 
-
-
-/* ===== Smooth “stick to bottom” behavior with smart auto-scroll ===== */
-(function chatAutoscroll(){
-  const scroller   = document.getElementById('chatContent');
-  const container  = document.getElementById('chatMessages');
-
-  // Consider "near bottom" if within 80px of the end
-  function isNearBottom(){
-    if(!scroller) return true;
-    const delta = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-    return delta < 80;
-  }
-
-  function scrollToBottom(opts = {force:false}){
-    if(!scroller) return;
-    // If user has scrolled up, don't auto-snap unless force=true
-    if(!opts.force && !isNearBottom()) return;
-
-    // Use rAF twice so layout has settled after images or tall bubbles
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{
-        const supportsSmooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if(supportsSmooth){
-          scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
-        } else {
-          scroller.scrollTop = scroller.scrollHeight;
-        }
-      });
-    });
-  }
-
-  // Observe message list changes and keep newest in view if user is at bottom
-  const mo = new MutationObserver(() => scrollToBottom({force:false}));
-  if(container) mo.observe(container, { childList:true, subtree:false });
-
-  // Recalculate after images load inside bubbles
-  container?.addEventListener('load', e => {
-    if(e.target && e.target.tagName === 'IMG') scrollToBottom({force:false});
-  }, true);
-
-  // Also fix initial activation jump
-  const startChatOrig = window.startChat;
-  window.startChat = function(){
-    startChatOrig.apply(this, arguments);
-    // give layout a frame to flip into .chat-active, then snap
-    setTimeout(()=>scrollToBottom({force:true}), 80);
-  };
-
-  // Expose for any manual calls you want
-  window.__scrollToBottom = scrollToBottom;
-})();
-
-/* ===== Upgrade addMessage to animate in from bottom ===== */
-(function enhanceAddMessage(){
-  const addMessageOrig = window.addMessage;
-  window.addMessage = function(sender, text){
-    addMessageOrig(sender, text);
-    // The last appended .message gets the "show" class to animate
-    const messages = document.querySelectorAll('#chatMessages .message');
-    const last = messages[messages.length - 1];
-    if(last){
-      // Trigger on next frame so transitions fire
-      requestAnimationFrame(()=> last.classList.add('show'));
-    }
-    // Ensure the very latest exchange is visible
-    if(window.__scrollToBottom) window.__scrollToBottom({force:false});
-  };
-})();
-
-
-// Wait for images inside an element to load (or timeout)
-function waitForImages(el, timeoutMs = 3000){
-  try{
-    const imgs = Array.from(el.querySelectorAll('img')).filter(img => !img.complete);
-    if (!imgs.length) return Promise.resolve();
-    return Promise.race([
-      Promise.all(imgs.map(img => new Promise(res => {
-        if (img.complete) return res();
-        img.addEventListener('load', res, { once:true });
-        img.addEventListener('error', res, { once:true });
-      }))),
-      new Promise(res => setTimeout(res, timeoutMs))
-    ]);
-  }catch(_){ return Promise.resolve(); }
-}
-
-(function improveCardAutoscroll(){
-  const scroller  = document.getElementById('chatContent');
-  const list      = document.getElementById('chatMessages');
-
-  function isNearBottom(){
-    if(!scroller) return true;
-    const delta = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-    return delta < 100;
-  }
-
-  function scrollToBottom(force=false){
-    if(!scroller) return;
-    if(!force && !isNearBottom()) return;
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{
-        const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-        if(smooth) scroller.scrollTo({ top: scroller.scrollHeight, behavior:'smooth' });
-        else scroller.scrollTop = scroller.scrollHeight;
-      });
-    });
-  }
-  // Expose same helper our other patches use (if not already)
-  window.__scrollToBottom = (opts={}) => scrollToBottom(!!opts.force);
-
-  // 1) Observe size changes in the message list (e.g., image loads, fonts)
-  if('ResizeObserver' in window && list){
-    const ro = new ResizeObserver(() => scrollToBottom(false));
-    ro.observe(list);
-  }
-
-  // 2) Upgrade addMessage to wait for images in newly-added bubbles
-  const addMessageOrig = window.addMessage;
-  window.addMessage = function(sender, text){
-    addMessageOrig(sender, text);
-    const messages = list.querySelectorAll('.message');
-    const last = messages[messages.length - 1];
-    if(!last) return;
-
-    // Animate in (if you added the .show CSS)
-    requestAnimationFrame(()=> last.classList.add('show'));
-
-    // If this bubble contains cards or images, wait for them then snap down
-    const isCardy = last.querySelector('.order-card, .subscription-card, img');
-    if(isCardy){
-      waitForImages(last).then(()=>{
-        // extra frame to ensure layout is final
-        requestAnimationFrame(()=> scrollToBottom(true));
-      });
-    } else {
-      scrollToBottom(false);
-    }
-  };
-
-  // 3) Also listen for <img> load events bubbling up just in case
-  list?.addEventListener('load', (e)=>{
-    if(e.target && e.target.tagName === 'IMG') scrollToBottom(false);
-  }, true);
-})();
-
 /* ===== ChatGPT-like input ergonomics ===== */
 (function chatInputUX(){
   const ta = document.getElementById('chatInput');
@@ -3081,65 +2942,6 @@ function waitForImages(el, timeoutMs = 3000){
   window.addEventListener('load', autoGrow);
 })();
 
-/* ===== Smart auto-scroll & reveal like ChatGPT ===== */
-(function chatAutoscroll(){
-  const scroller = document.getElementById('chatContent');
-  const list     = document.getElementById('chatMessages');
-  if(!scroller || !list) return;
-
-  function isNearBottom(){
-    const delta = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-    return delta < 100;
-  }
-
-  function scrollToBottom(force=false){
-    if(!force && !isNearBottom()) return;
-    requestAnimationFrame(()=> {
-      const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if(smooth) scroller.scrollTo({ top: scroller.scrollHeight, behavior:'smooth' });
-      else scroller.scrollTop = scroller.scrollHeight;
-    });
-  }
-
-  // Reveal animation & late image load handling
-  const waitForImages = (node, timeout=3000)=>{
-    const imgs = Array.from(node.querySelectorAll('img')).filter(i => !i.complete);
-    if(!imgs.length) return Promise.resolve();
-    return Promise.race([
-      Promise.all(imgs.map(img => new Promise(res=>{
-        img.addEventListener('load', res, {once:true});
-        img.addEventListener('error', res, {once:true});
-      }))),
-      new Promise(res=> setTimeout(res, timeout))
-    ]);
-  };
-
-  // Mutation observer to scroll on new content
-  const mo = new MutationObserver(()=> scrollToBottom(false));
-  mo.observe(list, {childList:true});
-
-  // Upgrade addMessage to animate + snap after images like ChatGPT
-  const addMessageOrig = window.addMessage;
-  window.addMessage = function(sender, text){
-    addMessageOrig(sender, text);
-    const messages = list.querySelectorAll('.message');
-    const last = messages[messages.length - 1];
-    if(!last) return;
-    requestAnimationFrame(()=> last.classList.add('show'));
-    waitForImages(last).then(()=> requestAnimationFrame(()=> scrollToBottom(true)));
-  };
-
-  // First activation jump
-  const startChatOrig = window.startChat;
-  window.startChat = function(){
-    startChatOrig.apply(this, arguments);
-    requestAnimationFrame(()=> scrollToBottom(true));
-    setTimeout(()=> scrollToBottom(true), 140);
-  };
-
-  // Expose for other patches
-  window.__scrollToBottom = (opts={}) => scrollToBottom(!!opts.force);
-})();
 /* ===== Type-by-type streaming renderer (optional) ===== */
 (function streamingBot(){
   const messagesContainer = document.getElementById('chatMessages');
@@ -3303,38 +3105,6 @@ function waitForImages(el, timeoutMs = 3000){
   }
 
   pill.addEventListener('click', hardReset);
-})();
-/* Start Over button: spin on click + reset chat */
-(function startOverButtonWithSpin(){
-  const btn = document.getElementById('startOverBtn');
-  if(!btn) return;
-
-  btn.addEventListener('click', ()=>{
-    btn.classList.add('spinning');
-    btn.disabled = true;
-
-    addMessage('system', 'Conversation restarted');
-
-    // optional: clear any stored state
-    try {
-      sessionStorage.removeItem('supportChatResumeState');
-      localStorage.removeItem('supportChatResumeState');
-    } catch(_) {}
-
-    setTimeout(()=>{
-      resetChat();
-
-      if (typeof window.__setInputHeightVar === 'function') {
-        requestAnimationFrame(window.__setInputHeightVar);
-      }
-
-      btn.classList.remove('spinning');
-      btn.disabled = false;
-
-      const ta = document.getElementById('chatInput');
-      ta && ta.focus();
-    }, 600);
-  });
 })();
 
 // ============================================================================
