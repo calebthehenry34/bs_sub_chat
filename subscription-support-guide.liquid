@@ -3095,6 +3095,12 @@ function toggleTopics(){
   var modalOverlay = document.getElementById('topicsModalOverlay');
   var modalBody = document.getElementById('topicsModalBody');
 
+  // Move modal to document.body for proper full viewport coverage
+  // This ensures it's not constrained by parent container positioning
+  if (modalOverlay.parentElement !== document.body) {
+    document.body.appendChild(modalOverlay);
+  }
+
   // Render categorized topics menu
   modalBody.innerHTML = renderTopicsMenu();
 
