@@ -1293,7 +1293,7 @@ function requireAuthAndContinue(intent, payload = {}) {
     console.log('Intent:', intent);
     
     // SECURITY: Whitelist allowed intents
-    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent'];
+    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent', 'initialSignIn'];
     if (!allowedIntents.includes(intent)) {
       console.error('Invalid intent:', intent);
       return;
@@ -1350,6 +1350,78 @@ function requireAuthAndContinue(intent, payload = {}) {
     
   } catch (e) {
     console.error('Error:', e);
+  }
+}
+
+// Handle sign-in from initial chat state
+function handleInitialSignIn() {
+  try {
+    console.log('=== INITIAL SIGN-IN ===');
+
+    // Save intent to localStorage indicating user wants to sign in from initial state
+    const intentData = {
+      intent: 'initialSignIn',
+      payload: {},
+      customerId: null,
+      ts: Date.now(),
+      signature: generateSimpleHash('initialSignIn', {}, null)
+    };
+
+    localStorage.setItem('supportChatResumeState', JSON.stringify(intentData));
+    console.log('Saved initial sign-in intent');
+
+    // Open login page in new tab
+    window.open('/account/login', '_blank');
+
+    // Show message to user
+    const welcomeScreen = document.querySelector('.centered-welcome');
+    if (welcomeScreen) {
+      // Create overlay message
+      const overlay = document.createElement('div');
+      overlay.id = 'signInOverlay';
+      overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+      `;
+
+      overlay.innerHTML = `
+        <div style="max-width:400px;text-align:center;padding:30px;background:white;border:2px solid #007AFF;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+          <p style="margin:0 0 20px;font-weight:600;font-size:18px;color:#333;">🔐 Sign In Required</p>
+          <p style="margin:0 0 24px;color:#666;font-size:14px;line-height:1.6;">
+            A new tab has been opened for you to sign in.<br>
+            After signing in, return here and click continue.
+          </p>
+          <button onclick="location.reload()" style="background:#007AFF;color:white;padding:12px 32px;border:none;border-radius:8px;font-weight:600;font-size:16px;cursor:pointer;margin-right:10px;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            Continue (After Signing In)
+          </button>
+          <button onclick="cancelInitialSignIn()" style="background:#f0f0f0;color:#333;padding:12px 32px;border:none;border-radius:8px;font-weight:600;font-size:16px;cursor:pointer;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            Cancel
+          </button>
+        </div>
+      `;
+
+      welcomeScreen.appendChild(overlay);
+    }
+  } catch (e) {
+    console.error('Error in handleInitialSignIn:', e);
+  }
+}
+
+// Cancel initial sign-in flow
+function cancelInitialSignIn() {
+  localStorage.removeItem('supportChatResumeState');
+  const overlay = document.getElementById('signInOverlay');
+  if (overlay) {
+    overlay.remove();
   }
 }
 
@@ -1778,7 +1850,7 @@ window.addEventListener('beforeunload', function() {
             {% if customer %}
               Signed in as {{ customer.first_name }} · <a href="{{ routes.account_url }}">Manage Account</a> · <a href="#" id="exitChatLink">Exit Chat</a>
             {% else %}
-              Already have an account? <a href="{{ routes.account_login_url }}">Sign In</a>
+              Already have an account? <a href="#" onclick="handleInitialSignIn(); return false;">Sign In</a>
             {% endif %}
           </div>
         </div>
@@ -3432,7 +3504,7 @@ function executeIntentAction(intent){
     }
     
     // SECURITY: Validate intent whitelist
-    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent'];
+    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent', 'initialSignIn'];
     if (!allowedIntents.includes(state.intent)) {
       console.error('Invalid intent in stored state');
       localStorage.removeItem('supportChatResumeState');
@@ -3472,9 +3544,13 @@ function executeIntentAction(intent){
     
     // Start chat
     startChat();
-    
-    // Show welcome back message
-    addMessage('system', 'Welcome back! Continuing where you left off...');
+
+    // Show welcome message
+    if (state.intent === 'initialSignIn') {
+      addMessage('system', 'Welcome! You\'re now signed in.');
+    } else {
+      addMessage('system', 'Welcome back! Continuing where you left off...');
+    }
     
     // Execute intent - wait for functions to be loaded
     var executeAttempts = 0;
@@ -3536,7 +3612,12 @@ function executeIntentAction(intent){
             addMessage('bot', 'Something went wrong. Please try again.');
           }
           break;
-          
+
+        case 'initialSignIn':
+          // User signed in from initial state - just show welcome message
+          addMessage('bot', 'Welcome! How can I help you today?');
+          break;
+
         default:
           addMessage('bot', 'You\'re signed in. What would you like to do next?');
       }
