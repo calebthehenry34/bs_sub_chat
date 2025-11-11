@@ -121,20 +121,38 @@ html, body {
   .topics-toggle-icon.rotated{transform:rotate(180deg)}
   .topics-toggle-icon svg{fill:#007AFF;width:100%;height:100%}
 
-  .topics-content{max-height:0;opacity:0;overflow:hidden;transition:all .4s cubic-bezier(.4,0,.2,1);margin-top:0;width:100%}
-  .topics-content.expanded{min-height:800px;opacity:1;}
+  /* Modal Overlay */
+  .topics-modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:10000;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .3s ease}
+  .topics-modal-overlay.active{display:flex;opacity:1}
 
-  .topics-menu{background:#fff;border-radius:12px;overflow:hidden}
+  /* Modal Container */
+  .topics-modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);transform:scale(.9);transition:transform .3s ease}
+  .topics-modal-overlay.active .topics-modal{transform:scale(1)}
+
+  /* Modal Header */
+  .topics-modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid rgba(0,0,0,.1)}
+  .topics-modal-title{font-size:18px;font-weight:600;color:#1d1d1f;margin:0}
+  .topics-modal-close{background:transparent;border:none;font-size:24px;color:#86868b;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .2s ease;padding:0}
+  .topics-modal-close:hover{background:#f5f5f7;color:#1d1d1f}
+
+  /* Modal Body with Scrolling */
+  .topics-modal-body{overflow-y:auto;flex:1;padding:0;-webkit-overflow-scrolling:touch}
+  .topics-modal-body::-webkit-scrollbar{width:8px}
+  .topics-modal-body::-webkit-scrollbar-track{background:#f5f5f7}
+  .topics-modal-body::-webkit-scrollbar-thumb{background:#c7c7cc;border-radius:4px}
+  .topics-modal-body::-webkit-scrollbar-thumb:hover{background:#aeaeb2}
+
+  .topics-menu{background:#fff}
   .topic-category{border-bottom:1px solid rgba(0,0,0,.06)}
   .topic-category:last-child{border-bottom:none}
-  .topic-accordion-header{display:flex;align-items:center;gap:12px;padding:16px 20px;cursor:pointer;background:#f5f5f7;transition:all .2s ease;user-select:none}
+  .topic-accordion-header{display:flex;align-items:center;gap:12px;padding:16px 24px;cursor:pointer;background:#f5f5f7;transition:all .2s ease;user-select:none}
   .topic-accordion-header:hover{background:#e8e8ed}
   .topic-accordion-header .category-icon{font-size:18px}
   .topic-accordion-header .category-name{flex:1;font-size:14px;font-weight:600;color:#1d1d1f}
   .topic-accordion-header .accordion-icon{font-size:20px;color:#86868b;transition:transform .3s ease;font-weight:bold}
   .topic-accordion-content{overflow:hidden;transition:max-height .3s ease;background:#fff}
-  .topic-menu-item{padding:14px 20px 14px 52px;cursor:pointer;font-size:14px;color:#1d1d1f;transition:all .2s ease;border-top:1px solid rgba(0,0,0,.04)}
-  .topic-menu-item:hover{background:#f8f8f8;padding-left:56px}
+  .topic-menu-item{padding:14px 24px 14px 56px;cursor:pointer;font-size:14px;color:#1d1d1f;transition:all .2s ease;border-top:1px solid rgba(0,0,0,.04)}
+  .topic-menu-item:hover{background:#f8f8f8;padding-left:60px}
   .topic-menu-item:first-child{border-top:none}
 
   .persistent-topics{width:100%;max-width:700px;margin:0 auto}
@@ -1065,14 +1083,24 @@ html, body { height: auto; min-height: 100%; }
     line-height: 1.4;
   }
   
-  /* === TOPICS (MOBILE OPTIMIZED) === */
+  /* === TOPICS MODAL (MOBILE OPTIMIZED) === */
   .topics-toggle {
     font-size: 12px;
     padding: 8px 14px;
   }
 
-  .topics-content.expanded {
-    min-height: auto;
+  .topics-modal {
+    max-width: 95%;
+    max-height: 90vh;
+    margin: 10px;
+  }
+
+  .topics-modal-header {
+    padding: 16px 20px;
+  }
+
+  .topics-modal-title {
+    font-size: 16px;
   }
 
   .topics-menu {
@@ -1080,7 +1108,7 @@ html, body { height: auto; min-height: 100%; }
   }
 
   .topic-accordion-header {
-    padding: 12px 16px;
+    padding: 12px 20px;
   }
 
   .topic-accordion-header .category-icon {
@@ -1092,7 +1120,7 @@ html, body { height: auto; min-height: 100%; }
   }
 
   .topic-menu-item {
-    padding: 12px 16px 12px 44px;
+    padding: 12px 20px 12px 48px;
     font-size: 13px;
   }
 
@@ -1855,15 +1883,16 @@ window.addEventListener('beforeunload', function() {
           </div>
         </div>
         
-        <div class="topics-content" id="topicsContent">
-          <div class="welcome-topics">
-            {% for block in section.blocks %}
-              {% if block.type == 'topic' %}
-                <button class="welcome-topic-btn" onclick="startTopic('{{ block.settings.topic_title | escape }}')" {{ block.shopify_attributes }}>
-                  {{ block.settings.topic_title }}
-                </button>
-              {% endif %}
-            {% endfor %}
+        <!-- Topics Modal -->
+        <div class="topics-modal-overlay" id="topicsModalOverlay" onclick="if(event.target === this) closeTopicsModal()">
+          <div class="topics-modal">
+            <div class="topics-modal-header">
+              <h3 class="topics-modal-title">Browse Topics</h3>
+              <button class="topics-modal-close" onclick="closeTopicsModal()" aria-label="Close">&times;</button>
+            </div>
+            <div class="topics-modal-body" id="topicsModalBody">
+              <!-- Topics menu will be inserted here -->
+            </div>
           </div>
         </div>
       </div>
@@ -3051,72 +3080,86 @@ function renderTopicsMenu(){
   return html;
 }
 
-/* ---------- Topics toggle ---------- */
+/* ---------- Topics Modal ---------- */
 function toggleTopics(){
-  var topicsContent = document.getElementById('topicsContent');
-  var topicsToggleIcon = document.getElementById('topicsToggleIcon');
-  var topicsToggleText = document.getElementById('topicsToggleText');
-  
-  if(topicsContent.classList.contains('expanded')){
-    topicsContent.classList.remove('expanded');
-    topicsToggleIcon.classList.add('rotated');
-    topicsToggleText.textContent = 'Find More Topics';
-  } else {
-    // Render categorized topics menu
-    topicsContent.innerHTML = renderTopicsMenu();
-    topicsContent.classList.add('expanded');
-    topicsToggleIcon.classList.remove('rotated');
-    topicsToggleText.textContent = 'Close';
-    
-    // IMPORTANT: Wait for DOM to be ready
-    setTimeout(function(){
-      // Add accordion toggle handlers
-      var accordionHeaders = topicsContent.querySelectorAll('.topic-accordion-header');
-      for(var i = 0; i < accordionHeaders.length; i++){
-        (function(header){
-          header.addEventListener('click', function(e){
-            e.stopPropagation(); // Prevent bubbling
-            var content = header.nextElementSibling;
-            var icon = header.querySelector('.accordion-icon');
-            var isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
-            
-            if(isOpen){
-              content.style.maxHeight = '0';
-              icon.style.transform = 'rotate(0deg)';
-              header.style.background = '#f5f5f7';
-            } else {
-              content.style.maxHeight = content.scrollHeight + 'px';
-              icon.style.transform = 'rotate(90deg)';
-              header.style.background = '#e8e8ed';
-            }
-          });
-        })(accordionHeaders[i]);
-      }
-      
-      // Add click handlers to topic items - USE ONCE to prevent duplicates
-      var menuItems = topicsContent.querySelectorAll('.topic-menu-item');
-      for(var i = 0; i < menuItems.length; i++){
-        (function(item){
-          item.addEventListener('click', function handler(e){
-            e.preventDefault();
-            e.stopPropagation();
-            
-            var intentId = item.getAttribute('data-intent-id');
-            triggerIntent(intentId);
-            
-            // Close topics menu
-            topicsContent.classList.remove('expanded');
-            topicsToggleIcon.classList.add('rotated');
-            topicsToggleText.textContent = 'Find More Topics';
-            
-            // Remove this specific listener to prevent duplicates
-            item.removeEventListener('click', handler);
-          }, {once: true}); // This ensures it only fires once
-        })(menuItems[i]);
-      }
-    }, 50);
-  }
+  var modalOverlay = document.getElementById('topicsModalOverlay');
+  var modalBody = document.getElementById('topicsModalBody');
+
+  // Render categorized topics menu
+  modalBody.innerHTML = renderTopicsMenu();
+
+  // Show modal with animation
+  modalOverlay.classList.add('active');
+  document.body.style.overflow = 'hidden'; // Prevent background scrolling
+
+  // IMPORTANT: Wait for DOM to be ready
+  setTimeout(function(){
+    // Add accordion toggle handlers
+    var accordionHeaders = modalBody.querySelectorAll('.topic-accordion-header');
+    for(var i = 0; i < accordionHeaders.length; i++){
+      (function(header){
+        header.addEventListener('click', function(e){
+          e.stopPropagation(); // Prevent bubbling
+          var content = header.nextElementSibling;
+          var icon = header.querySelector('.accordion-icon');
+          var isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
+
+          if(isOpen){
+            content.style.maxHeight = '0';
+            icon.style.transform = 'rotate(0deg)';
+            header.style.background = '#f5f5f7';
+          } else {
+            content.style.maxHeight = content.scrollHeight + 'px';
+            icon.style.transform = 'rotate(90deg)';
+            header.style.background = '#e8e8ed';
+          }
+        });
+      })(accordionHeaders[i]);
+    }
+
+    // Add click handlers to topic items
+    var menuItems = modalBody.querySelectorAll('.topic-menu-item');
+    for(var i = 0; i < menuItems.length; i++){
+      (function(item){
+        item.addEventListener('click', function handler(e){
+          e.preventDefault();
+          e.stopPropagation();
+
+          var intentId = item.getAttribute('data-intent-id');
+          triggerIntent(intentId);
+
+          // Close modal
+          closeTopicsModal();
+
+          // Remove this specific listener to prevent duplicates
+          item.removeEventListener('click', handler);
+        }, {once: true}); // This ensures it only fires once
+      })(menuItems[i]);
+    }
+  }, 50);
 }
+
+function closeTopicsModal(){
+  var modalOverlay = document.getElementById('topicsModalOverlay');
+  modalOverlay.classList.remove('active');
+  document.body.style.overflow = ''; // Restore scrolling
+
+  // Clear modal content after animation
+  setTimeout(function(){
+    var modalBody = document.getElementById('topicsModalBody');
+    if(modalBody) modalBody.innerHTML = '';
+  }, 300);
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    var modalOverlay = document.getElementById('topicsModalOverlay');
+    if(modalOverlay && modalOverlay.classList.contains('active')){
+      closeTopicsModal();
+    }
+  }
+});
 
 /* ===== ChatGPT-like input ergonomics ===== */
 (function chatInputUX(){
