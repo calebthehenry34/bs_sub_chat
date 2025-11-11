@@ -1715,9 +1715,10 @@ function requireAuthAndContinue(intent, payload = {}) {
     // Build return URL with resume flag
     const returnTo = returnPath + '?resume=1';
 
-    window.location.href = '{{ routes.account_login_url }}?return_url=' + encodeURIComponent(returnTo);
+    // Use relative path to avoid domain/encoding issues
+    window.location.href = '/account/login?return_url=' + encodeURIComponent(returnTo);
   } catch (e) {
-    window.location.href = '{{ routes.account_login_url }}';
+    window.location.href = '/account/login';
   }
 }
 
