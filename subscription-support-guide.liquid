@@ -2077,21 +2077,14 @@ function resetChat(){
   link.addEventListener('click', (e)=>{
     e.preventDefault();
 
+    // Clear chat state from storage
     try{
       sessionStorage.removeItem('supportChatResumeState');
       localStorage.removeItem('supportChatResumeState');
     }catch(_){}
 
-    addMessage('system','Chat ended');
-
-    setTimeout(()=>{
-      resetChat();
-      if(typeof window.__setInputHeightVar === 'function'){
-        requestAnimationFrame(window.__setInputHeightVar);
-      }
-      const ta = document.getElementById('chatInput');
-      ta && ta.focus();
-    }, 300);
+    // Redirect to logout, which will then redirect to home page
+    window.location.href = '/account/logout';
   });
 })();
 
