@@ -1776,7 +1776,7 @@ window.addEventListener('beforeunload', function() {
           
           <div class="account-link">
             {% if customer %}
-              Signed in as {{ customer.first_name }} · <a href="{{ routes.account_url }}">Manage Account</a>
+              Signed in as {{ customer.first_name }} · <a href="{{ routes.account_url }}">Manage Account</a> · <a href="#" id="exitChatLink">Exit Chat</a>
             {% else %}
               Already have an account? <a href="{{ routes.account_login_url }}">Sign In</a>
             {% endif %}
@@ -2066,6 +2066,32 @@ function resetChat(){
       const ta = document.getElementById('chatInput');
       ta && ta.focus();
     }, 450);
+  });
+})();
+
+// Exit Chat link handler
+(function exitChatLinkHandler(){
+  const link = document.getElementById('exitChatLink');
+  if(!link) return;
+
+  link.addEventListener('click', (e)=>{
+    e.preventDefault();
+
+    try{
+      sessionStorage.removeItem('supportChatResumeState');
+      localStorage.removeItem('supportChatResumeState');
+    }catch(_){}
+
+    addMessage('system','Chat ended');
+
+    setTimeout(()=>{
+      resetChat();
+      if(typeof window.__setInputHeightVar === 'function'){
+        requestAnimationFrame(window.__setInputHeightVar);
+      }
+      const ta = document.getElementById('chatInput');
+      ta && ta.focus();
+    }, 300);
   });
 })();
 
