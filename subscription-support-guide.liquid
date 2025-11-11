@@ -3261,7 +3261,11 @@ function executeIntentAction(intent){
   }
 }
 
-// Auto-resume stored intent on page load
+// ============================================================================
+// AUTO-RESUME STORED INTENT ON PAGE LOAD
+// ============================================================================
+
+(function autoResumeIntent() {
   function tryExecuteIntent() {
     const raw = localStorage.getItem('supportChatResumeState');
     
@@ -3289,8 +3293,26 @@ function executeIntentAction(intent){
       return true;
     }
     
-    // SECURITY: Validate timestamp (10 minutes)
-    if (state.ts && Date.now() - state.ts > 600000) {
+    // SECURITY: Validate intent whitelist
+    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent'];
+    if (!allowedIntents.includes(state.intent)) {
+      console.error('Invalid intent in stored state');
+      localStorage.removeItem('supportChatResumeState');
+      addMessage('system', 'Invalid session data. Please try again.');
+      return true;
+    }
+    
+    // SECURITY: Validate signature
+    const expectedSignature = generateSimpleHash(state.intent, state.payload, state.customerId);
+    if (state.signature !== expectedSignature) {
+      console.error('Signature mismatch');
+      localStorage.removeItem('supportChatResumeState');
+      addMessage('system', 'Session validation failed. Please try again.');
+      return true;
+    }
+    
+    // SECURITY: Validate timestamp (5 minutes)
+    if (state.ts && Date.now() - state.ts > 300000) {
       console.warn('Intent expired');
       localStorage.removeItem('supportChatResumeState');
       addMessage('bot', 'Your session expired. Please try again.');
@@ -3305,7 +3327,7 @@ function executeIntentAction(intent){
       return true;
     }
     
-    // Clear state
+    // Clear state immediately
     localStorage.removeItem('supportChatResumeState');
     
     console.log('Starting chat and executing intent:', state.intent);
@@ -3317,30 +3339,22 @@ function executeIntentAction(intent){
     addMessage('system', 'Welcome back! Continuing where you left off...');
     
     // Execute intent - wait for functions to be loaded
-    var executeAttempts = 0;  // ADD THIS LINE
-    var maxAttempts = 50;      // ADD THIS LINE
+    var executeAttempts = 0;
+    var maxAttempts = 50;
+    
     function executeStoredIntent(){
       const payload = state.payload || {};
-
-
       
-      // DEBUG: Log what functions exist
-  console.log('=== FUNCTION CHECK ===');
-  console.log('handleOrderStatusQuery:', typeof handleOrderStatusQuery);
-  console.log('handleSubscriptionInfoQuery:', typeof handleSubscriptionInfoQuery);
-  console.log('handleNextOrderIntent:', typeof handleNextOrderIntent);
-  console.log('window.handleOrderStatusQuery:', typeof window.handleOrderStatusQuery);
-  
-  executeAttempts++;
-  console.log('Attempt', executeAttempts, '- Attempting to execute intent:', state.intent);
+      executeAttempts++;
+      console.log('Attempt', executeAttempts, '- Attempting to execute intent:', state.intent);
       
-
-   // Give up after max attempts (ADD THIS CHECK)
+      // Give up after max attempts
       if(executeAttempts >= maxAttempts){
         console.error('Gave up waiting for functions to load');
         addMessage('bot', 'Something went wrong. Please try again.');
         return;
       }
+      
       // Check if key functions exist (wait if not loaded yet)
       if(typeof handleOrderStatusQuery !== 'function'){
         console.log('Functions not loaded yet, waiting...');
@@ -3350,25 +3364,41 @@ function executeIntentAction(intent){
       
       console.log('Functions loaded, executing...');
       
+      // SECURITY: Validate payload before execution
       switch (state.intent) {
         case 'showOrders': 
           handleOrderStatusQuery(); 
           break;
-        case 'showSubs':   
-          handleSubscriptionInfoQuery(payload.filter || 'all'); 
+          
+        case 'showSubs':
+          const validFilters = ['all', 'active', 'paused', 'canceled', 'expired'];
+          const filter = validFilters.includes(payload.filter) ? payload.filter : 'all';
+          handleSubscriptionInfoQuery(filter); 
           break;
+          
         case 'nextOrder':  
           handleNextOrderIntent(); 
           break;
+          
         case 'manageSub':
-          handleSubscriptionManagement(payload.action || 'general');
+          const validActions = ['general', 'address', 'payment', 'frequency', 'pause', 'date'];
+          const action = validActions.includes(payload.action) ? payload.action : 'general';
+          handleSubscriptionManagement(action);
           break;
+          
         case 'cancelSub':
           handleCancelSubscription();
           break;
+          
         case 'customIntent':
-          if(payload.intentId) triggerIntent(payload.intentId);
+          if(payload.intentId) {
+            triggerIntent(payload.intentId);
+          } else {
+            console.error('Invalid intentId');
+            addMessage('bot', 'Something went wrong. Please try again.');
+          }
           break;
+          
         default:
           addMessage('bot', 'You\'re signed in. What would you like to do next?');
       }
