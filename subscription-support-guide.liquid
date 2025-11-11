@@ -1202,6 +1202,115 @@ body:not(.keyboard-open) .input-section {
       
 
 <script>
+
+// ============================================================================
+// SECURITY HELPERS
+// ============================================================================
+
+// Rate limiting
+let lastAuthAttempt = 0;
+const AUTH_RATE_LIMIT = 3000; // 3 seconds between attempts
+
+// XSS protection - sanitize user-generated content
+function sanitizeHTML(str) {
+  if (!str) return '';
+  const temp = document.createElement('div');
+  temp.textContent = str;
+  return temp.innerHTML;
+}
+
+// Simple hash for integrity checking
+function generateSimpleHash(intent, payload, customerId) {
+  const str = intent + JSON.stringify(payload) + (customerId || '') + 'SALT_STRING_12345';
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(36);
+}
+
+
+// ============================================================================
+// AUTHENTICATION & SESSION MANAGEMENT
+// ============================================================================
+
+function requireAuthAndContinue(intent, payload = {}) {
+  // SECURITY: Rate limiting
+  const now = Date.now();
+  if (now - lastAuthAttempt < AUTH_RATE_LIMIT) {
+    console.warn('Rate limited');
+    addMessage('system', 'Please wait a moment before trying again.');
+    return;
+  }
+  lastAuthAttempt = now;
+
+  try {
+    console.log('=== REQUIRE AUTH ===');
+    console.log('Intent:', intent);
+    
+    // SECURITY: Whitelist allowed intents
+    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent'];
+    if (!allowedIntents.includes(intent)) {
+      console.error('Invalid intent:', intent);
+      return;
+    }
+    
+    // SECURITY: Validate payload structure
+    if (payload && typeof payload !== 'object') {
+      console.error('Invalid payload type');
+      return;
+    }
+
+    // Save intent to localStorage with validation flag
+    const intentData = {
+      intent: intent,
+      payload: payload,
+      customerId: window.customerData.id || null,
+      ts: Date.now(),
+      signature: generateSimpleHash(intent, payload, window.customerData.id)
+    };
+    
+    localStorage.setItem('supportChatResumeState', JSON.stringify(intentData));
+    
+    console.log('Saved intent');
+    
+    // Show message with clickable link (bypasses popup blocker)
+    addMessage('system', `
+      <div style="padding:20px;background:#f0f7ff;border:2px solid #007AFF;border-radius:12px;text-align:center;">
+        <p style="margin:0 0 16px;font-weight:600;font-size:16px;">🔐 Sign in required</p>
+        <a href="/account/login" 
+           target="_blank"
+           style="display:inline-block;background:#007AFF;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:16px;transition:transform 0.2s ease;"
+           onmouseover="this.style.transform='scale(1.05)'"
+           onmouseout="this.style.transform='scale(1)'">
+          Sign In (Opens New Tab)
+        </a>
+        <p style="margin:0;color:#555;font-size:14px;line-height:1.6;">
+          After signing in, return here and click "Continue" below
+        </p>
+      </div>
+    `);
+    
+    clearQuickActions();
+    
+    // Add continue button
+    addQuickAction('Continue (After Signing In)', function(){
+      location.reload();
+    }, true);
+    
+    addQuickAction('Cancel', function(){
+      clearQuickActions();
+      localStorage.removeItem('supportChatResumeState');
+      addMessage('bot', 'No problem! What else can I help you with?');
+    }, false);
+    
+  } catch (e) {
+    console.error('Error:', e);
+  }
+}
+
 // ============================================================================
 // INITIALIZATION & DATA LOADING
 // ============================================================================
@@ -1225,7 +1334,7 @@ var chatIntents = [];
   {% endif %}
 {% endfor %}
 
-// ===== SAFETY CHECKS - ADD THIS FIRST =====
+// ===== SAFETY CHECKS =====
 if(!window.customerData) {
   window.customerData = {
     isLoggedIn: false,
@@ -1552,6 +1661,12 @@ window.customerSubscriptions = [];
   ta && ta.addEventListener('input', () => requestAnimationFrame(setInputH));
 })();
 
+// Clear stored intents on logout
+window.addEventListener('beforeunload', function() {
+  if (window.location.href.includes('/account/logout')) {
+    localStorage.removeItem('supportChatResumeState');
+  }
+});
 
 </script>
 
@@ -1646,10 +1761,6 @@ window.customerSubscriptions = [];
 
 <script>
 // ============================================================================
-// CHAT APPLICATION - MAIN SCRIPT
-// ============================================================================
-
-// ============================================================================
 // CONVERSATION DATA & CONFIGURATION
 // ============================================================================
 
@@ -1694,98 +1805,8 @@ const messagesContainer=document.getElementById('chatMessages'),
 
 function prefill(text){ chatInput.value=text; sendMessage(); }
 
-// ============================================================================
-// AUTHENTICATION & SESSION MANAGEMENT
-// ============================================================================
-
-// Save state, send to login, and return to subscription support page with ?resume=1
-function requireAuthAndContinue(intent, payload = {}) {
-  try {
-    // Always return to subscription support page after authentication
-    const returnPath = '/pages/subscription-support';
-    const state = {
-      intent,
-      payload,
-      returnPath,
-      chatHistory: conversationHistory,
-      ts: Date.now()
-    };
-    sessionStorage.setItem('supportChatResumeState', JSON.stringify(state));
-
-    // Build return URL with resume flag
-    const returnTo = returnPath + '?resume=1';
-
-    // Use relative path to avoid domain/encoding issues
-    window.location.href = '/account/login?return_url=' + encodeURIComponent(returnTo);
-  } catch (e) {
-    window.location.href = '/account/login';
-  }
-}
-
-// If we returned from login with ?resume=1 (or #resume=1), restore chat + run saved intent
-(function resumeAfterLogin() {
-  function getFlag() {
-    // Prefer query param; also support legacy hash as a fallback
-    const qs = new URLSearchParams(window.location.search);
-    if (qs.get('resume') === '1') return true;
-    const hash = (window.location.hash || '').slice(1);
-    const hp = new URLSearchParams(hash);
-    return hp.get('resume') === '1';
-  }
-
-  function tryResume(){
-    if (!getFlag()) return;
-    if (!window.customerData || !window.customerData.isLoggedIn) return;
-
-    const raw = sessionStorage.getItem('supportChatResumeState');
-    if (!raw) return;
-
-    // consume once
-    sessionStorage.removeItem('supportChatResumeState');
-    const state = JSON.parse(raw);
-
-    startChat();
-
-      const _startChat = window.startChat;  // keep your original if already patched
-window.startChat = function(){
-  const scroller = document.getElementById('chatContent');
-  animateHeight(scroller, () => {
-    _startChat ? _startChat() : (
-      chatContent.classList.add('active'),
-      centeredWelcome.classList.add('hidden'),
-      chatHeader.classList.add('visible'),
-      inputSection.classList.add('fixed-bottom'),
-      supportContainer.classList.add('chat-active')
-    );
-  }, 260);
-};
 
 
-    // Restore visible history (optional)
-    if (Array.isArray(state.chatHistory)) {
-      state.chatHistory.forEach(m => addMessage(m.sender, m.text));
-    }
-
-    switch (state.intent) {
-      case 'showOrders': handleOrderStatusQuery(); break;
-      case 'showSubs':   handleSubscriptionInfoQuery(state.payload?.filter || 'all'); break;
-      case 'nextOrder':  handleNextOrderIntent(); break;
-      
-      default:
-        addMessage('bot','You’re signed in. What would you like to do next?');
-    }
-
-    // Remove resume flag from URL so refreshes don’t re-trigger
-    const cleanQS = window.location.search.replace(/[?&]resume=1\b/, '').replace(/\?&/, '?').replace(/^\?$/, '');
-    const cleanUrl = window.location.pathname + (cleanQS || '');
-    history.replaceState(null, '', cleanUrl);
-  }
-
-  // Retry a few times in case customerData hydrates a moment later
-  let tries=0;
-  const int=setInterval(()=>{ tryResume(); if(++tries>=10) clearInterval(int); },120);
-  window.addEventListener('load', tryResume);
-})();
 
 // ============================================================================
 // SUBSCRIPTION STATUS & BUCKETIZATION
@@ -1996,6 +2017,111 @@ function sendMessage(){
   },600);
 }
 
+// ========================================
+// HELPER FUNCTIONS (Global Scope)
+// ========================================
+
+function pillFor(status){
+  var s = (status || '').toLowerCase();
+  if(s.includes('fulfill') || s.includes('ship')) return 'fulfilled';
+  if(s.includes('paid')) return 'paid';
+  if(s.includes('pending') || s.includes('auth')) return 'pending';
+  return 'processing';
+}
+
+function normalizeUrl(u){
+  if(!u) return '#';
+  try{
+    if(/^https?:\/\//i.test(u)) return u;
+    return window.location.origin + (u.startsWith('/') ? u : ('/' + u));
+  } catch(e) {
+    return u;
+  }
+}
+
+function renderOrderCard(o, heading){
+  if(!heading) heading = '';
+  
+  var pill = pillFor(o.fulfillmentStatus || o.financialStatus);
+  var refundLabel = o.refundState === 'refunded' ? 'Refunded' : (o.refundState === 'partially_refunded' ? 'Partially refunded' : '—');
+  var returnLabel = o.returnSignal === 'possible' ? 'Possible return/refund' : '—';
+  var gateways = (o.paymentGateways && o.paymentGateways.length) ? o.paymentGateways.join(', ') : '—';
+  
+  var orderLink = normalizeUrl(o.orderUrl) || '#';
+  
+  var html = '';
+  if(heading) html += '<p><strong>' + heading + '</strong></p>';
+  
+  html += '<div class="order-card">';
+  html += '<div class="order-card-header">';
+  html += '<div class="order-number">' + o.name + '</div>';
+  html += '<span class="order-pill ' + pill + '">' + pill.charAt(0).toUpperCase() + pill.slice(1) + '</span>';
+  html += '</div>';
+  html += '<div class="order-details">';
+  html += o.thumb ? '<img class="order-thumb" src="' + o.thumb + '" alt="" loading="lazy">' : '<div class="order-thumb"></div>';
+  html += '<div class="order-meta">';
+  html += '<div><span class="dim">Date:</span> ' + o.processedAt + '</div>';
+  html += '<div><span class="dim">Total:</span> ' + o.totalPrice + '</div>';
+  
+  if(gateways !== '—'){
+    html += '<div><span class="dim">Payment:</span> ' + gateways + '</div>';
+  }
+  if(refundLabel !== '—'){
+    html += '<div><span class="dim">Refund:</span> ' + refundLabel + '</div>';
+  }
+  if(returnLabel !== '—' && returnLabel !== 'Possible return/refund'){
+    html += '<div><span class="dim">Returns:</span> ' + returnLabel + '</div>';
+  }
+  if(o.trackingNumber){
+    var trackNum = o.trackingNumber.length > 18 ? o.trackingNumber.substring(0, 18) + '...' : o.trackingNumber;
+    html += '<div><span class="dim">Track:</span> ' + trackNum + '</div>';
+  }
+  if(o.cancelled){
+    html += '<div><span class="dim">Canceled:</span> ' + (o.cancelReason || 'Yes') + '</div>';
+  }
+  html += '</div></div>';
+  
+  // Full-width stacked buttons
+  html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;width:100%;">';
+  html += '<a style="display:block;border-radius:10px;background-color:#f1f1f2;padding:11px 16px;font-size:13px;text-align:center;text-decoration:none;color:#1d1d1f;font-weight:600;" href="' + orderLink + '">View Order</a>';
+  if(o.trackingUrl){
+    html += '<a style="display:block;border-radius:10px;background-color:#007AFF;padding:11px 16px;font-size:13px;text-align:center;text-decoration:none;color:#fff;font-weight:600;" target="_blank" rel="noopener" href="' + o.trackingUrl + '">Track Shipment</a>';
+  }
+  html += '</div>';
+  
+  html += '</div>';
+  
+  return html;
+}
+
+function handleOrderStatusQuery(){
+  if(!window.customerData || !window.customerData.isLoggedIn){
+    addMessage('bot','To check your order status, please sign in to your account first.');
+    clearQuickActions();
+    addQuickAction('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
+    return;
+  }
+  
+  var orders = window.customerOrders || [];
+  if(!orders.length){
+    addMessage('bot','You don\'t have any orders yet.');
+    clearQuickActions();
+    addQuickAction('Shop All', function(){window.location.href='/collections/all'}, true);
+    return;
+  }
+  
+  var html = '<p><strong>Here is your most recent order</strong></p>';
+  html += renderOrderCard(orders[0]);
+  
+  addMessage('bot', html);
+  clearQuickActions();
+  addQuickAction('View All Orders', function(){window.location.href='/account'}, true);
+}
+
+// ========================================
+// ROUTE INTENT (Main Routing Function)
+// ========================================
+
 function routeIntent(lowerText){
   // ===== CHECK CUSTOM INTENTS FIRST =====
   for(var i = 0; i < chatIntents.length; i++){
@@ -2101,106 +2227,6 @@ function routeIntent(lowerText){
   if(lowerText.includes('last order')){
     return showLastOrderCard();
   }
-
-
-function pillFor(status){
-  var s = (status || '').toLowerCase();
-  if(s.includes('fulfill') || s.includes('ship')) return 'fulfilled';
-  if(s.includes('paid')) return 'paid';
-  if(s.includes('pending') || s.includes('auth')) return 'pending';
-  return 'processing';
-}
-
-function normalizeUrl(u){
-  if(!u) return '#';
-  try{
-    if(/^https?:\/\//i.test(u)) return u;
-    return window.location.origin + (u.startsWith('/') ? u : ('/' + u));
-  } catch(e) {
-    return u;
-  }
-}
-
-  function renderOrderCard(o, heading){
-  if(!heading) heading = '';
-  
-  var pill = pillFor(o.fulfillmentStatus || o.financialStatus);
-  var refundLabel = o.refundState === 'refunded' ? 'Refunded' : (o.refundState === 'partially_refunded' ? 'Partially refunded' : '—');
-  var returnLabel = o.returnSignal === 'possible' ? 'Possible return/refund' : '—';
-  var gateways = (o.paymentGateways && o.paymentGateways.length) ? o.paymentGateways.join(', ') : '—';
-  
-  var orderLink = normalizeUrl(o.orderUrl) || '#';
-  
-  var html = '';
-  if(heading) html += '<p><strong>' + heading + '</strong></p>';
-  
-  html += '<div class="order-card">';
-  html += '<div class="order-card-header">';
-  html += '<div class="order-number">' + o.name + '</div>';
-  html += '<span class="order-pill ' + pill + '">' + pill.charAt(0).toUpperCase() + pill.slice(1) + '</span>';
-  html += '</div>';
-  html += '<div class="order-details">';
-  html += o.thumb ? '<img class="order-thumb" src="' + o.thumb + '" alt="" loading="lazy">' : '<div class="order-thumb"></div>';
-  html += '<div class="order-meta">';
-  html += '<div><span class="dim">Date:</span> ' + o.processedAt + '</div>';
-  html += '<div><span class="dim">Total:</span> ' + o.totalPrice + '</div>';
-  
-  if(gateways !== '—'){
-    html += '<div><span class="dim">Payment:</span> ' + gateways + '</div>';
-  }
-  if(refundLabel !== '—'){
-    html += '<div><span class="dim">Refund:</span> ' + refundLabel + '</div>';
-  }
-  if(returnLabel !== '—' && returnLabel !== 'Possible return/refund'){
-    html += '<div><span class="dim">Returns:</span> ' + returnLabel + '</div>';
-  }
-  if(o.trackingNumber){
-    var trackNum = o.trackingNumber.length > 18 ? o.trackingNumber.substring(0, 18) + '...' : o.trackingNumber;
-    html += '<div><span class="dim">Track:</span> ' + trackNum + '</div>';
-  }
-  if(o.cancelled){
-    html += '<div><span class="dim">Canceled:</span> ' + (o.cancelReason || 'Yes') + '</div>';
-  }
-  html += '</div></div>';
-  
-  // Full-width stacked buttons
-  html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;width:100%;">';
-  html += '<a style="display:block;border-radius:10px;background-color:#f1f1f2;padding:11px 16px;font-size:13px;text-align:center;text-decoration:none;color:#1d1d1f;font-weight:600;" href="' + orderLink + '">View Order</a>';
-  if(o.trackingUrl){
-    html += '<a style="display:block;border-radius:10px;background-color:#007AFF;padding:11px 16px;font-size:13px;text-align:center;text-decoration:none;color:#fff;font-weight:600;" target="_blank" rel="noopener" href="' + o.trackingUrl + '">Track Shipment</a>';
-  }
-  html += '</div>';
-  
-  html += '</div>';
-  
-  return html;
-}
-
-  function handleOrderStatusQuery(){
-  if(!window.customerData || !window.customerData.isLoggedIn){
-    addMessage('bot','To check your order status, please sign in to your account first.');
-    clearQuickActions();
-    addQuickAction('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
-    return;
-  }
-  
-  var orders = window.customerOrders || [];
-  if(!orders.length){
-    addMessage('bot','You don\'t have any orders yet.');
-    clearQuickActions();
-    addQuickAction('Shop All', function(){window.location.href='/collections/all'}, true);
-    return;
-  }
-  
-  
-  var html = '<p><strong>Here is your most recent order</strong></p>';
-  html += renderOrderCard(orders[0]);
-  
-  addMessage('bot', html);
-  clearQuickActions();
-  addQuickAction('View All Orders', function(){window.location.href='/account'}, true);
-}
-
   
   // ===== NEXT ORDER / UPCOMING DELIVERY =====
   if(
@@ -2229,8 +2255,6 @@ function normalizeUrl(u){
   ){
     return handleAccountUpdate('password');
   }
-  
- 
   
   // ===== GENERAL ADDRESS (non-subscription) =====
   if(
@@ -2263,7 +2287,7 @@ function normalizeUrl(u){
     }
   }
 
-   // ===== SUBSCRIPTION MANAGEMENT =====
+  // ===== SUBSCRIPTION MANAGEMENT =====
   const isSubQuery = 
     lowerText.includes('subscription') || 
     lowerText.includes('delivery') || 
@@ -2318,8 +2342,6 @@ function normalizeUrl(u){
       return handleSkipDelivery();
     }
     
-
-    
     if(
       lowerText.includes('date') || 
       lowerText.includes('day') ||
@@ -2344,8 +2366,7 @@ function normalizeUrl(u){
     return handleSubscriptionInfoQuery('all');
   }
   
-
-   // ===== SMART ORDER VS SUBSCRIPTION DETECTION =====
+  // ===== SMART ORDER VS SUBSCRIPTION DETECTION =====
   const isOrderQuery = 
     lowerText.includes('order') || 
     lowerText.includes('shipping') || 
@@ -2400,8 +2421,6 @@ function normalizeUrl(u){
     addQuickAction('Account Settings', () => handleAccountUpdate('general'), false);
     addQuickAction('Contact Support', () => handleCustomerSupport(), false);
   }
-
-
 }
 
 // ============================================================================
@@ -3472,6 +3491,138 @@ function executeIntentAction(intent){
   }
 }
 
+// Auto-resume stored intent on page load
+  function tryExecuteIntent() {
+    const raw = localStorage.getItem('supportChatResumeState');
+    
+    if (!raw) {
+      console.log('No stored intent');
+      return false;
+    }
+    
+    console.log('Found stored intent');
+    
+    // Check if user is logged in
+    if (!window.customerData || !window.customerData.isLoggedIn) {
+      console.log('User not logged in yet');
+      return false;
+    }
+    
+    console.log('User is logged in!');
+    
+    let state;
+    try {
+      state = JSON.parse(raw);
+    } catch(e) {
+      console.error('Invalid state:', e);
+      localStorage.removeItem('supportChatResumeState');
+      return true;
+    }
+    
+    // SECURITY: Validate timestamp (10 minutes)
+    if (state.ts && Date.now() - state.ts > 600000) {
+      console.warn('Intent expired');
+      localStorage.removeItem('supportChatResumeState');
+      addMessage('bot', 'Your session expired. Please try again.');
+      return true;
+    }
+    
+    // SECURITY: Validate customer ID
+    if (state.customerId && state.customerId !== window.customerData.id) {
+      console.error('Customer ID mismatch');
+      localStorage.removeItem('supportChatResumeState');
+      addMessage('system', 'Security error: Session mismatch.');
+      return true;
+    }
+    
+    // Clear state
+    localStorage.removeItem('supportChatResumeState');
+    
+    console.log('Starting chat and executing intent:', state.intent);
+    
+    // Start chat
+    startChat();
+    
+    // Show welcome back message
+    addMessage('system', 'Welcome back! Continuing where you left off...');
+    
+    // Execute intent - wait for functions to be loaded
+    var executeAttempts = 0;  // ADD THIS LINE
+    var maxAttempts = 50;      // ADD THIS LINE
+    function executeStoredIntent(){
+      const payload = state.payload || {};
+
+
+      
+      // DEBUG: Log what functions exist
+  console.log('=== FUNCTION CHECK ===');
+  console.log('handleOrderStatusQuery:', typeof handleOrderStatusQuery);
+  console.log('handleSubscriptionInfoQuery:', typeof handleSubscriptionInfoQuery);
+  console.log('handleNextOrderIntent:', typeof handleNextOrderIntent);
+  console.log('window.handleOrderStatusQuery:', typeof window.handleOrderStatusQuery);
+  
+  executeAttempts++;
+  console.log('Attempt', executeAttempts, '- Attempting to execute intent:', state.intent);
+      
+
+   // Give up after max attempts (ADD THIS CHECK)
+      if(executeAttempts >= maxAttempts){
+        console.error('Gave up waiting for functions to load');
+        addMessage('bot', 'Something went wrong. Please try again.');
+        return;
+      }
+      // Check if key functions exist (wait if not loaded yet)
+      if(typeof handleOrderStatusQuery !== 'function'){
+        console.log('Functions not loaded yet, waiting...');
+        setTimeout(executeStoredIntent, 200);
+        return;
+      }
+      
+      console.log('Functions loaded, executing...');
+      
+      switch (state.intent) {
+        case 'showOrders': 
+          handleOrderStatusQuery(); 
+          break;
+        case 'showSubs':   
+          handleSubscriptionInfoQuery(payload.filter || 'all'); 
+          break;
+        case 'nextOrder':  
+          handleNextOrderIntent(); 
+          break;
+        case 'manageSub':
+          handleSubscriptionManagement(payload.action || 'general');
+          break;
+        case 'cancelSub':
+          handleCancelSubscription();
+          break;
+        case 'customIntent':
+          if(payload.intentId) triggerIntent(payload.intentId);
+          break;
+        default:
+          addMessage('bot', 'You\'re signed in. What would you like to do next?');
+      }
+    }
+    
+    // Start trying to execute after initial delay
+    setTimeout(executeStoredIntent, 800);
+    
+    return true;
+  }
+  
+  // Try immediately
+  if (tryExecuteIntent()) return;
+  
+  // Retry in case customerData loads late
+  let tries = 0;
+  const interval = setInterval(function(){
+    if (tryExecuteIntent() || ++tries >= 15) {
+      clearInterval(interval);
+    }
+  }, 200);
+  
+  window.addEventListener('load', tryExecuteIntent);
+})();
 
 </script>
 
