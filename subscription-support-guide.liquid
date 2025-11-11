@@ -137,7 +137,7 @@ html, body {
 
   /* Modal Header */
   .topics-modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid rgba(0,0,0,.1)}
-  .topics-modal-title{font-size:18px;font-weight:600;color:#1d1d1f;margin:0}
+  .topics-modal-title{font-size:16px;font-weight:600;color:#1d1d1f;margin:0}
   .topics-modal-close{background:transparent;border:none;font-size:24px;color:#86868b;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .2s ease;padding:0}
   .topics-modal-close:hover{background:#f5f5f7;color:#1d1d1f}
 
@@ -151,14 +151,14 @@ html, body {
   .topics-menu{background:#fff}
   .topic-category{border-bottom:1px solid rgba(0,0,0,.06)}
   .topic-category:last-child{border-bottom:none}
-  .topic-accordion-header{display:flex;align-items:center;gap:12px;padding:16px 24px;cursor:pointer;background:#f5f5f7;transition:all .2s ease;user-select:none}
-  .topic-accordion-header:hover{background:#e8e8ed}
+  .topic-accordion-header{display:flex;align-items:center;gap:12px;padding:16px 24px;cursor:pointer;background:#fff;transition:all .2s ease;user-select:none}
+  .topic-accordion-header:hover{background:#fff}
   .topic-accordion-header .category-icon{font-size:18px}
   .topic-accordion-header .category-name{flex:1;font-size:14px;font-weight:600;color:#1d1d1f}
   .topic-accordion-header .accordion-icon{font-size:20px;color:#86868b;transition:transform .3s ease;font-weight:bold}
   .topic-accordion-content{overflow:hidden;transition:max-height .3s ease;background:#fff}
-  .topic-menu-item{padding:14px 24px 14px 56px;cursor:pointer;font-size:14px;color:#1d1d1f;transition:all .2s ease;border-top:1px solid rgba(0,0,0,.04)}
-  .topic-menu-item:hover{background:#f8f8f8;padding-left:60px}
+  .topic-menu-item{padding:14px 24px 14px 56px;cursor:pointer;font-size:14px;color:#1d1d1f;transition:all .2s ease;}
+  .topic-menu-item:hover{padding-left:60px}
   .topic-menu-item:first-child{border-top:none}
 
   .persistent-topics{width:100%;max-width:700px;margin:0 auto}
@@ -1102,11 +1102,11 @@ html, body { height: auto; min-height: 100%; }
   }
 
   .topics-modal-header {
-    padding: 16px 20px;
+    padding: 11px 17px;
   }
 
   .topics-modal-title {
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .topics-menu {
@@ -1118,7 +1118,7 @@ html, body { height: auto; min-height: 100%; }
   }
 
   .topic-accordion-header .category-icon {
-    font-size: 16px;
+    font-size: 13px;
   }
 
   .topic-accordion-header .category-name {
@@ -1355,7 +1355,7 @@ function requireAuthAndContinue(intent, payload = {}) {
     // Show message with clickable link (bypasses popup blocker)
     addMessage('system', `
       <div style="padding:20px;background:#f0f7ff;border:2px solid #007AFF;border-radius:12px;text-align:center;">
-        <p style="margin:0 0 16px;font-weight:600;font-size:16px;">🔐 Sign in required</p>
+        <p style="margin:0 0 16px;font-weight:600;font-size:16px;">Login</p>
         <a href="/account/login" 
            target="_blank"
            style="display:inline-block;background:#007AFF;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:16px;transition:transform 0.2s ease;"
@@ -1432,16 +1432,15 @@ function handleInitialSignIn() {
       `;
 
       overlay.innerHTML = `
-        <div style="max-width:400px;text-align:center;padding:30px;background:white;border:2px solid #007AFF;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
-          <p style="margin:0 0 20px;font-weight:600;font-size:18px;color:#333;">🔐 Sign In Required</p>
+        <div style="max-width:350px;text-align:center;padding:30px;background:white;border:1px solidrgb(0, 123, 255);border-radius:12px;">
+          <p style="margin:0 0 20px;font-weight:600;font-size:18px;color:#333;">Login</p>
           <p style="margin:0 0 24px;color:#666;font-size:14px;line-height:1.6;">
-            A new tab has been opened for you to sign in.<br>
-            After signing in, return here and click continue.
+            A new tab has been opened for you to sign in. After signing in, return here to continue your chat.
           </p>
-          <button onclick="location.reload()" style="background:#007AFF;color:white;padding:12px 32px;border:none;border-radius:8px;font-weight:600;font-size:16px;cursor:pointer;margin-right:10px;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            Continue (After Signing In)
+          <button onclick="location.reload()" style="background:#4d95e4;color:white;padding:6px 16px;border:none;border-radius:8px;font-weight:500;font-size:14px;cursor:pointer;margin-right:10px;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+            Continue
           </button>
-          <button onclick="cancelInitialSignIn()" style="background:#f0f0f0;color:#333;padding:12px 32px;border:none;border-radius:8px;font-weight:600;font-size:16px;cursor:pointer;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+          <button onclick="cancelInitialSignIn()" style="background:#f0f0f0;color:#333;padding:6px 16px;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
             Cancel
           </button>
         </div>
@@ -3123,11 +3122,11 @@ function toggleTopics(){
           if(isOpen){
             content.style.maxHeight = '0';
             icon.style.transform = 'rotate(0deg)';
-            header.style.background = '#f5f5f7';
+            header.style.background = '#f1f1f2';
           } else {
             content.style.maxHeight = content.scrollHeight + 'px';
             icon.style.transform = 'rotate(90deg)';
-            header.style.background = '#e8e8ed';
+            header.style.background = '#f1f1f2';
           }
         });
       })(accordionHeaders[i]);
