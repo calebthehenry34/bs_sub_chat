@@ -1202,8 +1202,11 @@ body:not(.keyboard-open) .input-section {
       
 
 <script>
+// ============================================================================
+// INITIALIZATION & DATA LOADING
+// ============================================================================
 
-  // Load intents from Shopify Theme Customizer blocks
+// Load intents from Shopify Theme Customizer blocks
 var chatIntents = [];
 {% for block in section.blocks %}
   {% if block.type == 'intent' %}
@@ -1238,8 +1241,11 @@ if(!window.shopSettings) {
   window.shopSettings = { contactEmail: 'support@example.com' };
 }
 
-        /* ---------------- Boot data ---------------- */
-        window.customerData = {
+// ============================================================================
+// CUSTOMER DATA & SHOP SETTINGS
+// ============================================================================
+
+window.customerData = {
           isLoggedIn: {{ customer | json }} ? true : false,
           firstName: {{ customer.first_name | json }},
           lastName: {{ customer.last_name | json }},
@@ -1250,8 +1256,11 @@ if(!window.shopSettings) {
           contactEmail: {{ shop.customer_email | json }} || {{ shop.email | json }}
         };
 
+// ============================================================================
+// CUSTOMER ORDERS DATA
+// ============================================================================
+
         {% if customer %}
-        /* Orders with thumbnails + payment/refund/returns signals */
         window.customerOrders = [
           {% for order in customer.orders limit: 20 %}
             {% assign li = order.line_items.first %}
@@ -1280,8 +1289,11 @@ if(!window.shopSettings) {
         window.customerOrders = [];
         {% endif %}
 
+// ============================================================================
+// CUSTOMER SUBSCRIPTIONS DATA
+// ============================================================================
+
         {% if customer %}
-/* Subscriptions: metafields first, then infer from orders' selling plans */
 window.customerSubscriptions = [];
 
 {% if customer.metafields.subscriptions %}
@@ -1316,6 +1328,10 @@ window.customerSubscriptions = [];
 window.customerSubscriptions = [];
 {% endif %}
 
+// ============================================================================
+// SUBSCRIPTION APP CONFIGURATION
+// ============================================================================
+
         window.subscriptionApp = {
           hasAppstle: {% if shop.metafields.appstle %}true{% else %}false{% endif %},
           hasRecharge: {% if shop.metafields.recharge %}true{% else %}false{% endif %},
@@ -1323,7 +1339,11 @@ window.customerSubscriptions = [];
           manageUrl: "https://www.bluesky-cbd.com/apps/subscriptions?country=US#/subscriptions/list"
         };
 
-/* Start Over button: spin on click + reset chat */
+// ============================================================================
+// UI EVENT HANDLERS
+// ============================================================================
+
+// Start Over button: spin on click + reset chat
 (function startOverButtonWithSpin(){
   const btn = document.getElementById('startOverBtn');
   if(!btn) return;
@@ -1352,7 +1372,11 @@ window.customerSubscriptions = [];
   });
 })();
 
-// === Universal Mobile Keyboard Fix (Chrome + Safari) ===
+// ============================================================================
+// MOBILE KEYBOARD FIX
+// ============================================================================
+
+// Universal Mobile Keyboard Fix (Chrome + Safari)
 (function universalKeyboardFix(){
   var chatInput = document.getElementById('chatInput');
   var chatContent = document.getElementById('chatContent');
@@ -1484,10 +1508,10 @@ window.customerSubscriptions = [];
   });
 })();
 
-</script>
-<script>
+// ============================================================================
+// BOTTOM SPACE RESERVATION
+// ============================================================================
 
-  
 (function reserveBottomSpace(){
   const root = document.documentElement;
 
@@ -1621,7 +1645,15 @@ window.customerSubscriptions = [];
 </div>
 
 <script>
-/* ---------- Topic/step dataset (unchanged structure) ---------- */
+// ============================================================================
+// CHAT APPLICATION - MAIN SCRIPT
+// ============================================================================
+
+// ============================================================================
+// CONVERSATION DATA & CONFIGURATION
+// ============================================================================
+
+// Topic/step dataset
 const conversationData={
 {% for block in section.blocks %}
   {% if block.type == 'topic' %}
@@ -1661,6 +1693,10 @@ const messagesContainer=document.getElementById('chatMessages'),
       supportContainer=document.querySelector('.support-container');
 
 function prefill(text){ chatInput.value=text; sendMessage(); }
+
+// ============================================================================
+// AUTHENTICATION & SESSION MANAGEMENT
+// ============================================================================
 
 // Save state, send to login, and return to subscription support page with ?resume=1
 function requireAuthAndContinue(intent, payload = {}) {
@@ -1750,8 +1786,11 @@ window.startChat = function(){
   window.addEventListener('load', tryResume);
 })();
 
-/* ---------- Improve subscription buckets (active/paused/canceled/expired/inactive) ---------- */
-/* ---------- Enhanced subscription status detection ---------- */
+// ============================================================================
+// SUBSCRIPTION STATUS & BUCKETIZATION
+// ============================================================================
+
+// Enhanced subscription status detection with intelligent defaults
 function bucketizeSubscription(sub){
   if(!sub) return 'inactive';
   
@@ -1821,7 +1860,11 @@ function extractFrequencyDays(frequency){
   return 30;
 }
 
-/* ---------- Placeholders rotate ---------- */
+// ============================================================================
+// INITIALIZATION & EVENT LISTENERS
+// ============================================================================
+
+// Placeholders rotate
 const placeholders=['Change my subscription date','Skip my next delivery','Update my payment method','Where is my order?','Cancel my subscription','Change my shipping address'];
 let placeholderIndex=0;
 function rotatePlaceholder(){if(chatInput.value.length===0&&!chatStarted){chatInput.classList.add('placeholder-animating');setTimeout(()=>{placeholderIndex=(placeholderIndex+1)%placeholders.length;chatInput.placeholder=placeholders[placeholderIndex];chatInput.classList.remove('placeholder-animating')},300)}}
@@ -1831,7 +1874,10 @@ chatInput.placeholder=placeholders[0];
 chatInput.addEventListener('input',function(){this.style.height='auto';this.style.height=(this.scrollHeight)+'px'});
 chatInput.addEventListener('keypress',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});
 
-/* ---------- Chat lifecycle ---------- */
+// ============================================================================
+// CHAT LIFECYCLE
+// ============================================================================
+
 function startChat(){
   if(!chatStarted){
     chatStarted=true;
@@ -1842,6 +1888,10 @@ function startChat(){
     supportContainer.classList.add('chat-active');
   }
 }
+
+// ============================================================================
+// MESSAGE & UI RENDERING
+// ============================================================================
 
 function addMessage(sender, text){
     var messageDiv = document.createElement('div');
@@ -2350,8 +2400,12 @@ function normalizeUrl(u){
     addQuickAction('Contact Support', () => handleCustomerSupport(), false);
   }
 
-  
+
 }
+
+// ============================================================================
+// INTENT HANDLERS
+// ============================================================================
 
 function handleCustomerSupport(){
   const contactEmail = window.shopSettings.contactEmail || 'support@bluesky-cbd.com';
@@ -2640,6 +2694,9 @@ function startTopic(topicTitle){
   },400);
 }
 
+// ============================================================================
+// TOPIC & STEP NAVIGATION
+// ============================================================================
 
 function showStep(topicTitle, stepIndex){
   var topic = conversationData[topicTitle];
@@ -3260,7 +3317,11 @@ function waitForImages(el, timeoutMs = 3000){
   });
 })();
 
-/* Smoothly animate an element's height from its current size to its new size */
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+// Smoothly animate an element's height from its current size to its new size
 function animateHeight(el, mutateFn, duration = 280){
   if (!el) { mutateFn?.(); return; }
   const rmo = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
