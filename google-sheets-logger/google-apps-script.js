@@ -48,11 +48,25 @@ function doOptions(e) {
  */
 function doPost(e) {
   try {
+    // Check if we have postData
+    if (!e || !e.postData) {
+      console.error('No postData received. Event object:', JSON.stringify(e));
+      return createResponse(400, { error: 'No data received' });
+    }
+
     // Parse incoming data
-    const data = JSON.parse(e.postData.contents);
+    let data;
+    try {
+      data = JSON.parse(e.postData.contents);
+    } catch (parseError) {
+      console.error('Failed to parse JSON:', parseError);
+      console.error('Raw postData:', e.postData.contents);
+      return createResponse(400, { error: 'Invalid JSON: ' + parseError.toString() });
+    }
 
     // Validate required fields
     if (!data.sessionId || !data.sender || !data.message || !data.timestamp) {
+      console.error('Missing required fields. Received data:', JSON.stringify(data));
       return createResponse(400, { error: 'Missing required fields' });
     }
 
@@ -62,10 +76,12 @@ function doPost(e) {
     // Append the log entry
     appendLog(sheet, data);
 
+    console.log('Successfully logged message from:', data.sender);
     return createResponse(200, { success: true, message: 'Log stored' });
 
   } catch (error) {
     console.error('Error logging chat:', error);
+    console.error('Stack trace:', error.stack);
     return createResponse(500, { error: error.toString() });
   }
 }
