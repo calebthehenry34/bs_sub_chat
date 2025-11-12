@@ -1961,9 +1961,11 @@ function prefill(text){ chatInput.value=text; sendMessage(); }
 // ============================================================================
 
 // Configuration for chat logging endpoint
+// RECOMMENDED: Use Google Sheets (see google-sheets-logger/SETUP.md)
+// Just paste your Google Apps Script web app URL below
 const CHAT_LOG_CONFIG = {
   enabled: true,
-  endpoint: 'YOUR_LOGGING_ENDPOINT_URL', // Replace with your serverless function URL
+  endpoint: 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL', // Replace with your Google Apps Script URL
   sessionId: null
 };
 
@@ -1978,7 +1980,7 @@ function getAnonymousSessionId() {
 
 // Anonymously log chat messages (strips all PII)
 async function logChatMessageAnonymously(sender, text, timestamp) {
-  if (!CHAT_LOG_CONFIG.enabled || CHAT_LOG_CONFIG.endpoint === 'YOUR_LOGGING_ENDPOINT_URL') {
+  if (!CHAT_LOG_CONFIG.enabled || CHAT_LOG_CONFIG.endpoint === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
     return; // Skip if not configured
   }
 
