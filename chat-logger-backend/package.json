@@ -1,0 +1,20 @@
+{
+  "name": "chat-logger-backend",
+  "version": "1.0.0",
+  "description": "Anonymous chat logger with daily email reports",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js",
+    "send-report": "node cron-daily-report.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.7"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.x"
+  },
+  "author": "Wild Inc",
+  "license": "MIT"
+}
