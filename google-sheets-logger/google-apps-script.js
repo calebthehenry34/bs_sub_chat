@@ -36,6 +36,14 @@ const CONFIG = {
 };
 
 /**
+ * Handle OPTIONS requests (CORS preflight)
+ * This is required for browser requests to work
+ */
+function doOptions(e) {
+  return createCorsResponse();
+}
+
+/**
  * Main function - handles incoming POST requests
  */
 function doPost(e) {
@@ -66,9 +74,9 @@ function doPost(e) {
  * Handle GET requests (for testing)
  */
 function doGet(e) {
-  return ContentService.createTextOutput(
-    'Chat Logger is running! Send POST requests to log chats.'
-  );
+  return ContentService
+    .createTextOutput('Chat Logger is running! Send POST requests to log chats.')
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 /**
@@ -187,12 +195,45 @@ function archiveOldLogsIfNeeded(sheet) {
 }
 
 /**
- * Create HTTP response
+ * Create HTTP response with CORS headers
  */
 function createResponse(statusCode, data) {
-  return ContentService
+  const output = ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+
+  // Add CORS headers to allow requests from any domain
+  return addCorsHeaders(output);
+}
+
+/**
+ * Create CORS preflight response
+ */
+function createCorsResponse() {
+  const output = ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
+
+  return addCorsHeaders(output);
+}
+
+/**
+ * Add CORS headers to response
+ */
+function addCorsHeaders(output) {
+  // Allow requests from any origin
+  output.setHeader('Access-Control-Allow-Origin', '*');
+
+  // Allow specific headers
+  output.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // Allow specific methods
+  output.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+
+  // Cache preflight for 1 hour
+  output.setHeader('Access-Control-Max-Age', '3600');
+
+  return output;
 }
 
 /**

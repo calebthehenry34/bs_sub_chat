@@ -224,6 +224,41 @@ If this works but Shopify doesn't log, check browser console for errors.
 4. Try sending a chat message
 5. Look for red errors related to `logChatMessageAnonymously`
 
+### ❌ CORS Error (Most Common Issue!)
+
+**Error message:** `Access to fetch at 'https://script.google.com/...' has been blocked by CORS policy`
+
+This means the Apps Script needs to be updated to handle cross-origin requests properly.
+
+**Solution - Update and Redeploy:**
+
+1. **Go to your Apps Script editor** (Extensions → Apps Script)
+
+2. **Replace ALL the code** with the latest version from `google-sheets-logger/google-apps-script.js`
+   - The updated version includes `doOptions()` function and CORS headers
+   - Make sure you copy the ENTIRE file
+
+3. **Save the script** (Ctrl/Cmd + S)
+
+4. **Redeploy:**
+   - Click **Deploy** → **Manage deployments**
+   - Click the pencil icon ✏️ (Edit) next to your existing deployment
+   - Change **Version** to "New version"
+   - Click **Deploy**
+
+5. **Test again** - The CORS error should be gone!
+
+**Why this happens:**
+Google Apps Script needs special handling for CORS (Cross-Origin Resource Sharing) because your Shopify site is on a different domain than Google's servers. The updated script includes:
+- `doOptions()` function to handle preflight requests
+- Proper CORS headers on all responses
+- Support for cross-origin requests from any domain
+
+**If you still see the error after redeploying:**
+- Clear your browser cache (Ctrl/Cmd + Shift + R)
+- Make sure you deployed a "New version" (not the old one)
+- Wait 2-3 minutes for Google's servers to update
+
 ### ❌ "Authorization required" error
 
 This means the script needs permission:
