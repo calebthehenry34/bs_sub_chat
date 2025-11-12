@@ -1980,7 +1980,7 @@ function getAnonymousSessionId() {
 
 // Anonymously log chat messages (strips all PII)
 async function logChatMessageAnonymously(sender, text, timestamp) {
-  if (!CHAT_LOG_CONFIG.enabled || CHAT_LOG_CONFIG.endpoint === 'https://script.google.com/macros/s/AKfycbzc5f4pP21HJeh3Yu8TeiEb3BBoVt5cHjNXNgfMvm4HWE4eJZU2iRhYDEtddYqFZYY3kQ/exec') {
+  if (!CHAT_LOG_CONFIG.enabled || CHAT_LOG_CONFIG.endpoint === 'https://script.google.com/macros/s/AKfycby9HnX28ulxsW9AilxmAVOr-IceiUsUI7JH0wdIUIFUyq5mr5TenFagYpSJ_Om4Ori3LA/exec') {
     return; // Skip if not configured
   }
 
