@@ -20,6 +20,8 @@ No backend, no email setup, no server deployment. Just a Google Sheet.
 
 👉 **[See detailed setup guide →](SETUP.md)**
 
+⚠️ **Getting a CORS error?** See **[CORS-FIX.md](CORS-FIX.md)** for a 2-minute fix!
+
 ---
 
 ## 📊 What It Does
