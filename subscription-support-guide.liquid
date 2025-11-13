@@ -1986,23 +1986,24 @@ async function logChatMessageAnonymously(sender, text, timestamp) {
 
   try {
     // Create anonymous log entry - NO customer emails, IDs, or PII
-    const anonymousLog = {
+    const logData = {
       sessionId: getAnonymousSessionId(),
       sender: sender, // 'user' or 'bot' or 'system'
       message: sanitizeMessageForLogging(text),
       timestamp: timestamp,
-      topic: currentTopic,
+      topic: currentTopic || '',
       userAgent: navigator.userAgent.split(' ')[0], // Just browser type, not full UA
       shopDomain: window.location.hostname
     };
 
-    // Send to logging endpoint (non-blocking)
-    fetch(CHAT_LOG_CONFIG.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(anonymousLog)
+    // Build URL with query parameters (GET request - no CORS preflight!)
+    const params = new URLSearchParams(logData);
+    const url = `${CHAT_LOG_CONFIG.endpoint}?${params.toString()}`;
+
+    // Send as GET request to avoid CORS issues
+    fetch(url, {
+      method: 'GET',
+      mode: 'no-cors' // Prevents CORS errors
     }).catch(err => {
       // Silently fail - don't disrupt user experience
       console.debug('Chat logging failed:', err);
