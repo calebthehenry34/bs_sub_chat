@@ -1490,6 +1490,66 @@ var chatIntents = [];
   {% endif %}
 {% endfor %}
 
+// Load product information for recommendations
+var productDatabase = [];
+{% for block in section.blocks %}
+  {% if block.type == 'product_info' %}
+    productDatabase.push({
+      id: "{{ block.id }}",
+      name: "{{ block.settings.product_name | escape }}",
+      description: {{ block.settings.product_description | json }},
+      image: {% if block.settings.product_image %}{{ block.settings.product_image | image_url: width: 400 | json }}{% elsif block.settings.product_reference.featured_image %}{{ block.settings.product_reference.featured_image | image_url: width: 400 | json }}{% else %}null{% endif %},
+      url: {% if block.settings.product_reference %}"/products/{{ block.settings.product_reference.handle }}"{% else %}null{% endif %},
+      price: {% if block.settings.product_reference %}{{ block.settings.product_reference.price | money | json }}{% else %}null{% endif %},
+      useCases: {{ block.settings.use_cases | newline_to_br | split: '<br />' | json }},
+      strength: "{{ block.settings.strength }}",
+      experienceLevel: "{{ block.settings.experience_level }}",
+      benefits: {{ block.settings.key_benefits | newline_to_br | split: '<br />' | json }},
+      priority: {{ block.settings.priority | default: 5 }}
+    });
+  {% endif %}
+{% endfor %}
+
+// Load product recommendation flows
+var productRecommendationFlows = [];
+{% for block in section.blocks %}
+  {% if block.type == 'product_recommendation_flow' %}
+    productRecommendationFlows.push({
+      id: "{{ block.id }}",
+      name: "{{ block.settings.flow_name | escape }}",
+      triggers: {{ block.settings.trigger_phrases | newline_to_br | split: '<br />' | json }},
+      welcomeMessage: {{ block.settings.welcome_message | json }},
+      questions: [
+        {
+          text: {{ block.settings.question_1 | json }},
+          options: {{ block.settings.question_1_options | newline_to_br | split: '<br />' | json }},
+          key: "concern"
+        },
+        {
+          text: {{ block.settings.question_2 | json }},
+          options: {{ block.settings.question_2_options | newline_to_br | split: '<br />' | json }},
+          key: "severity"
+        },
+        {
+          text: {{ block.settings.question_3 | json }},
+          options: {{ block.settings.question_3_options | newline_to_br | split: '<br />' | json }},
+          key: "experience"
+        }
+      ],
+      noMatchMessage: {{ block.settings.no_match_message | json }},
+      showInTopics: {{ block.settings.show_in_topics | json }}
+    });
+  {% endif %}
+{% endfor %}
+
+// Product recommendation flow state
+var productRecommendationState = {
+  active: false,
+  flowId: null,
+  currentQuestion: 0,
+  answers: {}
+};
+
 // ===== SAFETY CHECKS =====
 if(!window.customerData) {
   window.customerData = {
@@ -1521,21 +1581,52 @@ var aiIntentConfig = {
   var welcomeTopicsContainer = document.getElementById('welcomeTopics');
   if(!welcomeTopicsContainer) return;
 
-  // Get first 3 intents that should show in topics
-  var topicsToShow = [];
-  for(var i = 0; i < chatIntents.length && topicsToShow.length < 3; i++){
-    if(chatIntents[i].showInTopics){
-      topicsToShow.push(chatIntents[i]);
+  // Combine intents and product recommendation flows
+  var allTopics = [];
+
+  // Add product recommendation flows first (they're typically high priority)
+  for(var i = 0; i < productRecommendationFlows.length; i++){
+    if(productRecommendationFlows[i].showInTopics){
+      allTopics.push({
+        type: 'product_flow',
+        id: productRecommendationFlows[i].id,
+        name: productRecommendationFlows[i].name,
+        requireLogin: false
+      });
     }
   }
 
+  // Add regular intents
+  for(var i = 0; i < chatIntents.length; i++){
+    if(chatIntents[i].showInTopics){
+      allTopics.push({
+        type: 'intent',
+        id: chatIntents[i].id,
+        name: chatIntents[i].name,
+        requireLogin: chatIntents[i].requireLogin || false
+      });
+    }
+  }
+
+  // Get first 3 topics
+  var topicsToShow = allTopics.slice(0, 3);
+
   // Create and append topic pills
-  topicsToShow.forEach(function(intent){
+  topicsToShow.forEach(function(topic){
     var btn = document.createElement('button');
     btn.className = 'welcome-topic-btn';
-    btn.textContent = intent.name;
+    // Add lock icon for login-required topics
+    if(topic.requireLogin){
+      btn.innerHTML = '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + topic.name;
+    } else {
+      btn.textContent = topic.name;
+    }
     btn.onclick = function(){
-      triggerIntent(intent.id);
+      if(topic.type === 'product_flow'){
+        triggerProductRecommendationFlow(topic.id);
+      } else {
+        triggerIntent(topic.id);
+      }
     };
     welcomeTopicsContainer.appendChild(btn);
   });
@@ -2238,6 +2329,19 @@ function addMessage(sender, text){
 }
 
 function formatMessage(text){
+  // Ensure text is a string
+  if (typeof text !== 'string') {
+    if (text === null || text === undefined) {
+      return '<p></p>';
+    }
+    // Convert objects/arrays to string representation
+    try {
+      text = String(text);
+    } catch(e) {
+      return '<p></p>';
+    }
+  }
+
   if(text.includes('<div class="subscription-card">') || text.includes('<div class="order-card">')){
     return text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
   }
@@ -2634,7 +2738,20 @@ function routeIntent(lowerText, aiResult){
     if (handled) return;
   }
 
-  // ===== CHECK CUSTOM INTENTS FIRST =====
+  // ===== CHECK PRODUCT RECOMMENDATION FLOWS FIRST =====
+  for(var i = 0; i < productRecommendationFlows.length; i++){
+    var flow = productRecommendationFlows[i];
+
+    for(var j = 0; j < flow.triggers.length; j++){
+      var trigger = flow.triggers[j].toLowerCase().trim();
+      if(trigger && lowerText.includes(trigger)){
+        startProductRecommendationFlow(flow.id);
+        return;
+      }
+    }
+  }
+
+  // ===== CHECK CUSTOM INTENTS =====
   for(var i = 0; i < chatIntents.length; i++){
     var intent = chatIntents[i];
     
@@ -3337,11 +3454,29 @@ function renderTopicsMenu(){
     'support': {name: 'Support & Contact', icon: '💬', intents: []}
   };
 
+  // Add product recommendation flows to the products category first
+  for(var i = 0; i < productRecommendationFlows.length; i++){
+    var flow = productRecommendationFlows[i];
+    if(flow.showInTopics){
+      categories['products'].intents.push({
+        id: flow.id,
+        name: flow.name,
+        type: 'product_flow',
+        requireLogin: false
+      });
+    }
+  }
+
   // Filter and categorize intents that should show in topics
   for(var i = 0; i < chatIntents.length; i++){
     var intent = chatIntents[i];
     if(intent.showInTopics && categories[intent.category]){
-      categories[intent.category].intents.push(intent);
+      categories[intent.category].intents.push({
+        id: intent.id,
+        name: intent.name,
+        type: 'intent',
+        requireLogin: intent.requireLogin || false
+      });
     }
   }
 
@@ -3360,9 +3495,16 @@ function renderTopicsMenu(){
       html += '<div class="topic-accordion-content" style="max-height:0">';
 
       for(var j = 0; j < category.intents.length; j++){
-        var intent = category.intents[j];
-        html += '<div class="topic-menu-item" data-intent-id="' + intent.id + '">';
-        html += intent.name;
+        var item = category.intents[j];
+        var dataAttr = item.type === 'product_flow' ? 'data-flow-id' : 'data-intent-id';
+        html += '<div class="topic-menu-item" ' + dataAttr + '="' + item.id + '">';
+        if(item.type === 'product_flow'){
+          html += '🎯 ' + item.name;
+        } else if(item.requireLogin){
+          html += '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + item.name;
+        } else {
+          html += item.name;
+        }
         html += '</div>';
       }
 
@@ -3427,7 +3569,15 @@ function toggleTopics(){
           e.stopPropagation();
 
           var intentId = item.getAttribute('data-intent-id');
-          triggerIntent(intentId);
+          var flowId = item.getAttribute('data-flow-id');
+
+          if(flowId){
+            // Handle product recommendation flow
+            triggerProductRecommendationFlow(flowId);
+          } else if(intentId){
+            // Handle regular intent
+            triggerIntent(intentId);
+          }
 
           // Close modal
           closeTopicsModal();
@@ -3812,6 +3962,289 @@ function executeIntentAction(intent){
 }
 
 // ============================================================================
+// PRODUCT RECOMMENDATION FLOW HANDLERS
+// ============================================================================
+
+// Start a product recommendation flow
+function startProductRecommendationFlow(flowId) {
+  var flow = null;
+  for (var i = 0; i < productRecommendationFlows.length; i++) {
+    if (productRecommendationFlows[i].id === flowId) {
+      flow = productRecommendationFlows[i];
+      break;
+    }
+  }
+
+  if (!flow) {
+    console.error('Product recommendation flow not found:', flowId);
+    return;
+  }
+
+  // Initialize state
+  productRecommendationState = {
+    active: true,
+    flowId: flowId,
+    currentQuestion: 0,
+    answers: {}
+  };
+
+  // Show welcome message
+  addMessage('bot', flow.welcomeMessage);
+
+  // Show first question after a short delay
+  setTimeout(function() {
+    showProductRecommendationQuestion(flow, 0);
+  }, 600);
+}
+
+// Show a question in the recommendation flow
+function showProductRecommendationQuestion(flow, questionIndex) {
+  if (questionIndex >= flow.questions.length) {
+    // All questions answered, generate recommendation
+    generateProductRecommendation(flow);
+    return;
+  }
+
+  var question = flow.questions[questionIndex];
+
+  // Parse options (format: "Label|value")
+  var parsedOptions = [];
+  for (var i = 0; i < question.options.length; i++) {
+    var opt = question.options[i].trim();
+    if (opt) {
+      var parts = opt.split('|');
+      if (parts.length >= 2) {
+        parsedOptions.push({
+          label: parts[0].trim(),
+          value: parts[1].trim()
+        });
+      } else {
+        parsedOptions.push({
+          label: opt,
+          value: opt.toLowerCase().replace(/\s+/g, '_')
+        });
+      }
+    }
+  }
+
+  // Show question text
+  addMessage('bot', question.text);
+
+  // Clear existing quick actions and show options as buttons
+  clearQuickActions();
+
+  parsedOptions.forEach(function(option) {
+    addQuickAction(option.label, function() {
+      handleProductRecommendationAnswer(flow, questionIndex, question.key, option.value, option.label);
+    }, false);
+  });
+}
+
+// Handle user's answer to a recommendation question
+function handleProductRecommendationAnswer(flow, questionIndex, key, value, label) {
+  // Show user's selection
+  addMessage('user', label);
+
+  // Store the answer
+  productRecommendationState.answers[key] = value;
+  productRecommendationState.currentQuestion = questionIndex + 1;
+
+  // Clear quick actions
+  clearQuickActions();
+
+  // Show next question or generate recommendation
+  setTimeout(function() {
+    showProductRecommendationQuestion(flow, questionIndex + 1);
+  }, 400);
+}
+
+// Generate product recommendations based on answers
+function generateProductRecommendation(flow) {
+  var answers = productRecommendationState.answers;
+
+  // Score each product based on how well it matches the answers
+  var scoredProducts = [];
+
+  for (var i = 0; i < productDatabase.length; i++) {
+    var product = productDatabase[i];
+    var score = 0;
+    var matchReasons = [];
+
+    // Check use case match (concern)
+    if (answers.concern) {
+      var concernLower = answers.concern.toLowerCase();
+      for (var j = 0; j < product.useCases.length; j++) {
+        var useCase = product.useCases[j].toLowerCase().trim();
+        if (useCase && (useCase.includes(concernLower) || concernLower.includes(useCase))) {
+          score += 50; // High weight for primary concern match
+          matchReasons.push('Addresses ' + answers.concern);
+          break;
+        }
+      }
+    }
+
+    // Check severity/strength match
+    if (answers.severity) {
+      var strengthMap = {
+        'mild': ['mild', 'moderate'],
+        'moderate': ['moderate', 'strong'],
+        'severe': ['strong', 'extra_strong']
+      };
+
+      var appropriateStrengths = strengthMap[answers.severity] || ['moderate'];
+      if (appropriateStrengths.indexOf(product.strength) !== -1) {
+        score += 30;
+        matchReasons.push('Appropriate strength');
+      }
+    }
+
+    // Check experience level match
+    if (answers.experience) {
+      if (product.experienceLevel === 'all' || product.experienceLevel === answers.experience) {
+        score += 20;
+        matchReasons.push('Suitable for your experience level');
+      } else if (
+        (answers.experience === 'beginner' && product.experienceLevel === 'intermediate') ||
+        (answers.experience === 'intermediate' && (product.experienceLevel === 'beginner' || product.experienceLevel === 'experienced')) ||
+        (answers.experience === 'experienced' && product.experienceLevel === 'intermediate')
+      ) {
+        score += 10; // Partial match
+      }
+    }
+
+    // Add priority bonus
+    score += product.priority;
+
+    if (score > 0) {
+      scoredProducts.push({
+        product: product,
+        score: score,
+        reasons: matchReasons
+      });
+    }
+  }
+
+  // Sort by score (highest first)
+  scoredProducts.sort(function(a, b) {
+    return b.score - a.score;
+  });
+
+  // Reset recommendation state
+  productRecommendationState.active = false;
+
+  // Display recommendations
+  if (scoredProducts.length === 0) {
+    addMessage('bot', flow.noMatchMessage);
+    clearQuickActions();
+    addQuickAction('Contact Support', function() { handleCustomerSupport(); }, true);
+    addQuickAction('Browse All Products', function() { window.location.href = '/collections/all'; }, false);
+  } else {
+    displayProductRecommendations(scoredProducts.slice(0, 3)); // Show top 3 matches
+  }
+}
+
+// Display product recommendations in a nice card format
+function displayProductRecommendations(scoredProducts) {
+  var html = '<div style="margin-bottom: 12px;"><strong>Based on your answers, here are my top recommendations:</strong></div>';
+
+  html += '<div style="display: flex; flex-direction: column; gap: 16px;">';
+
+  for (var i = 0; i < scoredProducts.length; i++) {
+    var item = scoredProducts[i];
+    var product = item.product;
+    var isTopPick = i === 0;
+
+    html += '<div style="background: ' + (isTopPick ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f8f9fa') + '; border-radius: 12px; padding: 16px; ' + (isTopPick ? 'color: white;' : 'border: 1px solid #e0e0e0;') + '">';
+
+    if (isTopPick) {
+      html += '<div style="font-size: 12px; font-weight: 600; margin-bottom: 8px; opacity: 0.9;">⭐ TOP RECOMMENDATION</div>';
+    }
+
+    html += '<div style="display: flex; gap: 12px;">';
+
+    // Product image
+    if (product.image) {
+      html += '<div style="flex-shrink: 0;">';
+      html += '<img src="' + product.image + '" alt="' + product.name + '" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;">';
+      html += '</div>';
+    }
+
+    // Product info
+    html += '<div style="flex: 1;">';
+    html += '<div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">' + product.name + '</div>';
+
+    if (product.price) {
+      html += '<div style="font-size: 14px; margin-bottom: 6px; ' + (isTopPick ? 'opacity: 0.9;' : 'color: #667eea; font-weight: 600;') + '">' + product.price + '</div>';
+    }
+
+    html += '<div style="font-size: 13px; margin-bottom: 8px; ' + (isTopPick ? 'opacity: 0.85;' : 'color: #666;') + '">' + product.description + '</div>';
+
+    // Match reasons
+    if (item.reasons.length > 0) {
+      html += '<div style="font-size: 12px; ' + (isTopPick ? 'opacity: 0.8;' : 'color: #888;') + '">';
+      html += '✓ ' + item.reasons.join(' • ');
+      html += '</div>';
+    }
+
+    html += '</div>';
+    html += '</div>';
+
+    // View product button
+    if (product.url) {
+      html += '<div style="margin-top: 12px;">';
+      html += '<a href="' + product.url + '" style="display: inline-block; background: ' + (isTopPick ? 'rgba(255,255,255,0.2)' : '#667eea') + '; color: ' + (isTopPick ? 'white' : 'white') + '; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-size: 14px; font-weight: 500;">View Product</a>';
+      html += '</div>';
+    }
+
+    html += '</div>';
+  }
+
+  html += '</div>';
+
+  addMessage('bot', html);
+
+  // Add follow-up actions
+  clearQuickActions();
+  addQuickAction('Ask Another Question', function() { clearQuickActions(); }, false);
+  addQuickAction('Start Over', function() {
+    if (productRecommendationState.flowId) {
+      startProductRecommendationFlow(productRecommendationState.flowId);
+    }
+  }, false);
+  addQuickAction('Contact Support', function() { handleCustomerSupport(); }, false);
+}
+
+// Trigger a product recommendation flow by ID (for topic menu)
+function triggerProductRecommendationFlow(flowId) {
+  console.log('triggerProductRecommendationFlow CALLED with:', flowId);
+
+  // Start chat if not already started
+  if (typeof startChat === 'function') {
+    try {
+      startChat();
+    } catch (e) {
+      console.log('startChat error (may be already started):', e);
+    }
+  }
+
+  var flow = null;
+  for (var i = 0; i < productRecommendationFlows.length; i++) {
+    if (productRecommendationFlows[i].id === flowId) {
+      flow = productRecommendationFlows[i];
+      break;
+    }
+  }
+
+  if (!flow) {
+    console.error('Product recommendation flow not found!');
+    return;
+  }
+
+  addMessage('user', flow.name);
+  startProductRecommendationFlow(flowId);
+}
+
+// ============================================================================
 // AUTO-RESUME STORED INTENT ON PAGE LOAD
 // ============================================================================
 
@@ -4192,7 +4625,180 @@ function executeIntentAction(intent){
       "default": false
     }
   ]
-}
+},
+    {
+      "type": "product_info",
+      "name": "🛍️ Product Info",
+      "settings": [
+        {
+          "type": "paragraph",
+          "content": "Define product information for recommendations. Add multiple product blocks to build your recommendation database."
+        },
+        {
+          "type": "text",
+          "id": "product_name",
+          "label": "Product Name",
+          "default": "Product Name"
+        },
+        {
+          "type": "product",
+          "id": "product_reference",
+          "label": "Product Reference",
+          "info": "Select the actual Shopify product"
+        },
+        {
+          "type": "textarea",
+          "id": "product_description",
+          "label": "Short Description",
+          "info": "Brief description shown in recommendations",
+          "default": "A great product for your needs."
+        },
+        {
+          "type": "image_picker",
+          "id": "product_image",
+          "label": "Product Image",
+          "info": "Override product image (optional - uses product image if not set)"
+        },
+        {
+          "type": "textarea",
+          "id": "use_cases",
+          "label": "Use Cases / Conditions",
+          "info": "One per line: pain, inflammation, sleep, anxiety, stress, recovery, etc.",
+          "placeholder": "pain\ninflammation\nstress\nanxiety",
+          "default": "general"
+        },
+        {
+          "type": "select",
+          "id": "strength",
+          "label": "Product Strength",
+          "options": [
+            {"value": "mild", "label": "Mild / Low Potency"},
+            {"value": "moderate", "label": "Moderate / Medium Potency"},
+            {"value": "strong", "label": "Strong / High Potency"},
+            {"value": "extra_strong", "label": "Extra Strong / Maximum Potency"}
+          ],
+          "default": "moderate"
+        },
+        {
+          "type": "select",
+          "id": "experience_level",
+          "label": "Recommended For",
+          "options": [
+            {"value": "beginner", "label": "Beginners"},
+            {"value": "intermediate", "label": "Intermediate Users"},
+            {"value": "experienced", "label": "Experienced Users"},
+            {"value": "all", "label": "All Experience Levels"}
+          ],
+          "default": "all"
+        },
+        {
+          "type": "textarea",
+          "id": "key_benefits",
+          "label": "Key Benefits",
+          "info": "One benefit per line",
+          "placeholder": "Fast-acting relief\nLong-lasting effects\nAll-natural ingredients",
+          "default": "Quality ingredients"
+        },
+        {
+          "type": "range",
+          "id": "priority",
+          "label": "Recommendation Priority",
+          "info": "Higher priority products are recommended first when multiple match",
+          "min": 1,
+          "max": 10,
+          "step": 1,
+          "default": 5
+        }
+      ]
+    },
+    {
+      "type": "product_recommendation_flow",
+      "name": "🎯 Product Recommendation Flow",
+      "settings": [
+        {
+          "type": "paragraph",
+          "content": "Create a conversational flow that asks qualifying questions to recommend the best product. This creates an interactive recommendation experience."
+        },
+        {
+          "type": "text",
+          "id": "flow_name",
+          "label": "Flow Name",
+          "info": "Internal name for this recommendation flow",
+          "default": "Product Finder"
+        },
+        {
+          "type": "textarea",
+          "id": "trigger_phrases",
+          "label": "Trigger Phrases",
+          "info": "One phrase per line. User messages containing ANY of these will start this flow.",
+          "placeholder": "what should i use for\nwhat product for\nrecommend for\nhelp me choose\nwhich product",
+          "default": "what should i use\nrecommend"
+        },
+        {
+          "type": "text",
+          "id": "welcome_message",
+          "label": "Welcome Message",
+          "info": "First message when flow starts",
+          "default": "I'd be happy to help you find the right product! Let me ask a few questions to better understand your needs."
+        },
+        {
+          "type": "text",
+          "id": "question_1",
+          "label": "Question 1: Primary Concern",
+          "default": "What is your primary concern or goal?"
+        },
+        {
+          "type": "textarea",
+          "id": "question_1_options",
+          "label": "Question 1 Options",
+          "info": "One option per line. Format: label|value (e.g., 'Pain Relief|pain')",
+          "placeholder": "Pain Relief|pain\nBetter Sleep|sleep\nStress & Anxiety|anxiety\nGeneral Wellness|general",
+          "default": "Pain Relief|pain\nBetter Sleep|sleep\nStress & Anxiety|anxiety\nGeneral Wellness|general"
+        },
+        {
+          "type": "text",
+          "id": "question_2",
+          "label": "Question 2: Severity/Experience",
+          "default": "How would you describe your situation?"
+        },
+        {
+          "type": "textarea",
+          "id": "question_2_options",
+          "label": "Question 2 Options",
+          "info": "One option per line. Format: label|value",
+          "placeholder": "Mild, occasional issue|mild\nModerate, regular issue|moderate\nSevere, chronic issue|severe",
+          "default": "Mild, occasional issue|mild\nModerate, regular issue|moderate\nSevere, chronic issue|severe"
+        },
+        {
+          "type": "text",
+          "id": "question_3",
+          "label": "Question 3: Experience Level",
+          "default": "Have you used similar products before?"
+        },
+        {
+          "type": "textarea",
+          "id": "question_3_options",
+          "label": "Question 3 Options",
+          "info": "One option per line. Format: label|value",
+          "placeholder": "No, I'm new to this|beginner\nYes, a few times|intermediate\nYes, I use them regularly|experienced",
+          "default": "No, I'm new to this|beginner\nYes, a few times|intermediate\nYes, I use them regularly|experienced"
+        },
+        {
+          "type": "text",
+          "id": "no_match_message",
+          "label": "No Match Message",
+          "info": "Shown when no products match the criteria",
+          "default": "Based on your responses, I'd recommend contacting our support team for personalized guidance. They can help you find the perfect product for your specific needs."
+        },
+        {
+          "type": "checkbox",
+          "id": "show_in_topics",
+          "label": "Show in Topics Menu",
+          "info": "Display this as a clickable option in the topics menu",
+          "default": true
+        }
+      ]
+    }
   ],
   "presets": [
     {
