@@ -1984,11 +1984,10 @@ function getAnonymousSessionId() {
 // Anonymously log chat messages (strips all PII)
 async function logChatMessageAnonymously(sender, text, timestamp) {
   if (!CHAT_LOG_CONFIG.enabled || !CHAT_LOG_CONFIG.endpoint || CHAT_LOG_CONFIG.endpoint === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
-    return; // Skip if not configured
+    return;
   }
 
   try {
-    // Create anonymous log entry - NO customer emails, IDs, or PII
     const logData = {
       sessionId: getAnonymousSessionId(),
       sender: sender,
@@ -1999,17 +1998,11 @@ async function logChatMessageAnonymously(sender, text, timestamp) {
       shopDomain: window.location.hostname
     };
 
-    // Build URL with query parameters (GET request - no CORS!)
     const params = new URLSearchParams(logData);
     const url = `${CHAT_LOG_CONFIG.endpoint}?${params.toString()}`;
 
-    // Send as simple GET request
-    fetch(url).catch(err => {
-      console.debug('Chat logging failed:', err);
-    });
-  } catch (err) {
-    console.debug('Chat logging error:', err);
-  }
+    fetch(url).catch(() => {});
+  } catch (err) {}
 }
 
 // Sanitize message to remove any accidentally included PII
