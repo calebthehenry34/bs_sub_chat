@@ -1586,7 +1586,8 @@ var aiIntentConfig = {
       allTopics.push({
         type: 'product_flow',
         id: productRecommendationFlows[i].id,
-        name: productRecommendationFlows[i].name
+        name: productRecommendationFlows[i].name,
+        requireLogin: false
       });
     }
   }
@@ -1597,7 +1598,8 @@ var aiIntentConfig = {
       allTopics.push({
         type: 'intent',
         id: chatIntents[i].id,
-        name: chatIntents[i].name
+        name: chatIntents[i].name,
+        requireLogin: chatIntents[i].requireLogin || false
       });
     }
   }
@@ -1609,7 +1611,12 @@ var aiIntentConfig = {
   topicsToShow.forEach(function(topic){
     var btn = document.createElement('button');
     btn.className = 'welcome-topic-btn';
-    btn.textContent = topic.name;
+    // Add lock icon for login-required topics
+    if(topic.requireLogin){
+      btn.innerHTML = '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + topic.name;
+    } else {
+      btn.textContent = topic.name;
+    }
     btn.onclick = function(){
       if(topic.type === 'product_flow'){
         triggerProductRecommendationFlow(topic.id);
@@ -2318,6 +2325,19 @@ function addMessage(sender, text){
 }
 
 function formatMessage(text){
+  // Ensure text is a string
+  if (typeof text !== 'string') {
+    if (text === null || text === undefined) {
+      return '<p></p>';
+    }
+    // Convert objects/arrays to string representation
+    try {
+      text = String(text);
+    } catch(e) {
+      return '<p></p>';
+    }
+  }
+
   if(text.includes('<div class="subscription-card">') || text.includes('<div class="order-card">')){
     return text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
   }
@@ -3437,7 +3457,8 @@ function renderTopicsMenu(){
       categories['products'].intents.push({
         id: flow.id,
         name: flow.name,
-        type: 'product_flow'
+        type: 'product_flow',
+        requireLogin: false
       });
     }
   }
@@ -3449,7 +3470,8 @@ function renderTopicsMenu(){
       categories[intent.category].intents.push({
         id: intent.id,
         name: intent.name,
-        type: 'intent'
+        type: 'intent',
+        requireLogin: intent.requireLogin || false
       });
     }
   }
@@ -3474,6 +3496,8 @@ function renderTopicsMenu(){
         html += '<div class="topic-menu-item" ' + dataAttr + '="' + item.id + '">';
         if(item.type === 'product_flow'){
           html += '🎯 ' + item.name;
+        } else if(item.requireLogin){
+          html += '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + item.name;
         } else {
           html += item.name;
         }
