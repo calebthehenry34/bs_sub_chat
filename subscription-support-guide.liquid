@@ -97,6 +97,10 @@ html, body {
   .subscription-card-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:12px;padding:14px 14px 0}
   .subscription-product{font-weight:700;font-size:15px;color:#000;flex:1;line-height:1.3}
   .subscription-status{font-size:11px;padding:4px 10px;border-radius:12px;font-weight:800;background:rgba(0, 0, 0, 1);color:#fff;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .subscription-status.active{background:#22c55e;color:#fff}
+  .subscription-status.cancelled{background:#ef4444;color:#fff}
+  .subscription-status.paused{background:#f59e0b;color:#fff}
+  .subscription-status.expired{background:#6b7280;color:#fff}
   .subscription-details{font-size:13px;color:rgba(0, 0, 0, 0.9);line-height:1.6;padding:0 14px 12px}
   .subscription-actions{display:flex;gap:8px;padding:10px 12px;background:#f1f1f2;border-radius: 20px;}
   .subscription-actions .btn{background:#fff;color:#333}
@@ -2054,18 +2058,62 @@ function sanitizeMessageForLogging(text) {
 // Enhanced subscription status detection with intelligent defaults
 function bucketizeSubscription(sub){
   if(!sub) return 'inactive';
-  
+
   const rawStatus = (
-    sub.status || 
-    sub.subscription_status || 
-    sub.state || 
+    sub.status ||
+    sub.subscription_status ||
+    sub.state ||
     sub.subscriptionStatus ||
     sub.deliveryStatus ||
     ''
   ).toString().trim().toLowerCase();
-  
+
   const now = new Date();
-  
+
+  // CHECK FOR CANCELLATION FIRST (highest priority)
+  // These fields indicate explicit cancellation
+  if(sub.cancelledAt || sub.cancelled_at || sub.cancellation_date || sub.canceled_at){
+    return 'canceled';
+  }
+  if(sub.cancellation_reason || sub.cancel_reason){
+    return 'canceled';
+  }
+  if(sub.is_cancelled === true || sub.isCancelled === true || sub.cancelled === true){
+    return 'canceled';
+  }
+
+  // Cancelled states (check before defaulting)
+  if(['cancelled','canceled','stopped','terminated','ended','closed','cancel'].includes(rawStatus)){
+    return 'canceled';
+  }
+  if(['cancel','stop','terminat','end','clos'].some(s => rawStatus.includes(s))){
+    return 'canceled';
+  }
+
+  // Active states
+  if(['active','ongoing','running','live','enabled','subscribed'].includes(rawStatus)){
+    return 'active';
+  }
+  if(rawStatus.includes('activ') && !rawStatus.includes('inactiv')){
+    return 'active';
+  }
+
+  // Paused states
+  if(['paused','on hold','hold','pause','suspended','on_hold','on-hold'].includes(rawStatus)){
+    return 'paused';
+  }
+  if(['paused','pause','hold','suspend'].some(s => rawStatus.includes(s))){
+    return 'paused';
+  }
+
+  // Expired states
+  if(['expired','expire','past_due','past due','overdue','failed','lapsed'].includes(rawStatus)){
+    return 'expired';
+  }
+  if(['expir','past','overdue','fail','laps'].some(s => rawStatus.includes(s))){
+    return 'expired';
+  }
+
   // Check date-based expiration
   if(sub.nextBillingDate || sub.next_billing_date || sub.nextOrderDate){
     const nextDate = new Date(sub.nextBillingDate || sub.next_billing_date || sub.nextOrderDate);
@@ -2074,24 +2122,9 @@ function bucketizeSubscription(sub){
       if(daysDiff > 90) return 'expired';
     }
   }
-  
-  // Active states
-  if(['active','ongoing','running','live','enabled','subscribed'].includes(rawStatus)) return 'active';
-  if(rawStatus.includes('activ') && !rawStatus.includes('inactiv')) return 'active';
-  
-  // Paused states
-  if(['paused','on hold','hold','pause','suspended','on_hold','on-hold'].includes(rawStatus)) return 'paused';
-  if(['paused','pause','hold','suspend'].some(s => rawStatus.includes(s))) return 'paused';
-  
-  // Cancelled states
-  if(['cancelled','canceled','stopped','terminated','ended','closed','cancel'].includes(rawStatus)) return 'canceled';
-  if(['cancel','stop','terminat','end','clos'].some(s => rawStatus.includes(s))) return 'canceled';
-  
-  // Expired states
-  if(['expired','expire','past_due','past due','overdue','failed','lapsed'].includes(rawStatus)) return 'expired';
-  if(['expir','past','overdue','fail','laps'].some(s => rawStatus.includes(s))) return 'expired';
-  
+
   // Intelligent defaults based on last order date
+  // ONLY if no explicit status was found
   if(rawStatus === '' && sub.lastOrderDate){
     const lastOrder = new Date(sub.lastOrderDate);
     if(!isNaN(lastOrder)){
@@ -2102,8 +2135,9 @@ function bucketizeSubscription(sub){
       return 'expired';
     }
   }
-  
-  return rawStatus === '' ? 'active' : 'inactive';
+
+  // DEFAULT TO INACTIVE (not active!) if we can't determine status
+  return 'inactive';
 }
 
 function extractFrequencyDays(frequency){
@@ -3083,21 +3117,25 @@ function handleSubscriptionInfoQuery(filter='all'){
     clearQuickActions(); addQuickAction('Sign In',()=>requireAuthAndContinue('showSubs',{filter}),true);
     return;
   }
-  // Deduplicate by productId + variantTitle
-const uniqueSubs = [];
-const seen = new Set();
-(window.customerSubscriptions||[]).forEach(s => {
-  const key = `${s.productId}-${s.variantTitle}`;
-  if(!seen.has(key)){
-    seen.add(key);
-    uniqueSubs.push(s);
-  }
-});
+  // Deduplicate by productId + variantTitle + status
+  // This keeps both active and cancelled versions if they exist
+  const uniqueSubs = [];
+  const seen = new Set();
 
-const subs = uniqueSubs.map(s=>({...s,bucket:bucketizeSubscription(s)}));
+  (window.customerSubscriptions||[]).forEach(s => {
+    const bucket = bucketizeSubscription(s);
+    // Include bucket in key so we show both active and cancelled
+    const key = `${s.productId}-${s.variantTitle}-${bucket}`;
+    if(!seen.has(key)){
+      seen.add(key);
+      uniqueSubs.push({...s, bucket});
+    }
+  });
+
+  const subs = uniqueSubs;
   const list = filter==='all'? subs : subs.filter(s=>s.bucket===filter);
   if(!subs.length){
-    addMessage('bot','You don’t have any subscriptions yet.');
+    addMessage('bot','You don't have any subscriptions yet.');
     clearQuickActions(); addQuickAction('Browse Products',()=>{window.location.href="/collections/all"},true);
     return;
   }
@@ -3112,18 +3150,21 @@ const subs = uniqueSubs.map(s=>({...s,bucket:bucketizeSubscription(s)}));
   list.forEach(s=>{
     const next = estimateNextDelivery(s.lastOrderDate,s.frequency);
     const badge = s.bucket.toUpperCase();
+    const isActive = s.bucket === 'active';
+    const isCancelled = s.bucket === 'canceled' || s.bucket === 'cancelled';
     html += `
       <div class="subscription-card">
         <div class="subscription-card-header">
           <div class="subscription-product">${s.productTitle||'Subscription'}</div>
-          <div class="subscription-status ${s.bucket==='active'?'active':''}">${badge}</div>
+          <div class="subscription-status ${isActive ? 'active' : isCancelled ? 'cancelled' : ''}">${badge}</div>
         </div>
         <div class="subscription-details">
           ${s.variantTitle&&s.variantTitle!=='Default Title'?`<div>${s.variantTitle}</div>`:''}
           <div>Frequency: ${s.frequency||'—'}</div>
           <div>Price: ${s.price||'—'}</div>
           ${s.lastOrderDate?`<div>Last order: ${s.lastOrderDate}</div>`:''}
-          ${next?`<div class="subscription-highlight">⏰ Next delivery: ${next}</div>`:''}
+          ${isActive && next?`<div class="subscription-highlight">⏰ Next delivery: ${next}</div>`:''}
+          ${isCancelled && (s.cancelledAt || s.cancelled_at)?`<div style="color:#999;font-size:13px;">Cancelled on: ${new Date(s.cancelledAt || s.cancelled_at).toLocaleDateString()}</div>`:''}
         </div>
         <div class="subscription-actions">
           <a class="btn" href="${window.subscriptionApp.manageUrl}">Manage</a>
