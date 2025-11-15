@@ -1504,6 +1504,12 @@ if(!window.shopSettings) {
   window.shopSettings = { contactEmail: 'support@example.com' };
 }
 
+// ===== AI INTENT CONFIGURATION =====
+var aiIntentConfig = {
+  enabled: {{ section.settings.enable_ai_intent | default: false | json }},
+  apiKey: {{ section.settings.openai_api_key | default: '' | json }}
+};
+
 // ============================================================================
 // INITIALIZE WELCOME TOPIC PILLS
 // ============================================================================
@@ -2295,7 +2301,7 @@ function scrollToBottom(){
 }
 
 /* ---------- Intent routing ---------- */
-function sendMessage(){
+async function sendMessage(){
   const text=chatInput.value.trim();
   if(!text)return;
   startChat();
@@ -2303,10 +2309,20 @@ function sendMessage(){
   chatInput.value='';
   chatInput.style.height='auto';
   showTyping();
-  
+
+  // Try AI classification first if enabled
+  let aiResult = null;
+  if (aiIntentConfig.enabled && aiIntentConfig.apiKey) {
+    try {
+      aiResult = await classifyIntentWithAI(text);
+    } catch (error) {
+      console.error('AI classification failed, falling back to keyword matching:', error);
+    }
+  }
+
   setTimeout(()=>{
     hideTyping();
-    routeIntent(text.toLowerCase());
+    routeIntent(text.toLowerCase(), aiResult);
   },600);
 }
 
@@ -2412,10 +2428,152 @@ function handleOrderStatusQuery(){
 }
 
 // ========================================
+// AI INTENT CLASSIFICATION
+// ========================================
+
+async function classifyIntentWithAI(userMessage) {
+  if (!aiIntentConfig.enabled || !aiIntentConfig.apiKey) {
+    return null;
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + aiIntentConfig.apiKey
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are an intent classifier for a subscription and e-commerce support chat. Analyze the user's message and classify their intent.
+
+Available intents:
+- subscription_payment: User asking about subscription payment, billing date, next charge, when they'll be charged
+- subscription_info: User asking about their subscription details, status, or list
+- subscription_manage: User wants to manage subscription (address, payment method, frequency, pause, skip, date)
+- subscription_cancel: User wants to cancel a subscription
+- order_tracking: User asking about package location or shipping status
+- order_status: User asking about their order history or status
+- next_delivery: User asking about next order or upcoming delivery
+- account_update: User wants to update email, password, or address
+- customer_support: User wants to contact support or talk to someone
+- product_question: User asking about products
+- general_question: General inquiry
+- unclear: Cannot determine intent
+
+Respond with ONLY a JSON object in this exact format:
+{
+  "intent": "intent_name",
+  "confidence": 0.95,
+  "entities": {
+    "subscription_filter": "active|paused|canceled|expired|all",
+    "subscription_action": "address|payment|frequency|pause|skip|date",
+    "account_field": "email|password|address|general"
+  }
+}
+
+Use the entities field to extract specific details when applicable (otherwise leave empty object).`
+          },
+          {
+            role: 'user',
+            content: userMessage
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 200
+      })
+    });
+
+    if (!response.ok) {
+      console.error('OpenAI API error:', response.status, response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+    const aiResponse = data.choices[0].message.content.trim();
+
+    // Parse the JSON response
+    const result = JSON.parse(aiResponse);
+
+    console.log('AI Intent Classification:', result);
+    return result;
+
+  } catch (error) {
+    console.error('Error classifying intent with AI:', error);
+    return null;
+  }
+}
+
+// ========================================
+// HANDLE AI-CLASSIFIED INTENT
+// ========================================
+
+function handleAIIntent(aiResult) {
+  const intent = aiResult.intent;
+  const entities = aiResult.entities || {};
+
+  console.log('Handling AI Intent:', intent, entities);
+
+  switch(intent) {
+    case 'subscription_payment':
+      // User asking about next subscription payment/billing
+      return handleNextOrderIntent();
+
+    case 'subscription_info':
+      const filter = entities.subscription_filter || 'all';
+      return handleSubscriptionInfoQuery(filter);
+
+    case 'subscription_manage':
+      const action = entities.subscription_action || 'general';
+      return handleSubscriptionManagement(action);
+
+    case 'subscription_cancel':
+      return handleCancelSubscription();
+
+    case 'order_tracking':
+      return handleOrderTracking();
+
+    case 'order_status':
+      return handleOrderStatusQuery();
+
+    case 'next_delivery':
+      return handleNextOrderIntent();
+
+    case 'account_update':
+      const field = entities.account_field || 'general';
+      return handleAccountUpdate(field);
+
+    case 'customer_support':
+      return handleCustomerSupport();
+
+    case 'product_question':
+    case 'general_question':
+      // Let these fall through to keyword matching or default menu
+      return false;
+
+    case 'unclear':
+      // Let keyword matching handle it
+      return false;
+
+    default:
+      return false;
+  }
+}
+
+// ========================================
 // ROUTE INTENT (Main Routing Function)
 // ========================================
 
-function routeIntent(lowerText){
+function routeIntent(lowerText, aiResult){
+  // ===== AI-BASED INTENT ROUTING (High Confidence) =====
+  if (aiResult && aiResult.confidence >= 0.7) {
+    const handled = handleAIIntent(aiResult);
+    if (handled) return;
+  }
+
   // ===== CHECK CUSTOM INTENTS FIRST =====
   for(var i = 0; i < chatIntents.length; i++){
     var intent = chatIntents[i];
@@ -3824,6 +3982,23 @@ function executeIntentAction(intent){
       "id": "input_placeholder",
       "label": "Input placeholder",
       "default": "Message..."
+    },
+    {
+      "type": "header",
+      "content": "AI-Powered Intent Recognition"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_ai_intent",
+      "label": "Enable AI Intent Recognition",
+      "info": "Use OpenAI to better understand natural language queries",
+      "default": false
+    },
+    {
+      "type": "text",
+      "id": "openai_api_key",
+      "label": "OpenAI API Key",
+      "info": "Your OpenAI API key for intent classification. Leave empty if AI is disabled."
     }
   ],
   "blocks": [
