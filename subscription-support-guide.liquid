@@ -2517,49 +2517,70 @@ function handleAIIntent(aiResult) {
 
   console.log('Handling AI Intent:', intent, entities);
 
-  switch(intent) {
-    case 'subscription_payment':
-      // User asking about next subscription payment/billing
-      return handleNextOrderIntent();
+  try {
+    switch(intent) {
+      case 'subscription_payment':
+        // User asking about next subscription payment/billing
+        handleNextOrderIntent();
+        return true;
 
-    case 'subscription_info':
-      const filter = entities.subscription_filter || 'all';
-      return handleSubscriptionInfoQuery(filter);
+      case 'subscription_info':
+        const filter = entities.subscription_filter || 'all';
+        handleSubscriptionInfoQuery(filter);
+        return true;
 
-    case 'subscription_manage':
-      const action = entities.subscription_action || 'general';
-      return handleSubscriptionManagement(action);
+      case 'subscription_manage':
+        const action = entities.subscription_action || 'general';
+        handleSubscriptionManagement(action);
+        return true;
 
-    case 'subscription_cancel':
-      return handleCancelSubscription();
+      case 'subscription_cancel':
+        handleCancelSubscription();
+        return true;
 
-    case 'order_tracking':
-      return handleOrderTracking();
+      case 'order_tracking':
+        // Check if function exists (it's a stub in the codebase)
+        if (typeof handleOrderTracking === 'function') {
+          handleOrderTracking();
+          return true;
+        } else {
+          // Fallback to order status if tracking not implemented
+          handleOrderStatusQuery();
+          return true;
+        }
 
-    case 'order_status':
-      return handleOrderStatusQuery();
+      case 'order_status':
+        handleOrderStatusQuery();
+        return true;
 
-    case 'next_delivery':
-      return handleNextOrderIntent();
+      case 'next_delivery':
+        handleNextOrderIntent();
+        return true;
 
-    case 'account_update':
-      const field = entities.account_field || 'general';
-      return handleAccountUpdate(field);
+      case 'account_update':
+        const field = entities.account_field || 'general';
+        handleAccountUpdate(field);
+        return true;
 
-    case 'customer_support':
-      return handleCustomerSupport();
+      case 'customer_support':
+        handleCustomerSupport();
+        return true;
 
-    case 'product_question':
-    case 'general_question':
-      // Let these fall through to keyword matching or default menu
-      return false;
+      case 'product_question':
+      case 'general_question':
+        // Let these fall through to keyword matching or default menu
+        return false;
 
-    case 'unclear':
-      // Let keyword matching handle it
-      return false;
+      case 'unclear':
+        // Let keyword matching handle it
+        return false;
 
-    default:
-      return false;
+      default:
+        return false;
+    }
+  } catch (error) {
+    console.error('Error in handleAIIntent:', error);
+    return false; // Fall back to keyword matching on error
   }
 }
 
