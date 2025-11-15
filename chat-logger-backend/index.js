@@ -10,6 +10,8 @@
 const fs = require('fs').promises;
 const path = require('path');
 const nodemailer = require('nodemailer');
+const rateLimiter = require('./lib/rate-limiter');
+const Storage = require('./lib/storage');
 
 // Configuration from environment variables
 const CONFIG = {
@@ -46,6 +48,25 @@ async function handler(event, context) {
   }
 
   try {
+    // Rate limiting
+    const identifier = event.headers['x-forwarded-for'] ||
+                      event.headers['x-real-ip'] ||
+                      event.requestContext?.identity?.sourceIp ||
+                      'unknown';
+
+    const rateCheck = rateLimiter.checkRateLimit(identifier);
+    if (!rateCheck.allowed) {
+      return {
+        statusCode: 429,
+        headers: getCorsHeaders(),
+        body: JSON.stringify({
+          error: 'Rate limit exceeded',
+          message: rateCheck.message,
+          retryAfter: rateCheck.retryAfter
+        })
+      };
+    }
+
     // Parse incoming chat log
     const chatLog = JSON.parse(event.body);
 
@@ -58,8 +79,26 @@ async function handler(event, context) {
       };
     }
 
-    // Store the chat log
-    await storeChatLog(chatLog);
+    // Abuse detection
+    const abuseCheck = rateLimiter.detectAbuse(chatLog.message, {
+      timeSinceLastMessage: chatLog.timeSinceLastMessage,
+      isDuplicate: chatLog.isDuplicate
+    });
+
+    if (abuseCheck.suspicious && abuseCheck.riskScore > 60) {
+      console.warn('Suspicious message detected:', abuseCheck);
+      return {
+        statusCode: 400,
+        headers: getCorsHeaders(),
+        body: JSON.stringify({
+          error: 'Message rejected',
+          message: 'Your message appears to be spam or abuse.'
+        })
+      };
+    }
+
+    // Store the chat log using new Storage module
+    await Storage.storeMessage(chatLog);
 
     return {
       statusCode: 200,
