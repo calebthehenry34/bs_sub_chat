@@ -9,7 +9,11 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "nodemailer": "^6.9.7"
+    "nodemailer": "^6.9.7",
+    "@shopify/shopify-api": "^7.7.0",
+    "express-rate-limit": "^7.1.5",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3"
   },
   "devDependencies": {},
   "engines": {
