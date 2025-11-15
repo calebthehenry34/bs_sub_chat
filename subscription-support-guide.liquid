@@ -1489,60 +1489,153 @@ var aiIntentConfig = {
 // INITIALIZE WELCOME TOPIC PILLS
 // ============================================================================
 
-// Add three initial topic pills below the greeting
-(function initWelcomeTopics(){
+// Dynamic suggestion pills based on user input
+(function initDynamicSuggestions(){
   var welcomeTopicsContainer = document.getElementById('welcomeTopics');
+  var chatInput = document.getElementById('chatInput');
   if(!welcomeTopicsContainer) return;
 
-  // Combine intents and product recommendation flows
+  // Build complete topics database with triggers for matching
   var allTopics = [];
 
-  // Add product recommendation flows first (they're typically high priority)
+  // Add product recommendation flows
   for(var i = 0; i < productRecommendationFlows.length; i++){
-    if(productRecommendationFlows[i].showInTopics){
+    var flow = productRecommendationFlows[i];
+    if(flow.showInTopics){
       allTopics.push({
         type: 'product_flow',
-        id: productRecommendationFlows[i].id,
-        name: productRecommendationFlows[i].name,
-        requireLogin: false
+        id: flow.id,
+        name: flow.name,
+        triggers: flow.triggers || [],
+        requireLogin: false,
+        priority: 1 // High priority for product flows
       });
     }
   }
 
   // Add regular intents
   for(var i = 0; i < chatIntents.length; i++){
-    if(chatIntents[i].showInTopics){
+    var intent = chatIntents[i];
+    if(intent.showInTopics){
+      // Handle requireLogin as boolean or string
+      var needsLogin = intent.requireLogin === true || intent.requireLogin === 'true';
       allTopics.push({
         type: 'intent',
-        id: chatIntents[i].id,
-        name: chatIntents[i].name,
-        requireLogin: chatIntents[i].requireLogin || false
+        id: intent.id,
+        name: intent.name,
+        triggers: intent.triggers || [],
+        requireLogin: needsLogin,
+        priority: 2
       });
     }
   }
 
-  // Get first 3 topics
-  var topicsToShow = allTopics.slice(0, 3);
+  // Score a topic based on how well it matches the input
+  function scoreTopic(topic, input){
+    if(!input || input.length < 1) return (10 - topic.priority); // Default priority when no input (higher = better)
 
-  // Create and append topic pills
-  topicsToShow.forEach(function(topic){
-    var btn = document.createElement('button');
-    btn.className = 'suggestion-pill';
-    // Add lock icon for login-required topics
-    if(topic.requireLogin){
-      btn.innerHTML = '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + topic.name;
-    } else {
-      btn.textContent = topic.name;
+    var score = 0;
+    var inputLower = input.toLowerCase().trim();
+    var inputWords = inputLower.split(/\s+/);
+
+    // Check topic name
+    var nameLower = topic.name.toLowerCase();
+    if(nameLower.includes(inputLower)){
+      score += 100; // Strong match on name
     }
-    btn.onclick = function(){
-      if(topic.type === 'product_flow'){
-        triggerProductRecommendationFlow(topic.id);
-      } else {
-        triggerIntent(topic.id);
+
+    // Check individual words in name
+    for(var w = 0; w < inputWords.length; w++){
+      if(inputWords[w].length > 2 && nameLower.includes(inputWords[w])){
+        score += 30;
       }
-    };
-    welcomeTopicsContainer.appendChild(btn);
-  });
+    }
+
+    // Check triggers for matches
+    for(var t = 0; t < topic.triggers.length; t++){
+      var trigger = topic.triggers[t].toLowerCase().trim();
+      if(trigger.includes(inputLower)){
+        score += 80; // Full input found in trigger
+      }
+      // Check individual words
+      for(var w = 0; w < inputWords.length; w++){
+        if(inputWords[w].length > 2 && trigger.includes(inputWords[w])){
+          score += 20;
+        }
+      }
+    }
+
+    // Boost for priority (product flows are higher priority)
+    score += (10 - topic.priority);
+
+    return score;
+  }
+
+  // Get top 3 most relevant topics
+  function getTopSuggestions(input){
+    var scored = [];
+    for(var i = 0; i < allTopics.length; i++){
+      scored.push({
+        topic: allTopics[i],
+        score: scoreTopic(allTopics[i], input)
+      });
+    }
+
+    // Sort by score descending
+    scored.sort(function(a, b){ return b.score - a.score; });
+
+    // Return top 3
+    var top3 = [];
+    for(var i = 0; i < Math.min(3, scored.length); i++){
+      top3.push(scored[i].topic);
+    }
+    return top3;
+  }
+
+  // Render suggestion pills
+  function renderSuggestions(input){
+    var topicsToShow = getTopSuggestions(input);
+    welcomeTopicsContainer.innerHTML = '';
+
+    // Debug: log topics and their requireLogin status
+    console.log('Rendering suggestions:', topicsToShow.map(function(t){ return {name: t.name, requireLogin: t.requireLogin}; }));
+
+    topicsToShow.forEach(function(topic){
+      var btn = document.createElement('button');
+      btn.className = 'suggestion-pill';
+      // Add lock icon for login-required topics
+      if(topic.requireLogin){
+        btn.innerHTML = '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + topic.name;
+      } else {
+        btn.textContent = topic.name;
+      }
+      btn.onclick = function(){
+        if(topic.type === 'product_flow'){
+          triggerProductRecommendationFlow(topic.id);
+        } else {
+          triggerIntent(topic.id);
+        }
+      };
+      welcomeTopicsContainer.appendChild(btn);
+    });
+  }
+
+  // Initial render with default top 3
+  renderSuggestions('');
+
+  // Debug: show which topics have requireLogin
+  console.log('All topics with requireLogin:', allTopics.filter(function(t){ return t.requireLogin; }).map(function(t){ return t.name; }));
+
+  // Update suggestions as user types
+  if(chatInput){
+    var debounceTimer;
+    chatInput.addEventListener('input', function(){
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function(){
+        renderSuggestions(chatInput.value);
+      }, 150); // Debounce for performance
+    });
+  }
 })();
 
 // ============================================================================
@@ -2262,6 +2355,19 @@ function addQuickActionDelayed(text,callback,isPrimary=false,type='',delay=350){
     addQuickAction(text,callback,isPrimary,type);
   }, delay);
 }
+
+// Helper to add bot message with quick actions that appear after message animation
+function addBotMessageWithActions(message, actions){
+  addMessage('bot', message);
+  clearQuickActions();
+
+  // Delay quick actions to appear after message animation (300ms) + small buffer
+  setTimeout(function(){
+    actions.forEach(function(action){
+      addQuickAction(action.text, action.callback, action.isPrimary || false, action.type || '');
+    });
+  }, 400);
+}
 function showTyping(){ typingIndicator.classList.add('active'); scrollToBottom();}
 function hideTyping(){ typingIndicator.classList.remove('active'); }
 
@@ -2441,26 +2547,26 @@ function renderOrderCard(o, heading){
 
 function handleOrderStatusQuery(){
   if(!window.customerData || !window.customerData.isLoggedIn){
-    addMessage('bot','To check your order status, please login to your account first.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
+    addBotMessageWithActions('To check your order status, please login to your account first.', [
+      {text: 'Sign In', callback: function(){requireAuthAndContinue('showOrders')}, isPrimary: true}
+    ]);
     return;
   }
-  
+
   var orders = window.customerOrders || [];
   if(!orders.length){
-    addMessage('bot','You don\'t have any orders yet.');
-    clearQuickActions();
-    addQuickAction('Shop All', function(){window.location.href='/collections/all'}, true);
+    addBotMessageWithActions('You don\'t have any orders yet.', [
+      {text: 'Shop All', callback: function(){window.location.href='/collections/all'}, isPrimary: true}
+    ]);
     return;
   }
   
   var html = '<p><strong>Here is your most recent order</strong></p>';
   html += renderOrderCard(orders[0]);
-  
-  addMessage('bot', html);
-  clearQuickActions();
-  addQuickAction('View All Orders', function(){window.location.href='/account'}, true);
+
+  addBotMessageWithActions(html, [
+    {text: 'View All Orders', callback: function(){window.location.href='/account'}, isPrimary: true}
+  ]);
 }
 
 // ========================================
@@ -2654,27 +2760,27 @@ function routeIntent(lowerText, aiResult){
         
         // Check if login required
         if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
-          addMessage('bot', 'Please sign in to continue.');
-          clearQuickActions();
-          addQuickActionDelayed('Sign In', function(){
-            requireAuthAndContinue('customIntent', {intentId: intent.id});
-          }, true);
+          addBotMessageWithActions('Please sign in to continue.', [
+            {text: 'Sign In', callback: function(){
+              requireAuthAndContinue('customIntent', {intentId: intent.id});
+            }, isPrimary: true}
+          ]);
           return;
         }
-        
+
         // Execute the action
         if(intent.actionType === 'message'){
           var html = intent.responseMessage;
-          
+
           // Add image if provided
           if(intent.responseImage){
             html += '<img src="' + intent.responseImage + '" alt="" style="max-width:100%;border-radius:12px;margin:16px 0;">';
           }
-          
-          addMessage('bot', html);
-          clearQuickActions();
-          addQuickAction('Ask Something Else', function(){clearQuickActions()}, false);
-          addQuickAction('Contact Support', function(){handleCustomerSupport()}, false);
+
+          addBotMessageWithActions(html, [
+            {text: 'Ask Something Else', callback: function(){clearQuickActions()}},
+            {text: 'Contact Support', callback: function(){handleCustomerSupport()}}
+          ]);
           return;
         } else if(intent.actionType === 'topic'){
           var topicName = intent.actionValue;
@@ -2910,16 +3016,16 @@ function routeIntent(lowerText, aiResult){
   
   // If both mentioned, ask for clarification
   if(isOrderQuery && isSubscriptionQuery){
-    addMessage('bot', 'I can help with both orders and subscriptions. Which would you like help with?');
-    clearQuickActions();
-    addQuickAction('My Orders', function(){
-      addMessage('user', 'My Orders');
-      handleOrderStatusQuery();
-    }, false);
-    addQuickAction('My Subscriptions', function(){
-      addMessage('user', 'My Subscriptions');
-      handleSubscriptionInfoQuery('all');
-    }, false);
+    addBotMessageWithActions('I can help with both orders and subscriptions. Which would you like help with?', [
+      {text: 'My Orders', callback: function(){
+        addMessage('user', 'My Orders');
+        handleOrderStatusQuery();
+      }},
+      {text: 'My Subscriptions', callback: function(){
+        addMessage('user', 'My Subscriptions');
+        handleSubscriptionInfoQuery('all');
+      }}
+    ]);
     return;
   }
   
@@ -2935,12 +3041,12 @@ function routeIntent(lowerText, aiResult){
 
   // ===== FALLBACK =====
   if(!matched){
-    addMessage('bot', `I can help you with:\n\n• Orders & Tracking\n• Subscriptions\n• Account Settings\n• Contact Support\n\nWhat would you like help with?`);
-    clearQuickActions();
-    addQuickAction('My Orders', () => handleOrderStatusQuery(), false);
-    addQuickAction('My Subscriptions', () => handleSubscriptionInfoQuery('all'), false);
-    addQuickAction('Account Settings', () => handleAccountUpdate('general'), false);
-    addQuickAction('Contact Support', () => handleCustomerSupport(), false);
+    addBotMessageWithActions(`I can help you with:\n\n• Orders & Tracking\n• Subscriptions\n• Account Settings\n• Contact Support\n\nWhat would you like help with?`, [
+      {text: 'My Orders', callback: () => handleOrderStatusQuery()},
+      {text: 'My Subscriptions', callback: () => handleSubscriptionInfoQuery('all')},
+      {text: 'Account Settings', callback: () => handleAccountUpdate('general')},
+      {text: 'Contact Support', callback: () => handleCustomerSupport()}
+    ]);
   }
 }
 
@@ -2977,44 +3083,44 @@ function handleCustomerSupport(){
     <p style="margin-top:12px;font-size:14px;color:#64748b;">You can also email a transcript of this conversation for reference.</p>
   `;
   
-  addMessage('bot', html);
-  clearQuickActions();
-  addQuickAction('Email This Conversation', () => emailConversation(), true);
-  addQuickAction('Continue Chat', () => clearQuickActions(), false);
+  addBotMessageWithActions(html, [
+    {text: 'Email This Conversation', callback: () => emailConversation(), isPrimary: true},
+    {text: 'Continue Chat', callback: () => clearQuickActions()}
+  ]);
 }
 
 function handleAccountUpdate(type){
   if(!type) type = 'general';
 
   if(!window.customerData || !window.customerData.isLoggedIn){
-    addMessage('bot','To update your account, please sign in first.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){window.location.href='/account/login'}, true);
+    addBotMessageWithActions('To update your account, please sign in first.', [
+      {text: 'Sign In', callback: function(){window.location.href='/account/login'}, isPrimary: true}
+    ]);
     return;
   }
-  
+
   var msg = 'To update your account information, visit your account settings.';
   if(type == 'email') msg = 'To update your email address, visit your account settings.';
   if(type == 'password') msg = 'To change your password, go to your account settings.';
   if(type == 'address') msg = 'To update your default shipping address, visit your account addresses page.';
-  
-  addMessage('bot', msg);
-  clearQuickActions();
 
+  var actions = [];
   if(type == 'address'){
-    addQuickAction('Manage Addresses', function(){window.location.href='/account/addresses'}, true);
+    actions.push({text: 'Manage Addresses', callback: function(){window.location.href='/account/addresses'}, isPrimary: true});
   }
-  addQuickAction('Account Settings', function(){window.location.href='/account'}, true);
-  addQuickAction('Need Help?', function(){handleCustomerSupport()}, false);
+  actions.push({text: 'Account Settings', callback: function(){window.location.href='/account'}, isPrimary: true});
+  actions.push({text: 'Need Help?', callback: function(){handleCustomerSupport()}});
+
+  addBotMessageWithActions(msg, actions);
 }
 
 function handleSubscriptionManagement(action){
   if(!action) action = 'general';
 
   if(!window.customerData.isLoggedIn){
-    addMessage('bot','To manage your subscriptions, please sign in first.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('manageSub')}, true);
+    addBotMessageWithActions('To manage your subscriptions, please sign in first.', [
+      {text: 'Sign In', callback: function(){requireAuthAndContinue('manageSub')}, isPrimary: true}
+    ]);
     return;
   }
   
@@ -3025,10 +3131,10 @@ function handleSubscriptionManagement(action){
   var activeSubs = subs.filter(function(s){ return s.bucket === 'active' });
   
   if(!activeSubs.length){
-    addMessage('bot','You don\'t have any active subscriptions to manage.');
-    clearQuickActions();
-    addQuickAction('View All Subscriptions', function(){handleSubscriptionInfoQuery('all')}, false);
-    addQuickAction('Browse Products', function(){window.location.href='/collections/all'}, true);
+    addBotMessageWithActions('You don\'t have any active subscriptions to manage.', [
+      {text: 'View All Subscriptions', callback: function(){handleSubscriptionInfoQuery('all')}},
+      {text: 'Browse Products', callback: function(){window.location.href='/collections/all'}, isPrimary: true}
+    ]);
     return;
   }
   
@@ -3085,8 +3191,9 @@ function handleSubscriptionManagement(action){
 /* ---------- Next order intent ---------- */
 function handleNextOrderIntent(){
   if(!window.customerData.isLoggedIn){
-    addMessage('bot','Sign in to check your next order.');
-    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('nextOrder'),true);
+    addBotMessageWithActions('Sign in to check your next order.', [
+      {text: 'Sign In', callback: ()=>requireAuthAndContinue('nextOrder'), isPrimary: true}
+    ]);
     return;
   }
   const orders=window.customerOrders||[];
@@ -3095,14 +3202,16 @@ function handleNextOrderIntent(){
     return !(s.includes('fulfilled')||s.includes('shipped'));
   });
   if(nextOpen){
-    addMessage('bot', renderOrderCard(nextOpen, 'Your next order is in progress'));
-    clearQuickActions(); addQuickAction('View All Orders',()=>{window.location.href="{{ routes.account_url }}"},true);
+    addBotMessageWithActions(renderOrderCard(nextOpen, 'Your next order is in progress'), [
+      {text: 'View All Orders', callback: ()=>{window.location.href="{{ routes.account_url }}"}, isPrimary: true}
+    ]);
     return;
   }
   const actives=(window.customerSubscriptions||[]).filter(s=>bucketizeSubscription(s)==='active');
   if(!actives.length){
-    addMessage('bot','No unfulfilled orders and no active subscriptions to estimate from.');
-    clearQuickActions(); addQuickAction('Shop All',()=>{window.location.href="/collections/all"},true);
+    addBotMessageWithActions('No unfulfilled orders and no active subscriptions to estimate from.', [
+      {text: 'Shop All', callback: ()=>{window.location.href="/collections/all"}, isPrimary: true}
+    ]);
     return;
   }
   let html=`<p><strong>Estimated next deliveries</strong></p>`;
@@ -3121,15 +3230,17 @@ function handleNextOrderIntent(){
       </div>
     </div>`;
   });
-  addMessage('bot',html);
-  clearQuickActions(); addQuickAction('Manage Subscriptions',()=>{window.location.href=window.subscriptionApp.manageUrl},true);
+  addBotMessageWithActions(html, [
+    {text: 'Manage Subscriptions', callback: ()=>{window.location.href=window.subscriptionApp.manageUrl}, isPrimary: true}
+  ]);
 }
 
 /* ---------- Subscriptions listing with filters ---------- */
 function handleSubscriptionInfoQuery(filter='all'){
   if(!window.customerData.isLoggedIn){
-    addMessage('bot','To view your subscriptions, please sign in to your account first.');
-    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('showSubs',{filter}),true);
+    addBotMessageWithActions('To view your subscriptions, please sign in to your account first.', [
+      {text: 'Sign In', callback: ()=>requireAuthAndContinue('showSubs',{filter}), isPrimary: true}
+    ]);
     return;
   }
   // Deduplicate by productId + variantTitle, preferring active over cancelled
