@@ -1,7 +1,5 @@
 <style>
-
-
- /* Hide LayoutHub FAB on this page */
+/* Hide LayoutHub FAB on this page */
   .hub-fab {
     display: none !important;
   }
@@ -57,7 +55,7 @@ html, body {
   .chat-content::-webkit-scrollbar{width:0;display:none}
   .chat-content{-ms-overflow-style:none;scrollbar-width:none}
   .chat-messages{padding:20px 0;display:flex;flex-direction:column;gap:16px;background:#fff}
-  .message{display:flex;gap:10px;max-width:85%;animation:slideIn .3s cubic-bezier(.4,0,.2,1);display: flex;align-items: center;}
+  .message{display:flex;gap:10px;max-width:85%;animation:slideIn .3s cubic-bezier(.4,0,.2,1);display: flex;}
   @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
   .message.user{align-self:flex-end;flex-direction:row-reverse;display: flex;align-items: center;}
   .message.bot{align-self:flex-start}
@@ -2069,7 +2067,7 @@ function bucketizeSubscription(sub){
   ).toString().trim().toLowerCase();
 
   const now = new Date();
-
+  
   // CHECK FOR CANCELLATION FIRST (highest priority)
   // These fields indicate explicit cancellation
   if(sub.cancelledAt || sub.cancelled_at || sub.cancellation_date || sub.canceled_at){
@@ -2081,7 +2079,7 @@ function bucketizeSubscription(sub){
   if(sub.is_cancelled === true || sub.isCancelled === true || sub.cancelled === true){
     return 'canceled';
   }
-
+  
   // Cancelled states (check before defaulting)
   if(['cancelled','canceled','stopped','terminated','ended','closed','cancel'].includes(rawStatus)){
     return 'canceled';
@@ -2089,7 +2087,7 @@ function bucketizeSubscription(sub){
   if(['cancel','stop','terminat','end','clos'].some(s => rawStatus.includes(s))){
     return 'canceled';
   }
-
+  
   // Active states
   if(['active','ongoing','running','live','enabled','subscribed'].includes(rawStatus)){
     return 'active';
@@ -2097,7 +2095,7 @@ function bucketizeSubscription(sub){
   if(rawStatus.includes('activ') && !rawStatus.includes('inactiv')){
     return 'active';
   }
-
+  
   // Paused states
   if(['paused','on hold','hold','pause','suspended','on_hold','on-hold'].includes(rawStatus)){
     return 'paused';
@@ -2105,7 +2103,7 @@ function bucketizeSubscription(sub){
   if(['paused','pause','hold','suspend'].some(s => rawStatus.includes(s))){
     return 'paused';
   }
-
+  
   // Expired states
   if(['expired','expire','past_due','past due','overdue','failed','lapsed'].includes(rawStatus)){
     return 'expired';
@@ -2113,7 +2111,7 @@ function bucketizeSubscription(sub){
   if(['expir','past','overdue','fail','laps'].some(s => rawStatus.includes(s))){
     return 'expired';
   }
-
+  
   // Check date-based expiration
   if(sub.nextBillingDate || sub.next_billing_date || sub.nextOrderDate){
     const nextDate = new Date(sub.nextBillingDate || sub.next_billing_date || sub.nextOrderDate);
@@ -2122,7 +2120,7 @@ function bucketizeSubscription(sub){
       if(daysDiff > 90) return 'expired';
     }
   }
-
+  
   // Intelligent defaults based on last order date
   // ONLY if no explicit status was found
   if(rawStatus === '' && sub.lastOrderDate){
@@ -2135,7 +2133,7 @@ function bucketizeSubscription(sub){
       return 'expired';
     }
   }
-
+  
   // DEFAULT TO INACTIVE (not active!) if we can't determine status
   return 'inactive';
 }
@@ -2260,6 +2258,13 @@ function addQuickAction(text,callback,isPrimary=false,type=''){
 }
 
 function clearQuickActions(){ quickActionsContainer.innerHTML=''; }
+
+// Helper function to add quick actions after message animation completes (300ms)
+function addQuickActionDelayed(text,callback,isPrimary=false,type='',delay=350){
+  setTimeout(function(){
+    addQuickAction(text,callback,isPrimary,type);
+  }, delay);
+}
 function showTyping(){ typingIndicator.classList.add('active'); scrollToBottom();}
 function hideTyping(){ typingIndicator.classList.remove('active'); }
 
@@ -2441,7 +2446,7 @@ function handleOrderStatusQuery(){
   if(!window.customerData || !window.customerData.isLoggedIn){
     addMessage('bot','To check your order status, please login to your account first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
+    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
     return;
   }
   
@@ -2641,7 +2646,7 @@ function routeIntent(lowerText, aiResult){
         if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
           addMessage('bot', 'Please sign in to continue.');
           clearQuickActions();
-          addQuickAction('Sign In', function(){
+          addQuickActionDelayed('Sign In', function(){
             requireAuthAndContinue('customIntent', {intentId: intent.id});
           }, true);
           return;
@@ -2970,11 +2975,11 @@ function handleCustomerSupport(){
 
 function handleAccountUpdate(type){
   if(!type) type = 'general';
-  
+
   if(!window.customerData || !window.customerData.isLoggedIn){
     addMessage('bot','To update your account, please sign in first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){window.location.href='/account/login'}, true);
+    addQuickActionDelayed('Sign In', function(){window.location.href='/account/login'}, true);
     return;
   }
   
@@ -2995,11 +3000,11 @@ function handleAccountUpdate(type){
 
 function handleSubscriptionManagement(action){
   if(!action) action = 'general';
-  
+
   if(!window.customerData.isLoggedIn){
     addMessage('bot','To manage your subscriptions, please sign in first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){requireAuthAndContinue('manageSub')}, true);
+    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('manageSub')}, true);
     return;
   }
   
@@ -3071,7 +3076,7 @@ function handleSubscriptionManagement(action){
 function handleNextOrderIntent(){
   if(!window.customerData.isLoggedIn){
     addMessage('bot','Sign in to check your next order.');
-    clearQuickActions(); addQuickAction('Sign In',()=>requireAuthAndContinue('nextOrder'),true);
+    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('nextOrder'),true);
     return;
   }
   const orders=window.customerOrders||[];
@@ -3114,64 +3119,38 @@ function handleNextOrderIntent(){
 function handleSubscriptionInfoQuery(filter='all'){
   if(!window.customerData.isLoggedIn){
     addMessage('bot','To view your subscriptions, please sign in to your account first.');
-    clearQuickActions(); addQuickAction('Sign In',()=>requireAuthAndContinue('showSubs',{filter}),true);
+    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('showSubs',{filter}),true);
     return;
   }
-  // Deduplicate by productId + variantTitle + status
-  // This keeps both active and cancelled versions if they exist
-  const uniqueSubs = [];
-  const seen = new Set();
+  // Deduplicate by productId + variantTitle, preferring active over cancelled
+const uniqueSubs = [];
+const seen = new Map(); // Changed to Map to store full subscription
 
-  (window.customerSubscriptions||[]).forEach(s => {
-    const bucket = bucketizeSubscription(s);
-    // Include bucket in key so we show both active and cancelled
-    const key = `${s.productId}-${s.variantTitle}-${bucket}`;
-    if(!seen.has(key)){
-      seen.add(key);
-      uniqueSubs.push({...s, bucket});
+(window.customerSubscriptions || []).forEach(s => {
+  const key = `${s.productId}-${s.variantTitle}`;
+  const currentBucket = bucketizeSubscription(s);
+  
+  if(!seen.has(key)){
+    // First time seeing this product/variant
+    seen.set(key, { sub: s, bucket: currentBucket });
+    uniqueSubs.push(s);
+  } else {
+    // Already seen - decide which to keep
+    const existing = seen.get(key);
+    
+    // Priority: active > paused > cancelled > expired > inactive
+    const priority = { 'active': 5, 'paused': 4, 'cancelled': 3, 'canceled': 3, 'expired': 2, 'inactive': 1 };
+    const currentPriority = priority[currentBucket] || 0;
+    const existingPriority = priority[existing.bucket] || 0;
+    
+    if(currentPriority > existingPriority){
+      // Replace with higher priority subscription
+      const index = uniqueSubs.indexOf(existing.sub);
+      if(index > -1) uniqueSubs[index] = s;
+      seen.set(key, { sub: s, bucket: currentBucket });
     }
-  });
-
-  const subs = uniqueSubs;
-  const list = filter==='all'? subs : subs.filter(s=>s.bucket===filter);
-  if(!subs.length){
-    addMessage('bot','You don't have any subscriptions yet.');
-    clearQuickActions(); addQuickAction('Browse Products',()=>{window.location.href="/collections/all"},true);
-    return;
   }
-  if(!list.length){
-    addMessage('bot',`You have 0 ${filter} subscriptions.`);
-    clearQuickActions();
-    ['All','Active','Paused','Canceled','Expired','Inactive'].forEach(f=>addQuickAction(f.charAt(0).toUpperCase()+f.slice(1),()=>handleSubscriptionInfoQuery(f),f==='all'));
-    return;
-  }
-
-  let html=`<p><strong>${filter} subscription${list.length>1?'s':''}</strong></p>`;
-  list.forEach(s=>{
-    const next = estimateNextDelivery(s.lastOrderDate,s.frequency);
-    const badge = s.bucket.toUpperCase();
-    const isActive = s.bucket === 'active';
-    const isCancelled = s.bucket === 'canceled' || s.bucket === 'cancelled';
-    html += `
-      <div class="subscription-card">
-        <div class="subscription-card-header">
-          <div class="subscription-product">${s.productTitle||'Subscription'}</div>
-          <div class="subscription-status ${isActive ? 'active' : isCancelled ? 'cancelled' : ''}">${badge}</div>
-        </div>
-        <div class="subscription-details">
-          ${s.variantTitle&&s.variantTitle!=='Default Title'?`<div>${s.variantTitle}</div>`:''}
-          <div>Frequency: ${s.frequency||'—'}</div>
-          <div>Price: ${s.price||'—'}</div>
-          ${s.lastOrderDate?`<div>Last order: ${s.lastOrderDate}</div>`:''}
-          ${isActive && next?`<div class="subscription-highlight">⏰ Next delivery: ${next}</div>`:''}
-          ${isCancelled && (s.cancelledAt || s.cancelled_at)?`<div style="color:#999;font-size:13px;">Cancelled on: ${new Date(s.cancelledAt || s.cancelled_at).toLocaleDateString()}</div>`:''}
-        </div>
-        <div class="subscription-actions">
-          <a class="btn" href="${window.subscriptionApp.manageUrl}">Manage</a>
-          <a class="btn" href="${window.subscriptionApp.manageUrl}">Change schedule</a>
-        </div>
-      </div>`;
-  });
+});
   addMessage('bot',html);
   clearQuickActions();
   addQuickAction('Manage Subscriptions',()=>{window.location.href=window.subscriptionApp.manageUrl},true);
@@ -3181,7 +3160,7 @@ function handleCancelSubscription(){
   if(!window.customerData || !window.customerData.isLoggedIn){
     addMessage('bot','To cancel a subscription, please sign in to your account first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){requireAuthAndContinue('cancelSub')}, true);
+    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('cancelSub')}, true);
     return;
   }
   
@@ -3198,7 +3177,7 @@ function handleCancelSubscription(){
     return;
   }
   
-  addMessage('bot','I can help you cancel your subscription. Please note that you can also pause it if you just need a temporary break.');
+  addMessage('bot','I can help you cancel your subscription. Don\'t forget you can also pause it and restart anytime for free.');
   clearQuickActions();
   addQuickAction('Manage Subscriptions', function(){window.location.href=window.subscriptionApp.manageUrl}, true);
   addQuickAction('Contact Support', function(){handleCustomerSupport()}, false);
@@ -3775,12 +3754,12 @@ function triggerIntent(intentId){
   
   console.log('Adding user message:', intent.name);
   addMessage('user', intent.name);
-  
+
   // Check if login required
   if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
     addMessage('bot', 'Please sign in to continue.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){
+    addQuickActionDelayed('Sign In', function(){
       requireAuthAndContinue('customIntent', {intentId: intent.id});
     }, true);
     return;
