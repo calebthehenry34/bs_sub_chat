@@ -1,4215 +1,1177 @@
-<style>
-
-
- /* Hide LayoutHub FAB on this page */
-  .hub-fab {
-    display: none !important;
-  }
-
-  /* === Mobile Safari Fixes === */
-@supports (-webkit-touch-callout: none) {
-  /* iOS/Safari specific */
-  .support-chat {
-    min-height: -webkit-fill-available;
-    height: -webkit-fill-available;
-  }
-  
-  body {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-  }
-}
-
-/* Prevent horizontal scroll */
-html, body {
-  overflow-x: hidden;
-  width: 100%;
-  max-width: 100vw;
-}
-  
-  .support-chat{background:#fff;min-height:100vh;display:flex;flex-direction:column;overflow:hidden}
-
-  .chat-header{padding:20px;text-align:center;border-bottom:1px solid rgba(0,0,0,.06);position:sticky;top:0;background:#fff;z-index:100;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;max-height:0;overflow:hidden;transition:all .3s ease}
-  .chat-header.visible{opacity:1;max-height:200px}
-  .chat-header-title{font-size:20px;font-weight:600;color:#1d1d1f;margin:0;letter-spacing:-0.02em}
-  .chat-header-subtitle{font-size:14px;color:#86868b;margin:6px 0 0;font-weight:400}
-
-  .support-container{max-width:700px;width:100%;margin:0 auto;padding:40px 20px 20px;flex:1;display:flex;flex-direction:column;overflow:hidden}
-  /* Center the welcome until chat starts */
-  .support-container:not(.chat-active){justify-content:center}
-  .chat-window{background:#fff;display:flex;width:100%;flex:1;flex-direction:column;overflow:hidden}
-
-  .centered-welcome{text-align:center;margin-bottom:32px;transition:all .3s ease;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:11px}
-  .centered-welcome.hidden{opacity:0;transform:translateY(-20px);pointer-events:none;position:absolute}
-  .centered-welcome-title{font-size:28px;font-weight:600;color:#1d1d1f;margin:0}
-  .centered-welcome-subtitle{font-size:16px;color:#86868b;margin:0}
-  .welcome-topics{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:600px;margin:12px auto 0}
-  .welcome-topic-btn{background:#fff;border:1px solid rgba(0,0,0,.1);padding:10px 18px;border-radius:24px;cursor:pointer;transition:all .2s ease;font-size:13px;font-weight:500;color:#1d1d1f;letter-spacing:-0.01em}
-  .welcome-topic-btn:hover{background:#f8f8f8;border-color:rgba(0,0,0,.2);transform:translateY(-1px)}
-
-  .input-section{display:flex;flex-direction:column;gap:16px;align-items:center;width:100%;transition:all .4s cubic-bezier(.4,0,.2,1);flex-shrink:0}
-  .input-section.fixed-bottom{padding:16px 20px;background:#fff;box-shadow:0 -2px 10px rgba(0,0,0,.05);border-top:1px solid rgba(0,0,0,.06)}
-
-  .chat-content{flex:1;width:100%;overflow-y:auto;display:flex;flex-direction:column;scroll-behavior:smooth;opacity:0;transition:opacity .3s ease;visibility:hidden}
-  .chat-content.active{opacity:1;visibility:visible}
-  .chat-content::-webkit-scrollbar{width:0;display:none}
-  .chat-content{-ms-overflow-style:none;scrollbar-width:none}
-  .chat-messages{padding:20px 0;display:flex;flex-direction:column;gap:16px;background:#fff}
-  .message{display:flex;gap:10px;max-width:85%;animation:slideIn .3s cubic-bezier(.4,0,.2,1);display: flex;align-items: center;}
-  @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-  .message.user{align-self:flex-end;flex-direction:row-reverse;display: flex;align-items: center;}
-  .message.bot{align-self:flex-start}
-  .message.system{align-self:center;max-width:100%}
-  .message-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f0f0f0;flex-shrink:0}
-  .message.user .message-avatar{background:#0d0d0d}
-  .message-avatar svg{width:18px;height:18px;fill:#86868b}
-  .message.user .message-avatar svg{fill:#fff}
-  .message-bubble{background:#f1f1f2;color:#1d1d1f;padding:12px 16px;border-radius:20px;font-size:15px;line-height:1.5;letter-spacing:-0.01em;font-weight:400}
-  .message.user .message-bubble{background:#f1f1f2;color:#fff;}
-  .message.bot .message-bubble{border-radius:15px}
-  .message.system .message-bubble{background:rgba(0,0,0,.05);color:#86868b;font-size:13px;padding:8px 14px;border-radius:16px;text-align:center}
-  .message-bubble p{margin:0 0 10px}
-  .message-bubble p:last-child{margin:0}
-  .message-bubble strong{font-weight:600}
-  .message-bubble img{max-width:100%;height:auto;border-radius:12px;margin:10px 0 0;display:block}
-
-  /* Order/Subscription cards */
-  .order-card{background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:12px;padding:30px;margin:10px 0;overflow:hidden}
-  .order-card-header{display:flex;justify-content:space-between;align-items:center;padding:12px}
-  .order-number{font-weight:600;font-size:14px;color:#1d1d1f}
-  .order-pill{font-size:11px;padding:4px 10px;border-radius:12px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
-  .order-pill.fulfilled{background:#e6f3ff;color:#1a5fa8}
-  .order-pill.processing{background:#f5f5f5;color:#666}
-  .order-pill.pending{background:#fff4e6;color:#8b6914}
-  .order-pill.paid{background:#e6f7e6;color:#2d7a2d}
-  .order-body{display:flex;gap:12px;padding:12px;border-top:1px solid rgba(0,0,0,.06)}
-  .order-thumb{width:64px;height:64px;border-radius:10px;background:#f5f5f7;object-fit:cover;flex-shrink:0}
-  .order-meta{font-size:13px;color:#555;line-height:1.5;flex:1;padding-bottom: 10px;}
-  .order-meta .dim{color:#8a8a8a}
-  .order-actions{display:flex;gap:8px;padding:12px;border-top:1px solid rgba(0,0,0,.06)}
-  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:18px;font-size:12px;font-weight:700;padding:8px 12px;text-decoration:none}
-  .btn.primary{background:#007AFF;color:#fff}
-  .btn.ghost{background:#fff;border:1px solid rgba(0,0,0,.12);color:#1d1d1f}
-
-  .subscription-card{background:#f1f1f2;border-radius:12px;margin:10px 0;color:#000;}
-  .subscription-card-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:12px;padding:14px 14px 0}
-  .subscription-product{font-weight:700;font-size:15px;color:#000;flex:1;line-height:1.3}
-  .subscription-status{font-size:11px;padding:4px 10px;border-radius:12px;font-weight:800;background:rgba(0, 0, 0, 1);color:#fff;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
-  .subscription-details{font-size:13px;color:rgba(0, 0, 0, 0.9);line-height:1.6;padding:0 14px 12px}
-  .subscription-actions{display:flex;gap:8px;padding:10px 12px;background:#f1f1f2;border-radius: 20px;}
-  .subscription-actions .btn{background:#fff;color:#333}
-
-  .typing-indicator{display:none;padding:10px 0;margin:0 0 0 42px}
-  .typing-indicator.active{display:flex;gap:4px}
-  .typing-dot{width:8px;height:8px;border-radius:50%;background:#d0d0d0;animation:typing 1.4s infinite}
-  .typing-dot:nth-child(2){animation-delay:.2s}
-  .typing-dot:nth-child(3){animation-delay:.4s}
-  @keyframes typing{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-8px)}}
-
-  .quick-actions{padding:8px 40px;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start}
-  .quick-action-btn{background:#fff;color:#1d1d1f;border:1px solid rgba(0,0,0,.1);padding:8px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s ease;display:inline-flex;align-items:center;gap:6px;letter-spacing:-0.01em}
-  .quick-action-btn:hover{background:#f8f8f8;border-color:rgba(0,0,0,.2)}
-  .quick-action-btn.primary{background:#f1f1f2;color:black;border:none}
-
-  .topics-section{width:100%;max-width:700px;margin:16px auto 0;transition:all .3s ease}
-  .bottom-actions-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;flex-wrap:wrap;width:100%;padding-bottom: 30px;}
-  .topics-toggle{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;cursor:pointer;color:#007AFF;font-size:13px;font-weight:500;letter-spacing:-0.01em;transition:all .2s ease;border-radius:20px;border:1px solid rgba(0,122,255,.2);background:#fff}
-  .topics-toggle:hover{background:#f8f8f8;border-color:rgba(0,122,255,.4)}
-  .topics-toggle-icon{width:16px;height:16px;transition:transform .3s ease;display:flex;align-items:center;justify-content:center}
-  .topics-toggle-icon.rotated{transform:rotate(180deg)}
-  .topics-toggle-icon svg{fill:#007AFF;width:100%;height:100%}
-
-  /* Modal Overlay */
-  .topics-modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;min-width:100vw;min-height:100vh;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;opacity:0;transition:opacity .3s ease}
-  .topics-modal-overlay.active{display:flex;opacity:1}
-
-  /* Modal Container */
-  .topics-modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);transform:scale(.9);transition:transform .3s ease}
-  .topics-modal-overlay.active .topics-modal{transform:scale(1)}
-
-  /* Modal Header */
-  .topics-modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid rgba(0,0,0,.1)}
-  .topics-modal-title{font-size:16px;font-weight:600;color:#1d1d1f;margin:0}
-  .topics-modal-close{background:transparent;border:none;font-size:24px;color:#86868b;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .2s ease;padding:0}
-  .topics-modal-close:hover{background:#f5f5f7;color:#1d1d1f}
-
-  /* Modal Body with Scrolling */
-  .topics-modal-body{overflow-y:auto;flex:1;padding:0;-webkit-overflow-scrolling:touch}
-  .topics-modal-body::-webkit-scrollbar{width:8px}
-  .topics-modal-body::-webkit-scrollbar-track{background:#f5f5f7}
-  .topics-modal-body::-webkit-scrollbar-thumb{background:#c7c7cc;border-radius:4px}
-  .topics-modal-body::-webkit-scrollbar-thumb:hover{background:#aeaeb2}
-
-  .topics-menu{background:#fff}
-  .topic-category{border-bottom:1px solid rgba(0,0,0,.06)}
-  .topic-category:last-child{border-bottom:none}
-  .topic-accordion-header{display:flex;align-items:center;gap:12px;padding:16px 24px;cursor:pointer;background:#fff;transition:all .2s ease;user-select:none}
-  .topic-accordion-header:hover{background:#fff}
-  .topic-accordion-header .category-icon{font-size:18px}
-  .topic-accordion-header .category-name{flex:1;font-size:14px;font-weight:600;color:#1d1d1f}
-  .topic-accordion-header .accordion-icon{font-size:20px;color:#86868b;transition:transform .3s ease;font-weight:bold}
-  .topic-accordion-content{overflow:hidden;transition:max-height .3s ease;background:#fff}
-  .topic-menu-item{padding:14px 24px 14px 56px;cursor:pointer;font-size:14px;color:#1d1d1f;transition:all .2s ease;}
-  .topic-menu-item:hover{padding-left:60px}
-  .topic-menu-item:first-child{border-top:none}
-
-  .persistent-topics{width:100%;max-width:700px;margin:0 auto}
-
-  .chat-input-wrapper{width:100%;max-width:700px;margin:0 auto}
-  .chat-input-container{display:flex;gap:8px;align-items:center;background:#f5f5f7;border-radius:28px;padding:6px 8px 6px 20px;transition:all .2s ease;border:2px solid transparent}
-  .chat-input{flex:1;background:transparent;border:none;padding:8px 0;font-size:13px;color:#1d1d1f;resize:none;font-family:inherit;line-height:1.5;letter-spacing:-0.01em;height:24px;max-height:150px;overflow-y:hidden}
-  .chat-input::placeholder{color:#999;transition:opacity .3s ease}
-  @keyframes fadeInOut{0%,100%{opacity:.6}50%{opacity:1}}
-  .placeholder-animating::placeholder{animation:fadeInOut 3s ease-in-out}
-
-  .account-link{font-size:13px;color:#86868b;margin:0;padding:0;white-space:nowrap}
-  .account-link a{color:#007AFF;text-decoration:none;font-weight:500;transition:color .2s ease}
-  .account-link a:hover{color:#0066CC}
-
-  .chat-send-btn{background:#007AFF;color:#fff;border:none;width:29px;height:29px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0}
-  .chat-send-btn:hover{background:#0066CC;transform:scale(1.05)}
-  .chat-send-btn:active{transform:scale(.95)}
-  .chat-send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
-
-  @media(max-width:767px){
-    .welcome-topics{flex-direction:column;width:100%}
-    .welcome-topic-btn{width:100%;text-align:center}
-    .input-section.fixed-bottom{padding:16px 20px}
-    .bottom-actions-row{flex-direction:column;gap:8px;margin-bottom:0px !important}
-    .account-link{text-align:center;margin-top:8px}
-  }
-
-  
-
-  /* === Input bar fixes === */
-.chat-input-container{
-  display:flex;
-  align-items:center;
-  gap:12px;                 /* a touch more room between input and button */
-  padding:10px 12px 10px 16px;
-  background:#f5f5f7;
-  border-radius:28px;
-  transition:all .2s ease;
-  border:2px solid transparent;
-}
-
-
-/* Let the textarea grow naturally (no clipping) */
-.chat-input{
-  flex:1;
-  background:transparent;
-  border:none;
-  padding:6px 0;            /* vertical breathing room so the placeholder isn't cut */
-  font-size:13px;
-  line-height:1.45;         /* taller line box prevents cropping on some browsers */
-  height:auto;              /* remove the fixed 24px height */
-  min-height:28px;          /* small but comfy */
-  max-height:150px;
-  overflow-y:auto;
-  resize:none;
-  color:#1d1d1f;
-}
-
-/* Placeholder fully visible and readable */
-.chat-input::placeholder{
-  color:#9aa0a6;
-  opacity:1;
-  white-space:normal;       /* allow wrapping if needed */
-}
-
-/* iOS has tighter line metrics; give it a smidge more */
-@supports (-webkit-touch-callout: none){
-  .chat-input{ line-height:1.6; }
-}
-
-/* Smaller, white send arrow */
-.chat-send-btn{
-  width:28px;               /* was 36px */
-  height:28px;
-  border-radius:50%;
-  background:#007AFF;
-  color:#fff;               /* sets currentColor for the SVG */
-  border:none;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  transition:transform .12s ease, background .2s ease, opacity .2s ease;
-  flex-shrink:0;
-}
-.chat-send-btn:hover{ background:#0066CC; transform:scale(1.04); }
-.chat-send-btn:active{ transform:scale(.96); }
-.chat-send-btn:disabled{ opacity:.45; cursor:not-allowed; }
-
-/* Ensure the icon uses the button color (white) and is smaller */
-.chat-send-btn svg{
-  width:14px;               /* was 18px */
-  height:14px;
-  display:block;
-}
-.chat-send-btn svg path{ fill:#fff !important; } /* force white even if a global rule overrides currentColor */
-
-
-/* Make the pre-chat layout center vertically */
-.support-container { position: relative; }
-
-/* When NOT chatting, center the whole input section (welcome + input) */
-.support-container:not(.chat-active) .chat-window { 
-  min-height: 100vh;            /* ensures we can center against full viewport */
-}
-
-.support-container:not(.chat-active) .input-section {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -46%); /* nudge up a bit for nicer balance */
-  width: 100%;
-  max-width: 700px;
-  padding: 0 20px;              /* keep side gutters */
-  z-index: 2;
-}
-
-/* Keep the welcome centered inside this block */
-.support-container:not(.chat-active) .centered-welcome {
-  position: static;             /* rely on the parent centering now */
-  transform: none;
-  margin: 0 auto 18px;          /* small gap above the input bar */
-  max-width: 520px;
-}
-
-/* Once chat starts, revert to normal flow (input at bottom with fixed bar) */
-.support-container.chat-active .input-section {
-  position: static;
-  transform: none;
-  max-width: none;
-  padding-bottom: 100px;
-}
-
-/* Ensure the chat-content area doesn't show before chat starts */
-.support-container:not(.chat-active) .chat-content {
-  display: none;
-}
-
-/* Small-screen tweak */
-@media (max-width: 767px) {
-  .support-container:not(.chat-active) .input-section {
-    transform: translate(-50%, -48%);
-    max-width: 92vw;
-  }
-}
-/* ===== Dock the input; animate the chat area above it ===== */
-
-/* we’ll store the live input height here from JS */
-:root { --input-h: 76px; } /* fallback */
-
-.input-section {
-  position: sticky;                /* stays at bottom inside the viewport */
-  bottom: 0;
-  z-index: 5;
-  background: #fff;
-}
-
-/* when chat is active, we give the scroller room for the docked input */
-.chat-content {
-  padding-bottom: calc(var(--input-h) + 80px); /* room for pills + input */
-  transition: padding-bottom .25s ease;
-}
-
-/* subtle slide-in on first reveal */
-.chat-content.active {
-  animation: chatReveal .25s ease;
-}
-@keyframes chatReveal {
-  from { opacity:.0; transform: translateY(10px); }
-  to   { opacity:1;  transform: translateY(0); }
-}
-
-/* helper pills row just above the input */
-.helper-pills {
-  width: 100%;
-  max-width: 700px;
-  margin: 8px auto 10px;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-}
-.helper-pill {
-  appearance: none;
-  border: 1px solid rgba(0,0,0,.12);
-  background: #fff;
-  color: #1d1d1f;
-  font-size: 13px;
-  font-weight: 500;
-  line-height: 1;
-  padding: 8px 12px;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background .15s ease, border-color .15s ease, transform .05s ease;
-}
-.helper-pill:hover { background:#f6f7f8; border-color: rgba(0,0,0,.18); }
-.helper-pill:active { transform: scale(.98); }
-.helper-pill.primary { background:#007AFF; color:#fff; border-color:#007AFF; }
-.helper-pill.destructive { color:#ff3b30; border-color: rgba(255,59,48,.25); }
-.helper-pill.ghost { background:#fff; color:#0b57d0; border-color: rgba(11,87,208,.25); }
-
-/* input bar sizing polish (from earlier) so placeholder isn’t clipped */
-.chat-input-container { padding: 10px 12px 10px 16px; gap: 12px; }
-.chat-input {
-  padding: 6px 0;
-  font-size: 13px;
-  line-height: 1.45;
-  min-height: 28px;
-  max-height: 150px;
-  overflow-y: auto;
-}
-
-/* --- Smooth scrolling & message enter from bottom --- */
-.chat-content {
-  scroll-behavior: smooth;      /* smooth by default */
-  will-change: scroll-position;
-}
-
-.message {
-  transform: translateY(8px);
-  opacity: 0;
-  transition: transform .22s ease, opacity .22s ease;
-}
-.message.show {
-  transform: translateY(0);
-  opacity: 1;
-}
-
-/* Respect reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .chat-content { scroll-behavior: auto; }
-  .message { transition: none; transform: none; opacity: 1; }
-}
-/* Reserve space so cards don't shift layout while images load */
-.order-details{
-  display:flex;
-  gap:12px;
-  align-items:flex-start;
-  flex-direction: column;
-  margin-bottom: 10px;
-}
-
-.order-thumb{
-  width:64px;
-  height:64px;
-  border-radius:8px;
-  object-fit:cover;
-  background:#f2f2f2; /* placeholder */
-  flex-shrink:0;
-}
-
-
-/* ===== ChatGPT-like: centered column, comfy bubbles, subtle fades, code blocks ===== */
-
-/* Center the conversation to a readable column like ChatGPT */
-.chat-messages{
-  width: 100%;
-  max-width: 720px;             /* ChatGPT-ish width */
-  margin: 0 auto;                /* center */
-  padding-top: 12px;
-}
-
-/* Tighter grouping between consecutive messages from same sender */
-.message + .message{
-  margin-top: 8px;
-}
-.message.user + .message.bot,
-.message.bot + .message.user,
-.message.system + .message.bot,
-.message.system + .message.user{
-  margin-top: 16px;              /* more space when sender changes */
-}
-
-
-.message-bubble{
-  border-radius: 16px;
-}
-.message.bot .message-bubble{
-  background: #f7f7f8;        
-}
-.message.user .message-bubble{
-  background:rgb(255, 255, 255);
-  color:#0d0d0d;
-}
-.message.system .message-bubble{
-  background: #f1f5f9;
-  color:#475569;
-}
-
-/* Fade hints at top/bottom of scroll to imply more content */
-.chat-window{
-  position: relative;
-}
-.chat-window::before,
-.chat-window::after{
-  content:'';
-  position:absolute;
-  left:0; right:0;
-  height: 22px;
-  pointer-events:none;
-  z-index:1;
-}
-.chat-window::before{
-  top: 0;
-  background: linear-gradient(#fff, rgba(255,255,255,0));
-  opacity: .9;
-}
-.chat-window::after{
-  bottom: 0;
-  background: linear-gradient(rgba(255,255,255,0), #fff);
-  opacity: .2;
-}
-
-/* Typing dots look more like ChatGPT */
-.typing-indicator{ margin: 6px 0 8px 42px; }
-.typing-dot{ width:7px; height:7px; background:#c9ccd1; }
-
-/* Make links look like ChatGPT links */
-.message-bubble a{
-  color:#0b57d0;
-  text-decoration: none;
-}
-.message-bubble a:hover{ text-decoration: underline; }
-
-/* Code block polish (if any step/content includes code) */
-.message-bubble pre, .message-bubble code{
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  font-size: 13px;
-}
-.message-bubble pre{
-  background:#0b1220;
-  color:#e6edf3;
-  border-radius:12px;
-  padding:12px;
-  overflow:auto;
-}
-.message-bubble code{
-  background:#f1f4f7;
-  color:#111;
-  padding:2px 6px;
-  border-radius:6px;
-}
-
-.order-card, .subscription-card{
-  margin: 10px 0;
-}
-.order-details{
-  display:flex;
-  gap:12px;
-  align-items:flex-start;
-}
-.order-thumb{
-  width:64px; height:64px; border-radius:8px; object-fit:cover; background:#f2f2f2; flex-shrink:0;
-}
-
-/* Animated appearance (pairs with JS .show class) */
-.message{
-  transform: translateY(8px);
-  opacity: 0;
-  transition: transform .22s ease, opacity .22s ease;
-}
-.message.show{
-  transform: translateY(0);
-  opacity: 1;
-}
-
-/* Smooth scroll unless user prefers reduced motion */
-.chat-content{ scroll-behavior: smooth; }
-@media (prefers-reduced-motion: reduce){
-  .chat-content{ scroll-behavior: auto; }
-  .message{ transition: none; transform:none; opacity:1; }
-}
-
-/* ===== Viewport-scoped layout so only the thread scrolls ===== */
-html, body { height: 100%; }
-.support-chat { min-height: 100vh; height: 100vh; overflow: hidden; } /* prevent page scroll */
-.support-chat .support-container { height: 100%; }
-.support-chat .chat-window { height: 100%; display: flex; flex-direction: column; }
-.support-chat .chat-window .chat-content {
-  flex: 1 1 auto;
-  overflow-y: auto;               /* internal scroller */
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(var(--input-h, 76px) + 16px); /* room for docked input */
-}
-.support-chat .input-section {
-  position: sticky; bottom: 0; z-index: 5;
-  background: #fff;
-}
-
-/* Prevent the input growing from pushing layout (we reserve space with --input-h) */
-.support-chat .chat-input {
-  max-height: 150px; overflow-y: auto;
-}
-
-/* Ensure order/subscription cards don't reflow height unpredictably */
-.order-details{ display:flex; gap:12px; align-items:flex-start; }
-.order-thumb{ width:64px; height:64px; border-radius:8px; object-fit:cover; background:#f2f2f2; flex-shrink:0; }
-
-/* (Optional) tame any earlier rules that absolutely positioned the pre-chat layout */
-.support-chat .support-container:not(.chat-active) .chat-window { position: relative; }
-
-/* ===== Persistent Start Over pill inside input bar ===== */
-.chat-input-container {
-  position: relative; /* anchor for the pill */
-  padding-left: 44px; /* make room for the pill on the left */
-}
-
-.startover-pill {
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(0,0,0,.12);
-  background: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  color: #1d1d1f;
-  cursor: pointer;
-  user-select: none;
-  transition: background .15s ease, border-color .15s ease, transform .05s ease;
-  box-shadow: 0 1px 0 rgba(0,0,0,.04);
-}
-.startover-pill:hover { background:#f6f7f8; border-color: rgba(0,0,0,.18); }
-.startover-pill:active { transform: translateY(-50%) scale(.98); }
-
-.startover-pill svg {
-  width: 14px;
-  height: 14px;
-  display: block;
-}
-
-/* On very small screens, tuck it a bit tighter */
-@media (max-width: 420px){
-  .chat-input-container { padding-left: 40px; }
-  .startover-pill { left: 8px; }
-}
-
-/* ===== Dual buttons inside chat input ===== */
-.chat-input-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.chat-send-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 29px;
-  height: 29px;
-  border-radius: 50%;
-  border: none;
-  background: #007aff;
-  color: #fff;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-.chat-send-btn:hover { background: #0065d0; }
-.chat-send-btn:active { transform: scale(0.96); }
-
-.chat-send-btn svg {
-  width: 15px;
-  height: 15px;
-  fill: currentColor;
-}
-
-/* Shrink the send icons on small screens */
-@media (max-width: 480px) {
-  .chat-send-btn { width: 38px; height: 38px; }
-  .chat-send-btn svg { width: 15px; height: 15px; }
-}
-
-/* Spin animation for Start Over button */
-@keyframes spin360 { to { transform: rotate(360deg); } }
-
-#startOverBtn.spinning svg {
-  animation: spin360 .6s linear;
-}
-
-/* Ensure stroke icons render crisp white like the send icon */
-.chat-send-btn svg { fill: none; stroke: currentColor; }
-
-
-/* --- Start Over button spin animation --- */
-@keyframes spin360 { 
-  to { transform: rotate(360deg); } 
-}
-
-#startOverBtn.spinning svg {
-  animation: spin360 0.6s ease-in-out;
-  transform-origin: 50% 50%;
-}
-
-/* Ensure both buttons have identical sizing, color, and spacing */
-.chat-send-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 29px;
-  height: 29px;
-  border-radius: 50%;
-  border: none;
-  background: #007aff;
-  color: #fff;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s ease, transform 0.1s ease;
-}
-
-.chat-send-btn svg {
-  width: 15px;
-  height: 15px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* Ensure the restart arrow is stroke-only (prevents white wedge) */
-#startOverBtn svg,
-#startOverBtn svg * {
-  fill: none !important;
-  stroke: currentColor !important;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* Remove focus border from chat input */
-.chat-input {
-  outline: none !important;
-  box-shadow: none !important;
-  border: none !important;
-}
-
-/* Optional: add a clean inset border instead */
-.chat-input:focus {
-  border: none;
-  outline: none;
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
-}
-
-/* Remove any focus glow Safari adds */
-textarea.chat-input:focus-visible {
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-/* === Mobile Topics: 2x2 column layout === */
-@media (max-width: 767px) {
-  .welcome-topics {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* 2 columns */
-    gap: 10px 12px;                        /* vertical/horizontal spacing */
-    width: 100%;
-    max-width: 400px;                      /* keeps it nicely centered */
-    margin: 0 auto;
-    justify-items: stretch;                /* equal width per column */
-  }
-
-  .welcome-topic-btn {
-    width: 100%;
-    padding: 10px 12px;
-    font-size: 14px;
-    line-height: 1.3;
-    text-align: center;
-    border-radius: 16px;
-    white-space: normal;                   /* allow text to wrap if long */
-  }
-}
-
-/* --- Mobile viewport + bottom spacing fixes --- */
-html, body { height: auto; min-height: 100%; }
-
-.support-chat{
-  /* correct mobile viewport height (iOS/Android toolbars) */
-  height: 100svh;
-  min-height: 100svh;
-}
-@supports (height: 100dvh){
-  .support-chat{ height: 100dvh; min-height: 100dvh; }
-}
-
-/* Reserve space at the bottom of the scroller for:
-   sticky input + safe area + (optional) floating chat bubble */
-:root{
-  --input-h: 76px;          /* your existing fallback */
-  --fab-h: 0px;             /* will be measured by JS below */
-}
-
-.support-chat .chat-window .chat-content{
-  padding-bottom: calc(
-    var(--input-h, 76px)
-    + env(safe-area-inset-bottom, 0px)
-    + var(--fab-h, 0px)
-    + 24px
-  );
-}
-
-/* Make the expanded topics list scrollable within the viewport on mobile */
-@media (max-width: 767px){
-  .topics-content.expanded{
-    max-height: calc(100svh - var(--input-h, 76px) - 220px - env(safe-area-inset-bottom,0px));
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-  @supports (height: 100dvh){
-    .topics-content.expanded{
-      max-height: calc(100dvh - var(--input-h, 76px) - 220px - env(safe-area-inset-bottom,0px));
-    }
-  }
-}
-
-
-
-
-
-
-/* Kill any legacy keyframes that might slide from the side */
-@keyframes slideIn { from {opacity:0; transform: translate3d(0,10px,0)} to {opacity:1; transform: translate3d(0,0,0)} }
-.message { animation: none !important; }  /* prefer transition over animation */
-
-
-
-/* Pure fade-up for the initial welcome state */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* seed class + runner (JS toggles these briefly) */
-.welcome-seed { opacity: 0; transform: translateY(10px); }
-.welcome-fadeup { animation: fadeUp .22s cubic-bezier(.4,0,.2,1) both; }
-
-/* make sure nothing slides horizontally */
-.centered-welcome,
-.input-section {
-  transform: translateY(0);              /* no translateX anywhere */
-}
-
-
-/* ===== Global animation primitives ===== */
-@keyframes kf-fadeUp {
-  from { opacity: 0; transform: translateY(var(--anim-y, 10px)); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes kf-fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-/* optional helper class when you want CSS-only triggers */
-.anim-fadeUp   { animation: kf-fadeUp .22s cubic-bezier(.4,0,.2,1) both; }
-.anim-fadeIn   { animation: kf-fadeIn .22s cubic-bezier(.4,0,.2,1) both; }
-
-
-@media (max-width: 767px) {
-  /* === VIEWPORT & LAYOUT === */
-  .support-chat {
-    height: 100vh;
-    height: 100dvh; /* Dynamic viewport - adjusts for mobile browsers */
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-  
-  /* Safari-specific height fix */
-  @supports (-webkit-touch-callout: none) {
-    .support-chat {
-      height: -webkit-fill-available;
-      min-height: -webkit-fill-available;
-    }
-  }
-  
-  .chat-window {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
-  }
-  
-  /* === CONTAINER === */
-  .support-container {
-    height: 100%;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .support-container.chat-active {
-    justify-content: flex-start;
-  }
-  
-  /* === CHAT CONTENT === */
-  .chat-content {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 20px;
-  }
-  
-  /* Keyboard open state */
-  body.keyboard-open .chat-content {
-    padding-bottom: 20px;
-  }
-  
-  /* === CHAT MESSAGES === */
-  .chat-messages {
-    padding: 12px 16px 0px;
-  }
-  
-  /* === MESSAGES === */
-  .message {
-    margin-bottom: 12px;
-    scroll-margin-top: 40px;
-    max-width: 90%;
-  }
-  
-  .message:last-child {
-    margin-bottom: 20px;
-  }
-  
-
-  .mobile-login {
-     display:flex!important;
-     flex-direction:column!important;
-  }
-
-  .mobile-login-button {
-    width:100%!important;
-    text-align:Center!important;
-  }
-  
-  .message-bubble {
-    padding: 10px 14px;
-    font-size: 13px;
-    line-height: 1.5;
-    word-wrap: break-word;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    max-width: 100%;
-  }
-  
-  .message-bubble p {
-    margin: 0 0 10px;
-  }
-  
-  .message-bubble p:last-child {
-    margin-bottom: 0;
-  }
-  
-  /* === INPUT SECTION === */
-  .input-section {
-    position: relative; 
-    bottom: auto;
-    flex-shrink: 0;
-    padding: 12px 16px;
-    background: #fff;
-    z-index: 100;
-    border-top: 1px solid rgba(0,0,0,0.06);
-  }
-  
-  .support-container.chat-active .input-section {
-    position: relative;
-    transform: none;
-    max-width: none;
-  }
-  
-  .chat-input-container {
-    padding-left: 25px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-  
-  .chat-input {
-    font-size: 13px; /* Prevents zoom on iOS */
-    width: 100%;
-    max-width: 100%;
-  }
-  
-  .chat-input:focus {
-    transform: translateY(0);
-    -webkit-transform: translateY(0);
-  }
-  
-  /* === ORDER CARDS === */
-  .order-card {
-    padding: 14px;
-    margin: 8px 0;
-    border-radius: 10px;
-  }
-  
-  .order-card-header {
-    padding: 0 0 10px 0;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  
-  .order-number {
-    font-size: 13px;
-    font-weight: 600;
-  }
-  
-  .order-pill {
-    font-size: 10px;
-    padding: 3px 8px;
-  }
-  
-  .order-details {
-    gap: 10px;
-    margin-top: 12px;
-    flex-direction: row;
-  }
-  
-  .order-thumb {
-    width: 56px;
-    height: 56px;
-    flex-shrink: 0;
-  }
-  
-  .order-meta {
-    font-size: 12px;
-    line-height: 1.5;
-    flex: 1;
-    min-width: 0;
-  }
-  
-  .order-meta div {
-    margin-bottom: 4px;
-    overflow-wrap: break-word;
-    word-break: break-word;
-  }
-  
-  /* === SUBSCRIPTION CARDS === */
-  .subscription-card {
-    margin: 8px 0;
-    border-radius: 10px;
-  }
-  
-  .subscription-card-header {
-    padding: 12px 14px 0;
-  }
-  
-  .subscription-product {
-    font-size: 14px;
-    line-height: 1.3;
-  }
-  
-  .subscription-status {
-    font-size: 10px;
-    padding: 3px 8px;
-  }
-  
-  .subscription-details {
-    padding: 0 14px 10px;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-  
-  .subscription-actions {
-    padding: 10px 12px;
-  }
-  
-  .subscription-actions .btn {
-    font-size: 12px;
-    padding: 8px 12px;
-  }
-  
-  /* === WELCOME SCREEN === */
-  .centered-welcome {
-    padding: 0 20px;
-  }
-  
-  .centered-welcome-title {
-    font-size: 24px;
-  }
-  
-  .centered-welcome-subtitle {
-    font-size: 14px;
-  }
-  
-  .welcome-topics {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px 12px;
-    width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
-    justify-items: stretch;
-  }
-  
-  .welcome-topic-btn {
-    width: 100%;
-    padding: 10px 12px;
-    font-size: 13px;
-    line-height: 1.3;
-    text-align: center;
-    border-radius: 16px;
-    white-space: normal;
-  }
-  
-  /* === QUICK ACTIONS === */
-  .quick-actions {
-    padding: 8px 60px;
-    font-size: 12px;
-    gap: 6px;
-    justify-content: flex-start;
-  }
-  
-  .quick-action-btn {
-    font-size: 12px;
-    padding: 7px 12px;
-    border-radius: 16px;
-  }
-  
-  /* === BOTTOM ACTIONS === */
-  .bottom-actions-row {
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-    margin-bottom: 0 !important;
-    padding-bottom: env(safe-area-inset-bottom, 10px);
-  }
-  
-  .account-link {
-    text-align: center;
-    margin-top: 8px;
-    font-size: 12px;
-    line-height: 1.4;
-  }
-  
-  /* === TOPICS MODAL (MOBILE OPTIMIZED) === */
-  .topics-toggle {
-    font-size: 12px;
-    padding: 8px 14px;
-  }
-
-  .topics-modal {
-    max-width: 95%;
-    max-height: 90vh;
-    margin: 10px;
-  }
-
-  .topics-modal-header {
-    padding: 11px 17px;
-  }
-
-  .topics-modal-title {
-    font-size: 14px;
-  }
-
-  .topics-menu {
-    font-size: 13px;
-  }
-
-  .topic-accordion-header {
-    padding: 12px 20px;
-  }
-
-  .topic-accordion-header .category-icon {
-    font-size: 13px;
-  }
-
-  .topic-accordion-header .category-name {
-    font-size: 13px;
-  }
-
-  .topic-menu-item {
-    padding: 12px 20px 12px 48px;
-    font-size: 13px;
-  }
-
-  .topic-menu-item:hover {
-    padding-left: 48px;
-  }
-  
-  /* === BUTTONS === */
-  .btn {
-    font-size: 12px;
-    padding: 8px 12px;
-  }
-  
-  .chat-send-btn {
-    width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-  }
-  
-  .chat-send-btn svg {
-    width: 14px;
-    height: 14px;
-  }
-  
-  /* === TYPING INDICATOR === */
-  .typing-indicator {
-    margin: 6px 0 8px 42px;
-  }
-  
-  .typing-dot {
-    width: 6px;
-    height: 6px;
-  }
-  
-  /* === HEADER === */
-  .chat-header {
-    padding: 16px;
-  }
-  
-  .chat-header-title {
-    font-size: 18px;
-  }
-  
-  .chat-header-subtitle {
-    font-size: 13px;
-  }
-  
-  /* === PREVENT OVERFLOW === */
-  * {
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-}
-
-/* === KEYBOARD OPEN ADJUSTMENTS === */
-body.keyboard-open .support-chat {
-  height: 100vh;
-}
-
-body.keyboard-open .chat-content {
-  padding-bottom: 20px;
-}
-
-/* === Order Card Improvements (All Sizes) === */
-.order-card {
-  background: #fff;
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 12px;
-  padding: 16px;
-  margin: 10px 0;
-  overflow: hidden;
-  word-wrap: break-word;
-  word-break: break-word;
-  box-sizing: border-box;
-}
-
-.order-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 0 12px 0;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.order-details {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  flex-direction: row;
-  width: 100%;
-  margin-top: 12px;
-}
-
-.order-meta {
-  font-size: 13px;
-  color: #555;
-  line-height: 1.6;
-  flex: 1;
-  word-wrap: break-word;
-  min-width: 0;
-}
-
-.order-meta div {
-  margin-bottom: 6px;
-  overflow-wrap: break-word;
-  word-break: break-word;
-}
-
-.order-meta .dim {
-  color: #8a8a8a;
-  font-weight: 500;
-}
-
-/* Prevent horizontal overflow */
-html, body {
-  overflow-x: hidden;
-  width: 100%;
-  max-width: 100vw;
-}
-
-/* Push input up when keyboard opens */
-body.keyboard-open .input-section {
-  margin-bottom: 50vh !important; /* Pushes input up by half viewport */
-  transition: margin-bottom 0.3s ease !important;
-}
-
-body:not(.keyboard-open) .input-section {
-  margin-bottom: 0 !important;
-  transition: margin-bottom 0.3s ease !important;
-}
-
-</style>
-
-<div class="support-chat">
-  <div class="chat-header">
-    {% if customer %}
-      <h1 class="chat-header-title">{{ section.settings.header_title_logged_in | default: 'Hi NAME_PLACEHOLDER' | replace: 'NAME_PLACEHOLDER', customer.first_name }}</h1>
-    {% else %}
-      <h1 class="chat-header-title">{{ section.settings.header_title | default: 'Support Center' }}</h1>
-    {% endif %}
-    {% if section.settings.header_subtitle != blank %}
-      <p class="chat-header-subtitle">{{ section.settings.header_subtitle }}</p>
-    {% endif %}
-  </div>
-
-  <div class="support-container">
-    <div class="chat-window" id="chatWindow">
+/**
+ * Shopify Theme-Only Chat Features
+ * Fixed: Prevents duplicates, prioritizes custom intents
+ */
+
+class ShopifyChatFeatures {
+  constructor(config = {}) {
+    this.config = {
+      loggingUrl: config.loggingUrl || null,
+      customer: config.customer || null,
+      shopDomain: config.shopDomain || window.Shopify?.shop,
       
-
-<script>
-
-// ============================================================================
-// SECURITY HELPERS
-// ============================================================================
-
-// Rate limiting
-let lastAuthAttempt = 0;
-const AUTH_RATE_LIMIT = 3000; // 3 seconds between attempts
-
-// XSS protection - sanitize user-generated content
-function sanitizeHTML(str) {
-  if (!str) return '';
-  const temp = document.createElement('div');
-  temp.textContent = str;
-  return temp.innerHTML;
-}
-
-// Simple hash for integrity checking
-function generateSimpleHash(intent, payload, customerId) {
-  const str = intent + JSON.stringify(payload) + (customerId || '') + 'SALT_STRING_12345';
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
-}
-
-
-// ============================================================================
-// AUTHENTICATION & SESSION MANAGEMENT
-// ============================================================================
-
-function requireAuthAndContinue(intent, payload = {}) {
-  // SECURITY: Rate limiting
-  const now = Date.now();
-  if (now - lastAuthAttempt < AUTH_RATE_LIMIT) {
-    console.warn('Rate limited');
-    addMessage('system', 'Please wait a moment before trying again.');
-    return;
-  }
-  lastAuthAttempt = now;
-
-  try {
-    console.log('=== REQUIRE AUTH ===');
-    console.log('Intent:', intent);
-    
-    // SECURITY: Whitelist allowed intents
-    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent', 'initialSignIn'];
-    if (!allowedIntents.includes(intent)) {
-      console.error('Invalid intent:', intent);
-      return;
-    }
-    
-    // SECURITY: Validate payload structure
-    if (payload && typeof payload !== 'object') {
-      console.error('Invalid payload type');
-      return;
-    }
-
-    // Save intent to localStorage with validation flag
-    const intentData = {
-      intent: intent,
-      payload: payload,
-      customerId: window.customerData.id || null,
-      ts: Date.now(),
-      signature: generateSimpleHash(intent, payload, window.customerData.id)
-    };
-    
-    localStorage.setItem('supportChatResumeState', JSON.stringify(intentData));
-    
-    console.log('Saved intent');
-    
-    // Show message with clickable link (bypasses popup blocker)
-    addMessage('system', `
-      <div class="mobile-login" style="padding:20px;border-radius:12px;text-align:left;display: flex;flex-direction: row;gap:50px;align-items: center;">
-        <p style="margin:0;color:#555;font-size:14px;line-height:1.6;">
-          We need you to login first. It'll open in a new tab but simply return to this window when you're done and tap the 'Continue' button.
-        </p> 
-        <a class="mobile-login-button" href="/account/login" 
-           target="_blank"
-           style="display:inline-block;background:#393939;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;transition:transform 0.2s ease;"
-           onmouseover="this.style.transform='scale(1.05)'"
-           onmouseout="this.style.transform='scale(1)'">
-          Login
-        </a>
-      </div>
-    `);
-    
-    clearQuickActions();
-    
-    // Add continue button
-    addQuickAction('I\'m logged in, continue', function(){
-      location.reload();
-    }, true);
-    
-    addQuickAction('Cancel', function(){
-      clearQuickActions();
-      localStorage.removeItem('supportChatResumeState');
-      addMessage('bot', 'No problem! What else can I help you with?');
-    }, false);
-    
-  } catch (e) {
-    console.error('Error:', e);
-  }
-}
-
-// Handle sign-in from initial chat state
-function handleInitialSignIn() {
-  try {
-    console.log('=== INITIAL SIGN-IN ===');
-
-    // Save intent to localStorage indicating user wants to sign in from initial state
-    const intentData = {
-      intent: 'initialSignIn',
-      payload: {},
-      customerId: null,
-      ts: Date.now(),
-      signature: generateSimpleHash('initialSignIn', {}, null)
-    };
-
-    localStorage.setItem('supportChatResumeState', JSON.stringify(intentData));
-  
-
-    // Open login page in new tab
-    window.open('/account/login', '_blank');
-
-    // Show message to user
-    const welcomeScreen = document.querySelector('.centered-welcome');
-    if (welcomeScreen) {
-      // Create overlay message
-      const overlay = document.createElement('div');
-      overlay.id = 'signInOverlay';
-      overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(8px);
-        -webkit-backdrop-filter: blur(8px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-        padding: 20px;
-      `;
-
-      overlay.innerHTML = `
-        <div style="max-width:350px;text-align:center;padding:30px;background:white;border:1px solidrgb(0, 123, 255);border-radius:12px;">
-          <p style="margin:0 0 20px;font-weight:600;font-size:18px;color:#333;">Login</p>
-          <p style="margin:0 0 24px;color:#666;font-size:14px;line-height:1.6;">
-            A new tab has been opened for you to sign in. After signing in, return here to continue your chat.
-          </p>
-          <button onclick="location.reload()" style="background:#4d95e4;color:white;padding:6px 16px;border:none;border-radius:8px;font-weight:500;font-size:14px;cursor:pointer;margin-right:10px;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            Continue
-          </button>
-          <button onclick="cancelInitialSignIn()" style="background:#f0f0f0;color:#333;padding:6px 16px;border:none;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;transition:transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-            Cancel
-          </button>
-        </div>
-      `;
-
-      document.body.appendChild(overlay);
-    }
-  } catch (e) {
-    console.error('Error in handleInitialSignIn:', e);
-  }
-}
-
-// Cancel initial sign-in flow
-function cancelInitialSignIn() {
-  localStorage.removeItem('supportChatResumeState');
-  const overlay = document.getElementById('signInOverlay');
-  if (overlay) {
-    overlay.remove();
-  }
-}
-
-// ============================================================================
-// INITIALIZATION & DATA LOADING
-// ============================================================================
-
-// Load intents from Shopify Theme Customizer blocks
-var chatIntents = [];
-{% for block in section.blocks %}
-  {% if block.type == 'intent' %}
-    chatIntents.push({
-      id: "{{ block.id }}",
-      name: "{{ block.settings.intent_name | escape }}",
-      category: "{{ block.settings.category }}",
-      showInTopics: {{ block.settings.show_in_topics | json }},
-      triggers: {{ block.settings.trigger_phrases | newline_to_br | split: '<br />' | json }},
-      actionType: "{{ block.settings.action_type }}",
-      actionValue: "{{ block.settings.action_value | escape }}",
-      responseMessage: {{ block.settings.response_message | json }},
-      responseImage: {% if block.settings.response_image %}{{ block.settings.response_image | image_url: width: 800 | json }}{% else %}null{% endif %},
-      requireLogin: {{ block.settings.require_login | json }}
-    });
-  {% endif %}
-{% endfor %}
-
-// ===== SAFETY CHECKS =====
-if(!window.customerData) {
-  window.customerData = {
-    isLoggedIn: false,
-    firstName: null,
-    lastName: null,
-    email: null,
-    id: null
-  };
-}
-if(!window.customerOrders) window.customerOrders = [];
-if(!window.customerSubscriptions) window.customerSubscriptions = [];
-if(!window.shopSettings) {
-  window.shopSettings = { contactEmail: 'support@example.com' };
-}
-
-// ===== AI INTENT CONFIGURATION =====
-var aiIntentConfig = {
-  enabled: {{ section.settings.enable_ai_intent | default: false | json }},
-  apiKey: {{ section.settings.openai_api_key | default: '' | json }}
-};
-
-// ============================================================================
-// INITIALIZE WELCOME TOPIC PILLS
-// ============================================================================
-
-// Add three initial topic pills below the greeting
-(function initWelcomeTopics(){
-  var welcomeTopicsContainer = document.getElementById('welcomeTopics');
-  if(!welcomeTopicsContainer) return;
-
-  // Get first 3 intents that should show in topics
-  var topicsToShow = [];
-  for(var i = 0; i < chatIntents.length && topicsToShow.length < 3; i++){
-    if(chatIntents[i].showInTopics){
-      topicsToShow.push(chatIntents[i]);
-    }
-  }
-
-  // Create and append topic pills
-  topicsToShow.forEach(function(intent){
-    var btn = document.createElement('button');
-    btn.className = 'welcome-topic-btn';
-    btn.textContent = intent.name;
-    btn.onclick = function(){
-      triggerIntent(intent.id);
-    };
-    welcomeTopicsContainer.appendChild(btn);
-  });
-})();
-
-// ============================================================================
-// CUSTOMER DATA & SHOP SETTINGS
-// ============================================================================
-
-window.customerData = {
-          isLoggedIn: {{ customer | json }} ? true : false,
-          firstName: {{ customer.first_name | json }},
-          lastName: {{ customer.last_name | json }},
-          email: {{ customer.email | json }},
-          id: {{ customer.id | json }}
-        };
-        window.shopSettings = {
-          contactEmail: {{ shop.customer_email | json }} || {{ shop.email | json }}
-        };
-
-// ============================================================================
-// CUSTOMER ORDERS DATA
-// ============================================================================
-
-        {% if customer %}
-        window.customerOrders = [
-          {% for order in customer.orders limit: 20 %}
-            {% assign li = order.line_items.first %}
-            {
-              name: "{{ order.name }}",
-              orderNumber: {{ order.order_number }},
-              financialStatus: "{{ order.financial_status }}",
-              fulfillmentStatus: "{{ order.fulfillment_status | default: 'unfulfilled' }}",
-              processedAt: "{{ order.processed_at | date: '%B %d, %Y' }}",
-              totalPrice: "{{ order.total_price | money }}",
-              paymentGateways: {{ order.payment_gateway_names | json }},
-              cancelled: {{ order.cancelled | json }},
-              cancelReason: {{ order.cancel_reason | json }},
-              // Refund signal: use financial_status variants
-              refundState: "{% if order.financial_status == 'refunded' %}refunded{% elsif order.financial_status == 'partially_refunded' %}partially_refunded{% else %}none{% endif %}",
-              // Returns (best-effort): Shopify Liquid doesn't expose returns; show "possible" if cancelled or refunded
-              returnSignal: "{% if order.cancelled or order.financial_status contains 'refunded' %}possible{% else %}none{% endif %}",
-              trackingUrl: {% if order.fulfillments.first.tracking_url %}"{{ order.fulfillments.first.tracking_url }}"{% else %}null{% endif %},
-              trackingNumber: {% if order.fulfillments.first.tracking_number %}"{{ order.fulfillments.first.tracking_number }}"{% else %}null{% endif %},
-              orderUrl: "{{ order.order_status_url }}",
-              thumb: {% if li and li.image %}"{{ li.image | img_url: '160x160' }}"{% elsif li and li.product.featured_image %}"{{ li.product.featured_image | img_url: '160x160' }}"{% else %}null{% endif %}
-            }{% unless forloop.last %},{% endunless %}
-          {% endfor %}
-        ];
-        {% else %}
-        window.customerOrders = [];
-        {% endif %}
-
-// ============================================================================
-// CUSTOMER SUBSCRIPTIONS DATA
-// ============================================================================
-
-        {% if customer %}
-window.customerSubscriptions = [];
-
-{% if customer.metafields.subscriptions %}
-  {% assign subscription_data = customer.metafields.subscriptions %}
-  {% if subscription_data.all %}
-    window.customerSubscriptions = {{ subscription_data.all | json }};
-  {% elsif subscription_data.active_subscriptions %}
-    window.customerSubscriptions = {{ subscription_data.active_subscriptions | json }};
-  {% elsif subscription_data.subscriptions %}
-    window.customerSubscriptions = {{ subscription_data.subscriptions | json }};
-  {% endif %}
-{% endif %}
-
-{% for order in customer.orders limit: 25 %}
-  {% for line_item in order.line_items %}
-    {% if line_item.selling_plan_allocation %}
-      window.customerSubscriptions.push({
-        productTitle: "{{ line_item.title | escape }}",
-        productId: {{ line_item.product_id }},
-        variantTitle: "{{ line_item.variant_title | escape }}",
-        sellingPlanName: "{{ line_item.selling_plan_allocation.selling_plan.name | escape }}",
-        frequency: "{{ line_item.selling_plan_allocation.selling_plan.name | escape }}",
-        price: "{{ line_item.final_price | money }}",
-        lastOrderDate: "{{ order.created_at | date: '%B %d, %Y' }}",
-        status: "active",
-        image: "{{ line_item.image | default: line_item.product.featured_image | img_url: '300x300' }}"
-      });
-    {% endif %}
-  {% endfor %}
-{% endfor %}
-{% else %}
-window.customerSubscriptions = [];
-{% endif %}
-
-// ============================================================================
-// SUBSCRIPTION APP CONFIGURATION
-// ============================================================================
-
-        window.subscriptionApp = {
-          hasAppstle: {% if shop.metafields.appstle %}true{% else %}false{% endif %},
-          hasRecharge: {% if shop.metafields.recharge %}true{% else %}false{% endif %},
-          hasNative: true,
-          manageUrl: "https://www.bluesky-cbd.com/apps/subscriptions?country=US#/subscriptions/list"
-        };
-
-// ============================================================================
-// UI EVENT HANDLERS
-// ============================================================================
-
-// ============================================================================
-// MOBILE KEYBOARD FIX
-// ============================================================================
-
-// Universal Mobile Keyboard Fix (Chrome + Safari)
-(function universalKeyboardFix(){
-  var chatInput = document.getElementById('chatInput');
-  var chatContent = document.getElementById('chatContent');
-  var supportChat = document.querySelector('.support-chat');
-  var inputSection = document.getElementById('inputSection');
-  
-  if(!chatInput || !chatContent) return;
-  
-  var isKeyboardOpen = false;
-  var originalHeight = window.innerHeight;
-  
-  // Detect keyboard open/close
-  function checkKeyboard(){
-    var currentHeight = window.innerHeight;
-    var heightDiff = originalHeight - currentHeight;
-    
-    if(heightDiff > 150){
-      // Keyboard opened
-      if(!isKeyboardOpen){
-        isKeyboardOpen = true;
-        document.body.classList.add('keyboard-open');
-        
-        // Add extra bottom margin to push input up
-        if(chatContent){
-          chatContent.style.paddingBottom = '200px'; // Large padding to push content up
-        }
-      }
-    } else {
-      // Keyboard closed
-      if(isKeyboardOpen){
-        isKeyboardOpen = false;
-        document.body.classList.remove('keyboard-open');
-        originalHeight = currentHeight;
-        
-        // Remove extra padding
-        if(chatContent){
-          chatContent.style.paddingBottom = '20px';
-        }
-      }
-    }
-  }
-  
-  // Listen for resize (keyboard events)
-  window.addEventListener('resize', checkKeyboard);
-  
-  // Visual Viewport API (better for iOS)
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', function(){
-      checkKeyboard();
+      // Feature flags
+      enablePersistence: config.enablePersistence !== false,
+      enableAutoComplete: config.enableAutoComplete !== false,
+      enableQuickReplies: config.enableQuickReplies !== false,
+      enableHistory: config.enableHistory !== false,
+      enableOrderLookup: config.enableOrderLookup !== false,
       
-      // On iOS, also adjust chat height
-      if(isKeyboardOpen){
-        var vvHeight = window.visualViewport.height;
-        if(supportChat){
-          supportChat.style.height = vvHeight + 'px';
-        }
-      } else {
-        if(supportChat){
-          supportChat.style.height = '100vh';
-        }
-      }
-    });
+      // Priority settings
+      prioritizeCustomIntents: config.prioritizeCustomIntents !== false,
+      onlyShowQuickRepliesOnce: config.onlyShowQuickRepliesOnce !== false,
+      
+      ...config
+    };
+
+    this.sessionId = this.getOrCreateSessionId();
+    this.conversationContext = {
+      messages: [],
+      lastIntent: null,
+      metadata: {},
+      processedMessages: new Set(), // Track processed messages to prevent duplicates
+      quickRepliesShown: false      // Track if quick replies already shown
+    };
+
+    // Debounce timers
+    this.debounceTimers = {
+      quickReplies: null,
+      messages: null
+    };
+
+    this.init();
+  }
+
+  init() {
+    console.log('🎯 Initializing Shopify Chat Features (Deduplication Mode)');
     
-    window.visualViewport.addEventListener('scroll', checkKeyboard);
+    if (this.config.enablePersistence) {
+      this.loadPersistedSession();
+      this.setupAutoSave();
+    }
+
+    if (this.config.enableAutoComplete) {
+      this.initAutoComplete();
+    }
+
+    if (this.config.enableQuickReplies) {
+      this.initQuickReplies();
+    }
+
+    if (this.config.enableHistory && this.config.customer) {
+      this.showWelcomeBack();
+    }
+
+    this.initGDPRTools();
+
+    // Hook into existing system to prevent duplicates
+    this.hookIntoExistingSystem();
   }
-  
-  // On focus - ensure messages and input are visible
-  chatInput.addEventListener('focus', function(){
-    setTimeout(function(){
-      // Scroll chat messages to bottom first
-      if(chatContent){
-        chatContent.scrollTop = chatContent.scrollHeight;
-      }
-      
-      // Then scroll the input into view with more aggressive positioning
-      if(inputSection){
-        inputSection.scrollIntoView({behavior: 'smooth', block: 'start', inline: 'nearest'});
+
+  /**
+   * ========================================
+   * DEDUPLICATION & INTEGRATION
+   * ========================================
+   */
+
+  hookIntoExistingSystem() {
+    // Store reference to original functions
+    const originalAddBotMessage = window.addBotMessage;
+    const originalHandleAIIntent = window.handleAIIntent;
+    const originalRouteIntent = window.routeIntent;
+
+    // Wrap addBotMessage to track what's been added
+    if (originalAddBotMessage) {
+      window.addBotMessage = (message, options = {}) => {
+        // Track this message
+        const messageHash = this.hashMessage(message);
+        this.conversationContext.processedMessages.add(messageHash);
         
-        // Extra scroll to ensure it's fully visible
-        setTimeout(function(){
-          window.scrollBy({
-            top: -100, // Scroll up an extra 100px
-            behavior: 'smooth'
-          });
-        }, 100);
-      }
-    }, 350);
-  });
-  
-  // Keep scrolled to bottom while typing
-  chatInput.addEventListener('input', function(){
-    if(document.activeElement === chatInput && chatContent){
-      requestAnimationFrame(function(){
-        chatContent.scrollTop = chatContent.scrollHeight;
-      });
+        // Call original
+        return originalAddBotMessage(message, options);
+      };
     }
-  });
-  
-  // After sending message
-  var originalSendMessage = window.sendMessage;
-  if(typeof originalSendMessage === 'function'){
-    window.sendMessage = function(){
-      originalSendMessage.apply(this, arguments);
-      
-      setTimeout(function(){
-        if(chatContent){
-          chatContent.scrollTop = chatContent.scrollHeight;
-        }
-        if(isKeyboardOpen){
-          chatInput.focus();
-        }
-      }, 150);
-    };
-  }
-  
-  // On blur - cleanup
-  chatInput.addEventListener('blur', function(){
-    setTimeout(function(){
-      if(!isKeyboardOpen){
-        window.scrollTo(0, 0);
-        if(chatContent){
-          chatContent.style.paddingBottom = '20px';
-        }
-        if(supportChat){
-          supportChat.style.height = '100vh';
-        }
-      }
-    }, 100);
-  });
-})();
 
-// ============================================================================
-// BOTTOM SPACE RESERVATION
-// ============================================================================
-
-(function reserveBottomSpace(){
-  const root = document.documentElement;
-
-  function setInputH(){
-    const el = document.getElementById('inputSection');
-    if(!el) return;
-    const h = Math.round(el.getBoundingClientRect().height);
-    root.style.setProperty('--input-h', h + 'px');
-  }
-
-  function setFabH(){
-    // Try to find a common floating widget/bubble; add selectors as needed
-    const fab =
-      document.querySelector(
-        '.crisp-client, .IntercomLauncher, .intercom-lightweight-app,' +
-        '.tidio-chat-iframe, .HubSpotChatWidget, [data-fab], .helpchat-launcher'
-      );
-    let h = 0;
-    if(fab){
-      const rect = fab.getBoundingClientRect();
-      h = Math.max(0, Math.ceil(rect.height || 0)) + 12; // +12 comfort gap
-    }
-    root.style.setProperty('--fab-h', h + 'px');
-  }
-
-  const recompute = () => { setInputH(); setFabH(); };
-
-  // run and re-run on layout changes
-  window.addEventListener('load', recompute);
-  window.addEventListener('resize', recompute);
-  // if MutationObserver is available, watch for widget injection
-  if('MutationObserver' in window){
-    new MutationObserver(setFabH).observe(document.body, {childList:true, subtree:true});
-  }
-
-  // Also recompute when the textarea grows
-  const ta = document.getElementById('chatInput');
-  ta && ta.addEventListener('input', () => requestAnimationFrame(setInputH));
-})();
-
-// Clear stored intents on logout
-window.addEventListener('beforeunload', function() {
-  if (window.location.href.includes('/account/logout')) {
-    localStorage.removeItem('supportChatResumeState');
-  }
-});
-
-</script>
-
-
-      <div class="chat-content" id="chatContent">
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="quick-actions" id="quickActions"></div>
-        <div class="typing-indicator" id="typingIndicator">
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-          <div class="typing-dot"></div>
-        </div>
-      </div>
-
-      <div class="input-section" id="inputSection">
-        <div class="centered-welcome" id="centeredWelcome">
-          {% if customer %}
-            <h2 class="centered-welcome-title">{{ section.settings.header_title_logged_in | default: 'Hi NAME_PLACEHOLDER' | replace: 'NAME_PLACEHOLDER', customer.first_name }}</h2>
-          {% else %}
-            <h2 class="centered-welcome-title">{{ section.settings.header_title | default: 'Support Center' }}</h2>
-          {% endif %}
-          {% if section.settings.header_subtitle != blank %}
-            <p class="centered-welcome-subtitle">{{ section.settings.header_subtitle }}</p>
-          {% endif %}
-          <div class="welcome-topics" id="welcomeTopics">
-            <!-- Initial topic pills will be added here by JavaScript -->
-          </div>
-        </div>
+    // Wrap handleAIIntent to update context but prevent duplicate actions
+    if (originalHandleAIIntent) {
+      window.handleAIIntent = (intent, message) => {
+        // Update our context FIRST
+        this.conversationContext.lastIntent = intent;
         
-        <div class="chat-input-wrapper">
-          <div class="chat-input-container">
-            <textarea class="chat-input" id="chatInput" placeholder="Message..." rows="1"></textarea>
-            <!-- Start Over button -->
-<button class="chat-send-btn" style="background-color:black;" id="startOverBtn" title="Start over" type="button" aria-label="Start over">
-  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
-  <!-- Feather-like rotate-ccw -->
-  <polyline points="1 4 1 10 7 10"
-    fill="none" stroke="currentColor" stroke-width="2"
-    stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M3.51 15a9 9 0 1 0 .49-9.5"
-    fill="none" stroke="currentColor" stroke-width="2"
-    stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
-
-
-</button>
-
-
-<!-- Send button -->
-<button class="chat-send-btn" id="sendBtn" onclick="sendMessage()" title="Send message" type="button">
-  <svg viewBox="0 0 24 24" aria-hidden="true">
-    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-  </svg>
-</button>
-          </div>
-        </div>
+        // Call original (which will add messages)
+        const result = originalHandleAIIntent(intent, message);
         
-        <div class="bottom-actions-row">
-          <div class="topics-toggle" onclick="toggleTopics()">
-            <span id="topicsToggleText">Find More Topics</span>
-            <span class="topics-toggle-icon rotated" id="topicsToggleIcon">
-              <svg viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-            </span>
-          </div>
-          
-          <div class="account-link">
-            {% if customer %}
-              Signed in as {{ customer.first_name }} · <a href="{{ routes.account_url }}">Manage Account</a> · <a href="#" id="exitChatLink">Exit Chat</a>
-            {% else %}
-              Already have an account? <a href="#" onclick="handleInitialSignIn(); return false;">Sign In</a>
-            {% endif %}
-          </div>
-        </div>
+        // ONLY show our quick replies if the original didn't show any
+        // and if we haven't shown them yet
+        if (this.config.enableQuickReplies && !this.conversationContext.quickRepliesShown) {
+          // Wait a bit to see if custom handler added quick replies
+          clearTimeout(this.debounceTimers.quickReplies);
+          this.debounceTimers.quickReplies = setTimeout(() => {
+            if (!this.hasQuickRepliesInDOM()) {
+              this.updateQuickReplies({ intent });
+            }
+          }, 100);
+        }
         
-        <!-- Topics Modal -->
-        <div class="topics-modal-overlay" id="topicsModalOverlay" onclick="if(event.target === this) closeTopicsModal()">
-          <div class="topics-modal">
-            <div class="topics-modal-header">
-              <h3 class="topics-modal-title">Browse Topics</h3>
-              <button class="topics-modal-close" onclick="closeTopicsModal()" aria-label="Close">&times;</button>
-            </div>
-            <div class="topics-modal-body" id="topicsModalBody">
-              <!-- Topics menu will be inserted here -->
-            </div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<script>
-// ============================================================================
-// CONVERSATION DATA & CONFIGURATION
-// ============================================================================
-
-// Topic/step dataset
-const conversationData={
-{% for block in section.blocks %}
-  {% if block.type == 'topic' %}
-    "{{ block.settings.topic_title | escape }}":{
-      title:"{{ block.settings.topic_title | escape }}",
-      description:"{{ block.settings.topic_description | escape }}",
-      steps:[
-        {% for step_block in section.blocks %}
-          {% if step_block.type == 'step' and step_block.settings.topic_title == block.settings.topic_title %}
-            {
-              title:"{{ step_block.settings.step_title | escape }}",
-              content:{{step_block.settings.step_content|json}},
-              image:{% if step_block.settings.step_image != blank %}"{{ step_block.settings.step_image | img_url: '800x' }}"{% else %}null{% endif %},
-              tip:"{{ step_block.settings.tip_text | escape }}",
-              warning:"{{ step_block.settings.warning_text | escape }}",
-              buttonText:"{{ step_block.settings.button_text | escape }}",
-              buttonLink:"{{ step_block.settings.button_link }}"
-            },
-          {% endif %}
-        {% endfor %}
-      ]
-    },
-  {% endif %}
-{% endfor %}
-};
-
-let currentStep=0,currentTopic=null,conversationHistory=[],chatStarted=false;
-const messagesContainer=document.getElementById('chatMessages'),
-      quickActionsContainer=document.getElementById('quickActions'),
-      chatInput=document.getElementById('chatInput'),
-      typingIndicator=document.getElementById('typingIndicator'),
-      chatContent=document.getElementById('chatContent'),
-      inputSection=document.getElementById('inputSection'),
-      chatWindow=document.getElementById('chatWindow'),
-      centeredWelcome=document.getElementById('centeredWelcome'),
-      chatHeader=document.querySelector('.chat-header'),
-      supportContainer=document.querySelector('.support-container');
-
-function prefill(text){ chatInput.value=text; sendMessage(); }
-
-// ============================================================================
-// ANONYMOUS CHAT LOGGING
-// ============================================================================
-
-// Configuration for chat logging endpoint
-// RECOMMENDED: Use Google Sheets (see google-sheets-logger/SETUP.md)
-// Just paste your Google Apps Script web app URL below
-const CHAT_LOG_CONFIG = {
-  enabled: true,
-  endpoint: 'https://script.google.com/macros/s/AKfycby9HnX28ulxsW9AilxmAVOr-IceiUsUI7JH0wdIUIFUyq5mr5TenFagYpSJ_Om4Ori3LA/exec',
-  sessionId: null
-};
-
-// Generate anonymous session ID on first load
-function getAnonymousSessionId() {
-  if (!CHAT_LOG_CONFIG.sessionId) {
-    // Generate a random session ID that doesn't identify the user
-    CHAT_LOG_CONFIG.sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
-  }
-  return CHAT_LOG_CONFIG.sessionId;
-}
-
-// Anonymously log chat messages (strips all PII)
-async function logChatMessageAnonymously(sender, text, timestamp) {
-  if (!CHAT_LOG_CONFIG.enabled || !CHAT_LOG_CONFIG.endpoint || CHAT_LOG_CONFIG.endpoint === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
-    return;
-  }
-
-  try {
-    const logData = {
-      sessionId: getAnonymousSessionId(),
-      sender: sender,
-      message: sanitizeMessageForLogging(text),
-      timestamp: timestamp,
-      topic: currentTopic || '',
-      userAgent: navigator.userAgent.split(' ')[0],
-      shopDomain: window.location.hostname
-    };
-
-    const params = new URLSearchParams(logData);
-    const url = `${CHAT_LOG_CONFIG.endpoint}?${params.toString()}`;
-
-    fetch(url).catch(() => {});
-  } catch (err) {}
-}
-
-// Sanitize message to remove any accidentally included PII
-function sanitizeMessageForLogging(text) {
-  let sanitized = text;
-
-  // Replace HTML content with descriptive placeholders
-  if (sanitized.includes('mobile-login')) {
-    return '[LOGIN_PROMPT]';
-  }
-  if (sanitized.includes('order-card')) {
-    return '[ORDER_CARD]';
-  }
-  if (sanitized.includes('subscription-card')) {
-    return '[SUBSCRIPTION_CARD]';
-  }
-  if (sanitized.includes('<div') || sanitized.includes('<a ')) {
-    return '[HTML_CONTENT]';
-  }
-
-  // Remove email addresses
-  sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL_REDACTED]');
-
-  // Remove phone numbers (various formats)
-  sanitized = sanitized.replace(/(\+?1?\s*)?(\(?\d{3}\)?[\s.-]?)?\d{3}[\s.-]?\d{4}/g, '[PHONE_REDACTED]');
-
-  // Remove credit card patterns (basic pattern)
-  sanitized = sanitized.replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, '[CARD_REDACTED]');
-
-  // Remove SSN patterns
-  sanitized = sanitized.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN_REDACTED]');
-
-  return sanitized;
-}
-
-
-
-
-// ============================================================================
-// SUBSCRIPTION STATUS & BUCKETIZATION
-// ============================================================================
-
-// Enhanced subscription status detection with intelligent defaults
-function bucketizeSubscription(sub){
-  if(!sub) return 'inactive';
-  
-  const rawStatus = (
-    sub.status || 
-    sub.subscription_status || 
-    sub.state || 
-    sub.subscriptionStatus ||
-    sub.deliveryStatus ||
-    ''
-  ).toString().trim().toLowerCase();
-  
-  const now = new Date();
-  
-  // Check date-based expiration
-  if(sub.nextBillingDate || sub.next_billing_date || sub.nextOrderDate){
-    const nextDate = new Date(sub.nextBillingDate || sub.next_billing_date || sub.nextOrderDate);
-    if(!isNaN(nextDate) && nextDate < now){
-      const daysDiff = Math.floor((now - nextDate) / (1000 * 60 * 60 * 24));
-      if(daysDiff > 90) return 'expired';
-    }
-  }
-  
-  // Active states
-  if(['active','ongoing','running','live','enabled','subscribed'].includes(rawStatus)) return 'active';
-  if(rawStatus.includes('activ') && !rawStatus.includes('inactiv')) return 'active';
-  
-  // Paused states
-  if(['paused','on hold','hold','pause','suspended','on_hold','on-hold'].includes(rawStatus)) return 'paused';
-  if(['paused','pause','hold','suspend'].some(s => rawStatus.includes(s))) return 'paused';
-  
-  // Cancelled states
-  if(['cancelled','canceled','stopped','terminated','ended','closed','cancel'].includes(rawStatus)) return 'canceled';
-  if(['cancel','stop','terminat','end','clos'].some(s => rawStatus.includes(s))) return 'canceled';
-  
-  // Expired states
-  if(['expired','expire','past_due','past due','overdue','failed','lapsed'].includes(rawStatus)) return 'expired';
-  if(['expir','past','overdue','fail','laps'].some(s => rawStatus.includes(s))) return 'expired';
-  
-  // Intelligent defaults based on last order date
-  if(rawStatus === '' && sub.lastOrderDate){
-    const lastOrder = new Date(sub.lastOrderDate);
-    if(!isNaN(lastOrder)){
-      const daysSinceLastOrder = Math.floor((now - lastOrder) / (1000 * 60 * 60 * 24));
-      const frequency = extractFrequencyDays(sub.frequency);
-      if(daysSinceLastOrder < frequency * 2) return 'active';
-      if(daysSinceLastOrder < frequency * 4) return 'paused';
-      return 'expired';
-    }
-  }
-  
-  return rawStatus === '' ? 'active' : 'inactive';
-}
-
-function extractFrequencyDays(frequency){
-  if(!frequency) return 30;
-  const str = frequency.toString().toLowerCase();
-  const match = str.match(/(\d+)\s*(day|week|month|year)/i);
-  if(match){
-    const num = parseInt(match[1], 10);
-    const unit = match[2];
-    if(unit.includes('day')) return num;
-    if(unit.includes('week')) return num * 7;
-    if(unit.includes('month')) return num * 30;
-    if(unit.includes('year')) return num * 365;
-  }
-  return 30;
-}
-
-// ============================================================================
-// INITIALIZATION & EVENT LISTENERS
-// ============================================================================
-
-// Placeholders rotate
-const placeholders=['Change my subscription date','Skip my next delivery','Update my payment method','Where is my order?','Cancel my subscription','Change my shipping address'];
-let placeholderIndex=0;
-function rotatePlaceholder(){if(chatInput.value.length===0&&!chatStarted){chatInput.classList.add('placeholder-animating');setTimeout(()=>{placeholderIndex=(placeholderIndex+1)%placeholders.length;chatInput.placeholder=placeholders[placeholderIndex];chatInput.classList.remove('placeholder-animating')},300)}}
-setInterval(rotatePlaceholder,4000);
-chatInput.placeholder=placeholders[0];
-
-chatInput.addEventListener('input',function(){this.style.height='auto';this.style.height=(this.scrollHeight)+'px'});
-chatInput.addEventListener('keypress',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}});
-
-// ============================================================================
-// CHAT LIFECYCLE
-// ============================================================================
-
-function startChat(){
-  if(!chatStarted){
-    chatStarted=true;
-    chatContent.classList.add('active');
-    centeredWelcome.classList.add('hidden');
-    chatHeader.classList.add('visible');
-    inputSection.classList.add('fixed-bottom');
-    supportContainer.classList.add('chat-active');
-  }
-}
-
-// ============================================================================
-// MESSAGE & UI RENDERING
-// ============================================================================
-
-function addMessage(sender, text){
-    var messageDiv = document.createElement('div');
-  messageDiv.className = 'message ' + sender;
-
-  if(sender !== 'system'){
-    var avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-
-    // Change this line for bot avatar
-    if(sender === 'bot'){
-      avatar.innerHTML = '<img src="https://cdn.shopify.com/s/files/1/0286/5541/9489/files/fav2_9f49d857-28bb-41bf-846d-ffdbc2bd1d85.png?v=1762358308" alt="Blue Sky CBD" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">';
-    } else {
-      avatar.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+        return result;
+      };
     }
 
-    messageDiv.appendChild(avatar);
-  }
-
-  var bubble = document.createElement('div');
-  bubble.className = 'message-bubble';
-  bubble.innerHTML = formatMessage(text);
-  messageDiv.appendChild(bubble);
-  messagesContainer.appendChild(messageDiv);
-
-  const timestamp = new Date().toISOString();
-  conversationHistory.push({sender: sender, text: text, timestamp: timestamp});
-
-  // Log message anonymously for analytics
-  logChatMessageAnonymously(sender, text, timestamp);
-  
-  // Scroll so new message appears at TOP of visible area
-  setTimeout(function(){
-    var scroller = document.getElementById('chatContent');
-    if(scroller && messageDiv) {
-      var messageTop = messageDiv.offsetTop;
-      scroller.scrollTop = messageTop - 20;
+    // Wrap routeIntent to track custom intent handling
+    if (originalRouteIntent) {
+      window.routeIntent = (intent, message) => {
+        // Mark that we're processing a custom intent
+        this.conversationContext.processingCustomIntent = true;
+        
+        // Call original
+        const result = originalRouteIntent(intent, message);
+        
+        // Reset flag after a bit
+        setTimeout(() => {
+          this.conversationContext.processingCustomIntent = false;
+        }, 500);
+        
+        return result;
+      };
     }
-  }, 100);
-  
-  // Extra scroll for cards/images after they render
-  if(text.includes('order-card') || text.includes('subscription-card') || text.includes('<img')) {
-    setTimeout(function(){
-      var scroller = document.getElementById('chatContent');
-      if(scroller && messageDiv) {
-        var messageTop = messageDiv.offsetTop;
-        scroller.scrollTop = messageTop - 20;
-      }
-    }, 400);
   }
-}
 
-function formatMessage(text){
-  if(text.includes('<div class="subscription-card">') || text.includes('<div class="order-card">')){
-    return text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+  hasQuickRepliesInDOM() {
+    // Check if quick replies are already in the DOM from another source
+    const existingReplies = document.querySelectorAll('.quick-reply-btn, [data-quick-reply]');
+    return existingReplies.length > 0;
   }
-  return text
-    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-    .replace(/!\[.*?\]\((.*?)\)/g,'<img src="$1" alt="Step guide" loading="lazy">')
-    .replace(/\n\n/g,'</p><p>')
-    .replace(/^(.+)$/,'<p>$1</p>');
-}
 
-function addQuickAction(text,callback,isPrimary=false,type=''){
-  const btn=document.createElement('a');
-  btn.className=`quick-action-btn ${isPrimary?'primary':''} ${type}`;
-  btn.textContent=text;
-  btn.href='javascript:void(0)';
-  btn.onclick=callback;
-  quickActionsContainer.appendChild(btn);
-}
-
-function clearQuickActions(){ quickActionsContainer.innerHTML=''; }
-
-// Helper function to add quick actions after message animation completes (300ms)
-function addQuickActionDelayed(text,callback,isPrimary=false,type='',delay=350){
-  setTimeout(function(){
-    addQuickAction(text,callback,isPrimary,type);
-  }, delay);
-}
-function showTyping(){ typingIndicator.classList.add('active'); scrollToBottom();}
-function hideTyping(){ typingIndicator.classList.remove('active'); }
-
-function resetChat(){
-  messagesContainer.innerHTML='';
-  conversationHistory=[];
-  clearQuickActions();
-  chatContent.classList.remove('active');
-  centeredWelcome.classList.remove('hidden');
-  chatHeader.classList.remove('visible');
-  inputSection.classList.remove('fixed-bottom');
-  supportContainer.classList.remove('chat-active');
-  currentTopic=null;
-  currentStep=0;
-  chatStarted=false;
-}
-
-// Start Over button: spin on click + reset chat
-(function startOverButtonWithSpin(){
-  const btn = document.getElementById('startOverBtn');
-  if(!btn) return;
-
-  btn.addEventListener('click', ()=>{
-    btn.classList.add('spinning');
-    btn.disabled = true;
-
-    try{
-      sessionStorage.removeItem('supportChatResumeState');
-      localStorage.removeItem('supportChatResumeState');
-    }catch(_){}
-
-    addMessage('system','Conversation restarted');
-
-    setTimeout(()=>{
-      resetChat();
-      if(typeof window.__setInputHeightVar === 'function'){
-        requestAnimationFrame(window.__setInputHeightVar);
-      }
-      btn.classList.remove('spinning');
-      btn.disabled = false;
-      const ta = document.getElementById('chatInput');
-      ta && ta.focus();
-    }, 450);
-  });
-})();
-
-// Exit Chat link handler
-(function exitChatLinkHandler(){
-  const link = document.getElementById('exitChatLink');
-  if(!link) return;
-
-  link.addEventListener('click', (e)=>{
-    e.preventDefault();
-
-    // Clear chat state from storage
-    try{
-      sessionStorage.removeItem('supportChatResumeState');
-      localStorage.removeItem('supportChatResumeState');
-    }catch(_){}
-
-    // Redirect to logout, which will then redirect to home page
-    window.location.href = '/account/logout';
-  });
-})();
-
-// Consolidated scrollToBottom function - uses the comprehensive implementation if available
-function scrollToBottom(){
-  if(window.__scrollToBottom) {
-    window.__scrollToBottom({force: true});
-  } else {
-    setTimeout(()=>{chatContent.scrollTop=chatContent.scrollHeight;},100);
+  hashMessage(message) {
+    // Create a simple hash of the message to detect duplicates
+    if (typeof message !== 'string') return null;
+    
+    // Normalize message (remove HTML, trim, lowercase)
+    const normalized = message.replace(/<[^>]*>/g, '').trim().toLowerCase();
+    
+    // Simple hash
+    let hash = 0;
+    for (let i = 0; i < normalized.length; i++) {
+      const char = normalized.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash.toString(36);
   }
-}
 
-/* ---------- Intent routing ---------- */
-async function sendMessage(){
-  const text=chatInput.value.trim();
-  if(!text)return;
-  startChat();
-  addMessage('user',text);
-  chatInput.value='';
-  chatInput.style.height='auto';
-  showTyping();
+  isMessageDuplicate(message) {
+    const messageHash = this.hashMessage(message);
+    return this.conversationContext.processedMessages.has(messageHash);
+  }
 
-  // Try AI classification first if enabled
-  let aiResult = null;
-  if (aiIntentConfig.enabled && aiIntentConfig.apiKey) {
+  /**
+   * ========================================
+   * CHAT PERSISTENCE
+   * ========================================
+   */
+
+  getOrCreateSessionId() {
+    let sessionId = localStorage.getItem('chat_session_id');
+    if (!sessionId) {
+      sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('chat_session_id', sessionId);
+    }
+    return sessionId;
+  }
+
+  loadPersistedSession() {
     try {
-      aiResult = await classifyIntentWithAI(text);
+      const savedData = localStorage.getItem('chat_session_data');
+      if (savedData) {
+        const sessionData = JSON.parse(savedData);
+        this.conversationContext.lastIntent = sessionData.conversationContext?.lastIntent;
+        this.conversationContext.metadata = sessionData.conversationContext?.metadata || {};
+        
+        // Restore messages
+        if (sessionData.messages && sessionData.messages.length > 0) {
+          console.log('📥 Restoring', sessionData.messages.length, 'messages');
+          this.restoreMessages(sessionData.messages);
+        }
+      }
     } catch (error) {
-      console.error('AI classification failed, falling back to keyword matching:', error);
+      console.error('Failed to load session:', error);
     }
   }
 
-  setTimeout(()=>{
-    hideTyping();
-    routeIntent(text.toLowerCase(), aiResult);
-  },600);
+  saveSession() {
+    try {
+      const sessionData = {
+        sessionId: this.sessionId,
+        conversationContext: {
+          lastIntent: this.conversationContext.lastIntent,
+          metadata: this.conversationContext.metadata
+        },
+        customerId: this.config.customer?.email,
+        messages: this.conversationContext.messages,
+        savedAt: new Date().toISOString()
+      };
+
+      localStorage.setItem('chat_session_data', JSON.stringify(sessionData));
+      
+      if (this.config.customer?.email) {
+        this.saveToCustomerHistory(sessionData);
+      }
+    } catch (error) {
+      console.error('Failed to save session:', error);
+    }
+  }
+
+  saveToCustomerHistory(sessionData) {
+    try {
+      const customerEmail = this.config.customer.email;
+      const historyKey = 'chat_history_' + this.hashEmail(customerEmail);
+      
+      let history = JSON.parse(localStorage.getItem(historyKey) || '[]');
+      history.push({
+        sessionId: sessionData.sessionId,
+        timestamp: sessionData.savedAt,
+        messageCount: sessionData.messages.length,
+        lastIntent: sessionData.conversationContext.lastIntent
+      });
+      
+      if (history.length > 10) {
+        history = history.slice(-10);
+      }
+      
+      localStorage.setItem(historyKey, JSON.stringify(history));
+    } catch (error) {
+      console.error('Failed to save to history:', error);
+    }
+  }
+
+  setupAutoSave() {
+    setInterval(() => {
+      if (this.conversationContext.messages.length > 0) {
+        this.saveSession();
+      }
+    }, 30000);
+
+    window.addEventListener('beforeunload', () => {
+      this.saveSession();
+    });
+  }
+
+  restoreMessages(messages) {
+    messages.forEach(msg => {
+      // Track as already processed to prevent duplicates
+      const messageHash = this.hashMessage(msg.message);
+      this.conversationContext.processedMessages.add(messageHash);
+      
+      // Restore to UI
+      if (msg.sender === 'user') {
+        this.addMessageToUI(msg.message, 'user', false, true);
+      } else {
+        this.addMessageToUI(msg.message, 'bot', msg.isHtml, true);
+      }
+    });
+  }
+
+  /**
+ * ========================================
+ * AUTO-COMPLETE SUGGESTIONS (Pill Style)
+ * ========================================
+ */
+
+initAutoComplete() {
+  const chatInput = document.querySelector('#chat-input') || 
+                   document.querySelector('[data-chat-input]') ||
+                   document.querySelector('textarea');
+
+  if (!chatInput) return;
+
+  const suggestionsContainer = document.createElement('div');
+  suggestionsContainer.className = 'chat-suggestions-pills';
+  suggestionsContainer.style.cssText = `
+    position: absolute;
+    bottom: 130%;
+    left: 0;
+    right: 0;
+    padding: 12px;
+    display: none;
+    gap: 8px;
+    flex-wrap: wrap;
+    backdrop-filter: blur(30px);
+    border-radius: 15px;
+    box-shadow: rgba(0, 0, 0, 0.05) 0px 0px 7
+    z-index: 1000;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+        background: linear-gradient(359deg, #ffffff, #ffffff00);
+  `;
+
+  chatInput.parentElement.style.position = 'relative';
+  chatInput.parentElement.appendChild(suggestionsContainer);
+
+  let debounceTimer;
+  let isVisible = false;
+
+  chatInput.addEventListener('input', (e) => {
+    clearTimeout(debounceTimer);
+    const input = e.target.value;
+
+    if (input.length < 2) {
+      this.hideSuggestions(suggestionsContainer);
+      isVisible = false;
+      return;
+    }
+
+    debounceTimer = setTimeout(() => {
+      this.showSuggestions(input, suggestionsContainer, chatInput);
+      isVisible = true;
+    }, 200);
+  });
+
+  chatInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isVisible) {
+      e.preventDefault();
+      this.hideSuggestions(suggestionsContainer);
+      isVisible = false;
+    }
+    
+    if (e.key === 'Enter' && isVisible) {
+      this.hideSuggestions(suggestionsContainer);
+      isVisible = false;
+    }
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!chatInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+      if (isVisible) {
+        this.hideSuggestions(suggestionsContainer);
+        isVisible = false;
+      }
+    }
+  });
+
+  this.suggestionsContainer = suggestionsContainer;
 }
 
-// ========================================
-// HELPER FUNCTIONS (Global Scope)
-// ========================================
+showSuggestions(input, container, chatInput) {
+  const suggestions = this.getSuggestions(input);
 
-function pillFor(status){
-  var s = (status || '').toLowerCase();
-  if(s.includes('fulfill') || s.includes('ship')) return 'fulfilled';
-  if(s.includes('paid')) return 'paid';
-  if(s.includes('pending') || s.includes('auth')) return 'pending';
-  return 'processing';
-}
-
-function normalizeUrl(u){
-  if(!u) return '#';
-  try{
-    if(/^https?:\/\//i.test(u)) return u;
-    return window.location.origin + (u.startsWith('/') ? u : ('/' + u));
-  } catch(e) {
-    return u;
-  }
-}
-
-function renderOrderCard(o, heading){
-  if(!heading) heading = '';
-  
-  var pill = pillFor(o.fulfillmentStatus || o.financialStatus);
-  var refundLabel = o.refundState === 'refunded' ? 'Refunded' : (o.refundState === 'partially_refunded' ? 'Partially refunded' : '—');
-  var returnLabel = o.returnSignal === 'possible' ? 'Possible return/refund' : '—';
-  var gateways = (o.paymentGateways && o.paymentGateways.length) ? o.paymentGateways.join(', ') : '—';
-  
-  var orderLink = normalizeUrl(o.orderUrl) || '#';
-  
-  var html = '';
-  if(heading) html += '<p><strong>' + heading + '</strong></p>';
-  
-  html += '<div class="order-card">';
-  html += '<div class="order-card-header">';
-  html += '<div class="order-number">' + o.name + '</div>';
-  html += '<span class="order-pill ' + pill + '">' + pill.charAt(0).toUpperCase() + pill.slice(1) + '</span>';
-  html += '</div>';
-  html += '<div class="order-details">';
-  html += o.thumb ? '<img class="order-thumb" src="' + o.thumb + '" alt="" loading="lazy">' : '<div class="order-thumb"></div>';
-  html += '<div class="order-meta">';
-  html += '<div><span class="dim">Date:</span> ' + o.processedAt + '</div>';
-  html += '<div><span class="dim">Total:</span> ' + o.totalPrice + '</div>';
-  
-  if(gateways !== '—'){
-    html += '<div><span class="dim">Payment:</span> ' + gateways + '</div>';
-  }
-  if(refundLabel !== '—'){
-    html += '<div><span class="dim">Refund:</span> ' + refundLabel + '</div>';
-  }
-  if(returnLabel !== '—' && returnLabel !== 'Possible return/refund'){
-    html += '<div><span class="dim">Returns:</span> ' + returnLabel + '</div>';
-  }
-  if(o.trackingNumber){
-    var trackNum = o.trackingNumber.length > 18 ? o.trackingNumber.substring(0, 18) + '...' : o.trackingNumber;
-    html += '<div><span class="dim">Track:</span> ' + trackNum + '</div>';
-  }
-  if(o.cancelled){
-    html += '<div><span class="dim">Canceled:</span> ' + (o.cancelReason || 'Yes') + '</div>';
-  }
-  html += '</div></div>';
-  
-  // Full-width stacked buttons
-  html += '<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px;width:100%;">';
-  html += '<a style="display:block;border-radius:10px;background-color:#f1f1f2;padding:11px 16px;font-size:13px;text-align:center;text-decoration:none;color:#1d1d1f;font-weight:600;" href="' + orderLink + '">View Order</a>';
-  if(o.trackingUrl){
-    html += '<a style="display:block;border-radius:10px;background-color:#007AFF;padding:11px 16px;font-size:13px;text-align:center;text-decoration:none;color:#fff;font-weight:600;" target="_blank" rel="noopener" href="' + o.trackingUrl + '">Track Shipment</a>';
-  }
-  html += '</div>';
-  
-  html += '</div>';
-  
-  return html;
-}
-
-function handleOrderStatusQuery(){
-  if(!window.customerData || !window.customerData.isLoggedIn){
-    addMessage('bot','To check your order status, please login to your account first.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
+  if (suggestions.length === 0) {
+    this.hideSuggestions(container);
     return;
   }
-  
-  var orders = window.customerOrders || [];
-  if(!orders.length){
-    addMessage('bot','You don\'t have any orders yet.');
-    clearQuickActions();
-    addQuickAction('Shop All', function(){window.location.href='/collections/all'}, true);
-    return;
-  }
-  
-  var html = '<p><strong>Here is your most recent order</strong></p>';
-  html += renderOrderCard(orders[0]);
-  
-  addMessage('bot', html);
-  clearQuickActions();
-  addQuickAction('View All Orders', function(){window.location.href='/account'}, true);
-}
 
-// ========================================
-// AI INTENT CLASSIFICATION
-// ========================================
+  container.innerHTML = '';
 
-async function classifyIntentWithAI(userMessage) {
-  if (!aiIntentConfig.enabled || !aiIntentConfig.apiKey) {
-    return null;
-  }
+  suggestions.forEach(suggestion => {
+    const pill = document.createElement('button');
+    pill.className = 'suggestion-pill';
+    pill.textContent = suggestion.text;
+    pill.dataset.text = suggestion.text;
+    
+    pill.style.cssText = `
+      padding: 10px 18px;
+      background: #ffffff70;
+      1.5px solid rgb(237 237 237 / 50%);
+      border-radius: 24px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      color: #333;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    `;
 
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + aiIntentConfig.apiKey
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an intent classifier for a subscription and e-commerce support chat. Analyze the user's message and classify their intent.
-
-Available intents:
-- subscription_payment: User asking about subscription payment, billing date, next charge, when they'll be charged
-- subscription_info: User asking about their subscription details, status, or list
-- subscription_manage: User wants to manage subscription (address, payment method, frequency, pause, skip, date)
-- subscription_cancel: User wants to cancel a subscription
-- order_tracking: User asking about package location or shipping status
-- order_status: User asking about their order history or status
-- next_delivery: User asking about next order or upcoming delivery
-- account_update: User wants to update email, password, or address
-- customer_support: User wants to contact support or talk to someone
-- product_question: User asking about products
-- general_question: General inquiry
-- unclear: Cannot determine intent
-
-Respond with ONLY a JSON object in this exact format:
-{
-  "intent": "intent_name",
-  "confidence": 0.95,
-  "entities": {
-    "subscription_filter": "active|paused|canceled|expired|all",
-    "subscription_action": "address|payment|frequency|pause|skip|date",
-    "account_field": "email|password|address|general"
-  }
-}
-
-Use the entities field to extract specific details when applicable (otherwise leave empty object).`
-          },
-          {
-            role: 'user',
-            content: userMessage
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 200
-      })
+    pill.addEventListener('mouseenter', () => {
+      pill.style.background = '#f8f8f8';
+      pill.style.borderColor = '#999';
+      pill.style.transform = 'translateY(-2px)';
+      pill.style.boxShadow = '0 4px 8px rgba(0,0,0,0.08)';
     });
 
-    if (!response.ok) {
-      console.error('OpenAI API error:', response.status, response.statusText);
-      return null;
-    }
+    pill.addEventListener('mouseleave', () => {
+      pill.style.background = 'white';
+      pill.style.borderColor = '#e0e0e0';
+      pill.style.transform = 'translateY(0)';
+      pill.style.boxShadow = '0 2px 4px rgba(0,0,0,0.04)';
+    });
 
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content.trim();
-
-    // Parse the JSON response
-    const result = JSON.parse(aiResponse);
-
-    console.log('AI Intent Classification:', result);
-    return result;
-
-  } catch (error) {
-    console.error('Error classifying intent with AI:', error);
-    return null;
-  }
-}
-
-// ========================================
-// HANDLE AI-CLASSIFIED INTENT
-// ========================================
-
-function handleAIIntent(aiResult) {
-  const intent = aiResult.intent;
-  const entities = aiResult.entities || {};
-
-  console.log('Handling AI Intent:', intent, entities);
-
-  try {
-    switch(intent) {
-      case 'subscription_payment':
-        // User asking about next subscription payment/billing
-        handleNextOrderIntent();
-        return true;
-
-      case 'subscription_info':
-        const filter = entities.subscription_filter || 'all';
-        handleSubscriptionInfoQuery(filter);
-        return true;
-
-      case 'subscription_manage':
-        const action = entities.subscription_action || 'general';
-        handleSubscriptionManagement(action);
-        return true;
-
-      case 'subscription_cancel':
-        handleCancelSubscription();
-        return true;
-
-      case 'order_tracking':
-        // Check if function exists (it's a stub in the codebase)
-        if (typeof handleOrderTracking === 'function') {
-          handleOrderTracking();
-          return true;
-        } else {
-          // Fallback to order status if tracking not implemented
-          handleOrderStatusQuery();
-          return true;
-        }
-
-      case 'order_status':
-        handleOrderStatusQuery();
-        return true;
-
-      case 'next_delivery':
-        handleNextOrderIntent();
-        return true;
-
-      case 'account_update':
-        const field = entities.account_field || 'general';
-        handleAccountUpdate(field);
-        return true;
-
-      case 'customer_support':
-        handleCustomerSupport();
-        return true;
-
-      case 'product_question':
-      case 'general_question':
-        // Let these fall through to keyword matching or default menu
-        return false;
-
-      case 'unclear':
-        // Let keyword matching handle it
-        return false;
-
-      default:
-        return false;
-    }
-  } catch (error) {
-    console.error('Error in handleAIIntent:', error);
-    return false; // Fall back to keyword matching on error
-  }
-}
-
-// ========================================
-// ROUTE INTENT (Main Routing Function)
-// ========================================
-
-function routeIntent(lowerText, aiResult){
-  // ===== AI-BASED INTENT ROUTING (High Confidence) =====
-  if (aiResult && aiResult.confidence >= 0.7) {
-    const handled = handleAIIntent(aiResult);
-    if (handled) return;
-  }
-
-  // ===== CHECK CUSTOM INTENTS FIRST =====
-  for(var i = 0; i < chatIntents.length; i++){
-    var intent = chatIntents[i];
-    
-    for(var j = 0; j < intent.triggers.length; j++){
-      var trigger = intent.triggers[j].toLowerCase().trim();
-      if(trigger && lowerText.includes(trigger)){
-        
-        // Check if login required
-        if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
-          addMessage('bot', 'Please sign in to continue.');
-          clearQuickActions();
-          addQuickActionDelayed('Sign In', function(){
-            requireAuthAndContinue('customIntent', {intentId: intent.id});
-          }, true);
-          return;
-        }
-        
-        // Execute the action
-        if(intent.actionType === 'message'){
-          var html = intent.responseMessage;
-          
-          // Add image if provided
-          if(intent.responseImage){
-            html += '<img src="' + intent.responseImage + '" alt="" style="max-width:100%;border-radius:12px;margin:16px 0;">';
-          }
-          
-          addMessage('bot', html);
-          clearQuickActions();
-          addQuickAction('Ask Something Else', function(){clearQuickActions()}, false);
-          addQuickAction('Contact Support', function(){handleCustomerSupport()}, false);
-          return;
-        } else if(intent.actionType === 'topic'){
-          var topicName = intent.actionValue;
-          if(conversationData[topicName]){
-            currentTopic = topicName;
-            currentStep = 0;
-            addMessage('bot', 'I can help you with ' + topicName + '.');
-            setTimeout(function(){
-              showStep(topicName, 0);
-            }, 500);
-            return;
-          }
-        } else if(intent.actionType === 'handler'){
-          var functionName = intent.actionValue;
-          if(typeof window[functionName] === 'function'){
-            return window[functionName]();
-          }
-        } else if(intent.actionType === 'url'){
-          window.location.href = intent.actionValue;
-          return;
-        }
-      }
-    }
-  }
-
-  
-  // ===== CUSTOMER SUPPORT / CONTACT =====
-  if(
-    lowerText.includes('contact') || 
-    lowerText.includes('support') || 
-    lowerText.includes('help me') ||
-    lowerText.includes('talk to someone') ||
-    lowerText.includes('speak to') ||
-    lowerText.includes('call you') ||
-    lowerText.includes('phone number') ||
-    lowerText.includes('email you') ||
-    lowerText.includes('reach you') ||
-    lowerText.includes('get in touch')
-  ){
-    return handleCustomerSupport();
-  }
-  
-  // ===== ORDER TRACKING =====
-  if(
-    (lowerText.includes('track') && !lowerText.includes('subscription')) ||
-    lowerText.includes('where is my package') ||
-    lowerText.includes('where\'s my package') ||
-    lowerText.includes('shipping status') ||
-    lowerText.includes('delivery status') ||
-    lowerText.includes('has it shipped')
-  ){
-    return handleOrderTracking();
-  }
-  
-  // ===== ORDER STATUS / HISTORY =====
-  if(
-    lowerText.includes('my order') ||
-    lowerText.includes('order status') ||
-    lowerText.includes('order history') ||
-    lowerText.includes('recent order') ||
-    lowerText.includes('past order') ||
-    lowerText.includes('previous order') ||
-    lowerText.includes('show order') ||
-    lowerText.includes('view order') ||
-    lowerText.includes('see my order') ||
-    (lowerText.includes('where') && lowerText.includes('order'))
-  ){
-    return handleOrderStatusQuery();
-  }
-  
-  if(lowerText.includes('last order')){
-    return showLastOrderCard();
-  }
-  
-  // ===== NEXT ORDER / UPCOMING DELIVERY =====
-  if(
-    lowerText.includes('next order') ||
-    lowerText.includes('next delivery') ||
-    lowerText.includes('upcoming order') ||
-    lowerText.includes('upcoming delivery') ||
-    lowerText.includes('when will') ||
-    lowerText.includes('when is my')
-  ){
-    return handleNextOrderIntent();
-  }
-  
-  // ===== ACCOUNT EMAIL =====
-  if(
-    (lowerText.includes('email') && (lowerText.includes('update') || lowerText.includes('change') || lowerText.includes('modify'))) &&
-    !lowerText.includes('subscription')
-  ){
-    return handleAccountUpdate('email');
-  }
-  
-  // ===== ACCOUNT PASSWORD =====
-  if(
-    lowerText.includes('password') && 
-    (lowerText.includes('change') || lowerText.includes('reset') || lowerText.includes('update') || lowerText.includes('forgot'))
-  ){
-    return handleAccountUpdate('password');
-  }
-  
-  // ===== GENERAL ADDRESS (non-subscription) =====
-  if(
-    (lowerText.includes('address') || lowerText.includes('shipping')) && 
-    !lowerText.includes('subscription')
-  ){
-    return handleAccountUpdate('address');
-  }
-  
-  // ===== GENERAL ACCOUNT =====
-  if(
-    lowerText.includes('account') && 
-    (lowerText.includes('update') || lowerText.includes('change') || lowerText.includes('manage'))
-  ){
-    return handleAccountUpdate('general');
-  }
-  
-  // ===== TOPIC MATCHING =====
-  let matched = false;
-  for(const[topicTitle, topic] of Object.entries(conversationData)){
-    if(lowerText.includes(topicTitle.toLowerCase())){
-      addMessage('bot', `Let me help you with ${topicTitle}.`);
+    pill.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      chatInput.value = pill.dataset.text;
+      this.hideSuggestions(container);
+      chatInput.focus();
+      
       setTimeout(() => {
-        currentTopic = topicTitle;
-        currentStep = 0;
-        showStep(topicTitle, 0);
-      }, 500);
-      matched = true;
-      break;
-    }
-  }
-
-  // ===== SUBSCRIPTION MANAGEMENT =====
-  const isSubQuery = 
-    lowerText.includes('subscription') || 
-    lowerText.includes('delivery') || 
-    lowerText.includes('deliveries') ||
-    lowerText.includes('recurring') ||
-    lowerText.includes('auto ship') ||
-    lowerText.includes('autoship');
-  
-  if(isSubQuery){
-    if(
-      lowerText.includes('address') || 
-      lowerText.includes('ship to') ||
-      lowerText.includes('shipping to') ||
-      lowerText.includes('send to')
-    ){
-      return handleSubscriptionManagement('address');
-    }
-    
-    if(
-      lowerText.includes('payment') || 
-      lowerText.includes('card') || 
-      lowerText.includes('credit card') ||
-      lowerText.includes('billing') ||
-      lowerText.includes('pay with')
-    ){
-      return handleSubscriptionManagement('payment');
-    }
-    
-    if(
-      lowerText.includes('frequency') || 
-      lowerText.includes('how often') ||
-      lowerText.includes('every month') ||
-      lowerText.includes('every week') ||
-      lowerText.includes('change schedule')
-    ){
-      return handleSubscriptionManagement('frequency');
-    }
-    
-    if(
-      lowerText.includes('pause') ||
-      lowerText.includes('hold') ||
-      lowerText.includes('stop for now')
-    ){
-      return handleSubscriptionManagement('pause');
-    }
-    
-    if(
-      lowerText.includes('skip') ||
-      lowerText.includes('delay') ||
-      lowerText.includes('push back')
-    ){
-      return handleSkipDelivery();
-    }
-    
-    if(
-      lowerText.includes('date') || 
-      lowerText.includes('day') ||
-      lowerText.includes('when')
-    ){
-      return handleSubscriptionManagement('date');
-    }
-    
-    if(lowerText.includes('active')){
-      return handleSubscriptionInfoQuery('active');
-    }
-    if(lowerText.includes('paused')){
-      return handleSubscriptionInfoQuery('paused');
-    }
-    if(lowerText.includes('cancel') || lowerText.includes('cancelled')){
-      return handleSubscriptionInfoQuery('canceled');
-    }
-    if(lowerText.includes('expired')){
-      return handleSubscriptionInfoQuery('expired');
-    }
-    
-    return handleSubscriptionInfoQuery('all');
-  }
-  
-  // ===== SMART ORDER VS SUBSCRIPTION DETECTION =====
-  const isOrderQuery = 
-    lowerText.includes('order') || 
-    lowerText.includes('shipping') || 
-    lowerText.includes('delivery') ||
-    lowerText.includes('track') ||
-    lowerText.includes('where is my') ||
-    lowerText.includes('when will') ||
-    lowerText.includes('status');
-  
-  const isSubscriptionQuery = 
-    lowerText.includes('subscription') || 
-    lowerText.includes('recurring') ||
-    lowerText.includes('auto ship') ||
-    lowerText.includes('autoship') ||
-    lowerText.includes('renew') ||
-    lowerText.includes('cancel') ||
-    lowerText.includes('pause') ||
-    lowerText.includes('skip') ||
-    lowerText.includes('frequency');
-  
-  // If both mentioned, ask for clarification
-  if(isOrderQuery && isSubscriptionQuery){
-    addMessage('bot', 'I can help with both orders and subscriptions. Which would you like help with?');
-    clearQuickActions();
-    addQuickAction('My Orders', function(){
-      addMessage('user', 'My Orders');
-      handleOrderStatusQuery();
-    }, false);
-    addQuickAction('My Subscriptions', function(){
-      addMessage('user', 'My Subscriptions');
-      handleSubscriptionInfoQuery('all');
-    }, false);
-    return;
-  }
-  
-  // Route to orders
-  if(isOrderQuery){
-    return handleOrderStatusQuery();
-  }
-  
-  // Route to subscriptions
-  if(isSubscriptionQuery){
-    return handleSubscriptionInfoQuery('all');
-  }
-
-  // ===== FALLBACK =====
-  if(!matched){
-    addMessage('bot', `I can help you with:\n\n• Orders & Tracking\n• Subscriptions\n• Account Settings\n• Contact Support\n\nWhat would you like help with?`);
-    clearQuickActions();
-    addQuickAction('My Orders', () => handleOrderStatusQuery(), false);
-    addQuickAction('My Subscriptions', () => handleSubscriptionInfoQuery('all'), false);
-    addQuickAction('Account Settings', () => handleAccountUpdate('general'), false);
-    addQuickAction('Contact Support', () => handleCustomerSupport(), false);
-  }
-}
-
-// ============================================================================
-// INTENT HANDLERS
-// ============================================================================
-
-function handleCustomerSupport(){
-  const contactEmail = window.shopSettings.contactEmail || 'support@bluesky-cbd.com';
-  const phone = '1-833-425-8372';
-  const hours = 'Monday-Friday, 9am-5pm MST';
-  
-  let html = `
-    <p><strong>We're here to help!</strong></p>
-    <div class="order-card" style="background:#f8f9fa;">
-      <div style="padding:20px;">
-        <div style="margin-bottom:16px;">
-          <div style="font-weight:600;color:#1d1d1f;margin-bottom:4px;">📧 Email</div>
-          <a href="mailto:${contactEmail}" style="color:#007AFF;text-decoration:none;">${contactEmail}</a>
-        </div>
-        <div style="margin-bottom:16px;">
-          <div style="font-weight:600;color:#1d1d1f;margin-bottom:4px;">📞 Phone</div>
-          <a href="tel:${phone.replace(/\D/g,'')}" style="color:#007AFF;text-decoration:none;">${phone}</a>
-        </div>
-        <div style="margin-bottom:16px;">
-          <div style="font-weight:600;color:#1d1d1f;margin-bottom:4px;">🕐 Hours</div>
-          <div style="color:#555;">${hours}</div>
-        </div>
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
-          <div style="font-size:13px;color:#64748b;">Average response time: 24 hours</div>
-        </div>
-      </div>
-    </div>
-    <p style="margin-top:12px;font-size:14px;color:#64748b;">You can also email a transcript of this conversation for reference.</p>
-  `;
-  
-  addMessage('bot', html);
-  clearQuickActions();
-  addQuickAction('Email This Conversation', () => emailConversation(), true);
-  addQuickAction('Continue Chat', () => clearQuickActions(), false);
-}
-
-function handleAccountUpdate(type){
-  if(!type) type = 'general';
-
-  if(!window.customerData || !window.customerData.isLoggedIn){
-    addMessage('bot','To update your account, please sign in first.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){window.location.href='/account/login'}, true);
-    return;
-  }
-  
-  var msg = 'To update your account information, visit your account settings.';
-  if(type == 'email') msg = 'To update your email address, visit your account settings.';
-  if(type == 'password') msg = 'To change your password, go to your account settings.';
-  if(type == 'address') msg = 'To update your default shipping address, visit your account addresses page.';
-  
-  addMessage('bot', msg);
-  clearQuickActions();
-
-  if(type == 'address'){
-    addQuickAction('Manage Addresses', function(){window.location.href='/account/addresses'}, true);
-  }
-  addQuickAction('Account Settings', function(){window.location.href='/account'}, true);
-  addQuickAction('Need Help?', function(){handleCustomerSupport()}, false);
-}
-
-function handleSubscriptionManagement(action){
-  if(!action) action = 'general';
-
-  if(!window.customerData.isLoggedIn){
-    addMessage('bot','To manage your subscriptions, please sign in first.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('manageSub')}, true);
-    return;
-  }
-  
-  var subs = (window.customerSubscriptions || []).map(function(s){
-    s.bucket = bucketizeSubscription(s);
-    return s;
-  });
-  var activeSubs = subs.filter(function(s){ return s.bucket === 'active' });
-  
-  if(!activeSubs.length){
-    addMessage('bot','You don\'t have any active subscriptions to manage.');
-    clearQuickActions();
-    addQuickAction('View All Subscriptions', function(){handleSubscriptionInfoQuery('all')}, false);
-    addQuickAction('Browse Products', function(){window.location.href='/collections/all'}, true);
-    return;
-  }
-  
-  var actionMsg = 'manage your subscription settings';
-  if(action == 'address') actionMsg = 'update your subscription shipping address';
-  if(action == 'payment') actionMsg = 'update your subscription payment method';
-  if(action == 'frequency') actionMsg = 'change your delivery frequency';
-  if(action == 'pause') actionMsg = 'pause your subscription';
-  if(action == 'skip') actionMsg = 'skip your next delivery';
-  if(action == 'date') actionMsg = 'change your delivery date';
-  
-  var actionDesc = '';
-  if(action == 'address') actionDesc = 'Changes will apply to all future deliveries.';
-  if(action == 'payment') actionDesc = 'Update the card used for automatic payments.';
-  if(action == 'frequency') actionDesc = 'Change how often you receive deliveries.';
-  if(action == 'pause') actionDesc = 'Temporarily stop deliveries without canceling.';
-  if(action == 'skip') actionDesc = 'Skip one delivery and keep your schedule.';
-  if(action == 'date') actionDesc = 'Choose a specific day of the month for deliveries.';
-  
-  var html = '<p><strong>To ' + actionMsg + ', select a subscription:</strong></p>';
-  if(actionDesc){
-    html += '<p style="font-size:14px;color:#64748b;margin-top:-8px;">' + actionDesc + '</p>';
-  }
-  
-  activeSubs.forEach(function(s){
-    var next = estimateNextDelivery(s.lastOrderDate, s.frequency);
-    html += '<div class="subscription-card">';
-    html += '<div class="subscription-card-header">';
-    html += '<div class="subscription-product">' + s.productTitle + '</div>';
-    html += '<div class="subscription-status active">ACTIVE</div>';
-    html += '</div>';
-    html += '<div class="subscription-details">';
-    if(s.variantTitle && s.variantTitle !== 'Default Title'){
-      html += '<div><strong>Variant:</strong> ' + s.variantTitle + '</div>';
-    }
-    html += '<div><strong>Frequency:</strong> ' + (s.frequency || '—') + '</div>';
-    html += '<div><strong>Price:</strong> ' + (s.price || '—') + '</div>';
-    if(next){
-      html += '<div style="margin-top:8px;padding:8px;background:rgba(255,255,255,0.2);border-radius:8px;">⏰ <strong>Next delivery:</strong> ' + next + '</div>';
-    }
-    html += '</div>';
-    html += '<div class="subscription-actions">';
-    html += '<a class="btn" href="' + window.subscriptionApp.manageUrl + '">Manage This Subscription</a>';
-    html += '</div>';
-    html += '</div>';
-  });
-  
-  addMessage('bot', html);
-  clearQuickActions();
-  addQuickAction('View All Subscriptions', function(){window.location.href = window.subscriptionApp.manageUrl}, true);
-  addQuickAction('Need Help?', function(){handleCustomerSupport()}, false);
-}
-
-/* ---------- Next order intent ---------- */
-function handleNextOrderIntent(){
-  if(!window.customerData.isLoggedIn){
-    addMessage('bot','Sign in to check your next order.');
-    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('nextOrder'),true);
-    return;
-  }
-  const orders=window.customerOrders||[];
-  const nextOpen = orders.find(o=>{
-    const s=(o.fulfillmentStatus||'').toLowerCase();
-    return !(s.includes('fulfilled')||s.includes('shipped'));
-  });
-  if(nextOpen){
-    addMessage('bot', renderOrderCard(nextOpen, 'Your next order is in progress'));
-    clearQuickActions(); addQuickAction('View All Orders',()=>{window.location.href="{{ routes.account_url }}"},true);
-    return;
-  }
-  const actives=(window.customerSubscriptions||[]).filter(s=>bucketizeSubscription(s)==='active');
-  if(!actives.length){
-    addMessage('bot','No unfulfilled orders and no active subscriptions to estimate from.');
-    clearQuickActions(); addQuickAction('Shop All',()=>{window.location.href="/collections/all"},true);
-    return;
-  }
-  let html=`<p><strong>Estimated next deliveries</strong></p>`;
-  actives.forEach(s=>{
-    const next=estimateNextDelivery(s.lastOrderDate,s.frequency);
-    html += `
-    <div class="subscription-card">
-      <div class="subscription-card-header">
-        <div class="subscription-product">${s.productTitle}</div>
-        <div class="subscription-status active">ACTIVE</div>
-      </div>
-      <div class="subscription-details">
-        ${s.variantTitle&&s.variantTitle!=='Default Title'?`<div>Variant: ${s.variantTitle}</div>`:''}
-        <div>Frequency: ${s.frequency||'—'}</div>
-        ${next?`<div class="subscription-highlight">Next delivery: ${next}</div>`:''}
-      </div>
-    </div>`;
-  });
-  addMessage('bot',html);
-  clearQuickActions(); addQuickAction('Manage Subscriptions',()=>{window.location.href=window.subscriptionApp.manageUrl},true);
-}
-
-/* ---------- Subscriptions listing with filters ---------- */
-function handleSubscriptionInfoQuery(filter='all'){
-  if(!window.customerData.isLoggedIn){
-    addMessage('bot','To view your subscriptions, please sign in to your account first.');
-    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('showSubs',{filter}),true);
-    return;
-  }
-  // Deduplicate by productId + variantTitle
-const uniqueSubs = [];
-const seen = new Set();
-(window.customerSubscriptions||[]).forEach(s => {
-  const key = `${s.productId}-${s.variantTitle}`;
-  if(!seen.has(key)){
-    seen.add(key);
-    uniqueSubs.push(s);
-  }
-});
-
-const subs = uniqueSubs.map(s=>({...s,bucket:bucketizeSubscription(s)}));
-  const list = filter==='all'? subs : subs.filter(s=>s.bucket===filter);
-  if(!subs.length){
-    addMessage('bot','You don’t have any subscriptions yet.');
-    clearQuickActions(); addQuickAction('Browse Products',()=>{window.location.href="/collections/all"},true);
-    return;
-  }
-  if(!list.length){
-    addMessage('bot',`You have 0 ${filter} subscriptions.`);
-    clearQuickActions();
-    ['All','Active','Paused','Canceled','Expired','Inactive'].forEach(f=>addQuickAction(f.charAt(0).toUpperCase()+f.slice(1),()=>handleSubscriptionInfoQuery(f),f==='all'));
-    return;
-  }
-
-  let html=`<p><strong>${filter} subscription${list.length>1?'s':''}</strong></p>`;
-  list.forEach(s=>{
-    const next = estimateNextDelivery(s.lastOrderDate,s.frequency);
-    const badge = s.bucket.toUpperCase();
-    html += `
-      <div class="subscription-card">
-        <div class="subscription-card-header">
-          <div class="subscription-product">${s.productTitle||'Subscription'}</div>
-          <div class="subscription-status ${s.bucket==='active'?'active':''}">${badge}</div>
-        </div>
-        <div class="subscription-details">
-          ${s.variantTitle&&s.variantTitle!=='Default Title'?`<div>${s.variantTitle}</div>`:''}
-          <div>Frequency: ${s.frequency||'—'}</div>
-          <div>Price: ${s.price||'—'}</div>
-          ${s.lastOrderDate?`<div>Last order: ${s.lastOrderDate}</div>`:''}
-          ${next?`<div class="subscription-highlight">⏰ Next delivery: ${next}</div>`:''}
-        </div>
-        <div class="subscription-actions">
-          <a class="btn" href="${window.subscriptionApp.manageUrl}">Manage</a>
-          <a class="btn" href="${window.subscriptionApp.manageUrl}">Change schedule</a>
-        </div>
-      </div>`;
-  });
-  addMessage('bot',html);
-  clearQuickActions();
-  addQuickAction('Manage Subscriptions',()=>{window.location.href=window.subscriptionApp.manageUrl},true);
-}
-
-function handleCancelSubscription(){
-  if(!window.customerData || !window.customerData.isLoggedIn){
-    addMessage('bot','To cancel a subscription, please sign in to your account first.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('cancelSub')}, true);
-    return;
-  }
-  
-  var subs = (window.customerSubscriptions || []).map(function(s){
-    s.bucket = bucketizeSubscription(s);
-    return s;
-  });
-  var activeSubs = subs.filter(function(s){ return s.bucket === 'active' });
-  
-  if(!activeSubs.length){
-    addMessage('bot','You don\'t have any active subscriptions to cancel.');
-    clearQuickActions();
-    addQuickAction('Browse Products', function(){window.location.href='/collections/all'}, true);
-    return;
-  }
-  
-  addMessage('bot','I can help you cancel your subscription. Please note that you can also pause it if you just need a temporary break.');
-  clearQuickActions();
-  addQuickAction('Manage Subscriptions', function(){window.location.href=window.subscriptionApp.manageUrl}, true);
-  addQuickAction('Contact Support', function(){handleCustomerSupport()}, false);
-}
-
-/* ---------- Topic steps ---------- */
-function startTopic(topicTitle){
-  startChat();
-  const topicsContent = document.getElementById('topicsContent');
-  const topicsToggleIcon = document.getElementById('topicsToggleIcon');
-  const topicsToggleText = document.getElementById('topicsToggleText');
-  if(topicsContent.classList.contains('expanded')){
-    topicsContent.classList.remove('expanded');
-    topicsToggleIcon.classList.add('rotated');
-    topicsToggleText.textContent = 'Topics';
-  }
-  currentTopic=topicTitle; currentStep=0;
-  addMessage('user',`Help me with ${topicTitle}`);
-  setTimeout(()=>{
-    const topic=conversationData[topicTitle];
-    let greeting='';
-    if(window.customerData&&window.customerData.isLoggedIn&&window.customerData.firstName){greeting=`Hi ${window.customerData.firstName}! `}
-    if(topic&&topic.description){addMessage('bot',`${greeting}I'll help you with ${topicTitle}. ${topic.description}`);}
-    else{addMessage('bot',`${greeting}I'll help you with ${topicTitle}.`);}
-    setTimeout(()=>showStep(topicTitle,0),900);
-  },400);
-}
-
-// ============================================================================
-// TOPIC & STEP NAVIGATION
-// ============================================================================
-
-function showStep(topicTitle, stepIndex){
-  var topic = conversationData[topicTitle];
-  if(!topic || !topic.steps[stepIndex]) return;
-  
-  var step = topic.steps[stepIndex];
-  showTyping();
-  
-  setTimeout(function(){
-    hideTyping();
-    
-    var html = '';
-    if(step.title){
-      html += '<p><strong>' + step.title + '</strong></p>';
-    }
-    
-    // Output rich text content as HTML
-    html += '<div>' + step.content + '</div>';
-    
-    if(step.image){
-      html += '<img src="' + step.image + '" alt="" style="max-width:100%;border-radius:12px;margin:12px 0;">';
-    }
-    
-    if(step.tip){
-      html += '<div style="background:#fff4e6;padding:12px;border-radius:8px;margin:12px 0;"><strong>💡 Tip:</strong> ' + step.tip + '</div>';
-    }
-    
-    if(step.warning){
-      html += '<div style="background:#fee2e2;padding:12px;border-radius:8px;margin:12px 0;"><strong>⚠️ Important:</strong> ' + step.warning + '</div>';
-    }
-    
-    addMessage('bot', html);
-    clearQuickActions();
-    
-    if(stepIndex < topic.steps.length - 1){
-      addQuickAction('Next', function(){
-        addMessage('user', 'Next');
-        currentStep++;
-        setTimeout(function(){showStep(topicTitle, currentStep)}, 400);
-      }, false);
-    }
-    
-    if(stepIndex > 0){
-      addQuickAction('Previous', function(){
-        addMessage('user', 'Back');
-        currentStep--;
-        setTimeout(function(){showStep(topicTitle, currentStep)}, 400);
-      }, false);
-    }
-    
-    if(step.buttonText && step.buttonLink){
-      addQuickAction(step.buttonText, function(){window.location.href = step.buttonLink}, true);
-    }
-    
-    addQuickAction('Email Support', function(){emailConversation()}, false);
-    addQuickAction('Start Over', function(){
-      addMessage('system', 'Conversation restarted');
-      setTimeout(resetChat, 400);
-    }, false, 'destructive');
-  }, 900);  // ← This closes the setTimeout callback
-
-}  // ← ADD THIS SECOND CLOSING BRACE - closes the showStep function
-
-/* ---------- Helpers ---------- */
-function estimateNextDelivery(lastOrderDate, frequency){
-  try {
-    const last = new Date(lastOrderDate);
-    if(isNaN(last)) return null;
-    let days = 30; // default
-    const match = (frequency||'').match(/(\d+)\s*(day|week|month)/i);
-    if(match){
-      const num = parseInt(match[1],10);
-      const unit = match[2].toLowerCase();
-      if(unit.includes('day')) days = num;
-      else if(unit.includes('week')) days = num * 7;
-      else if(unit.includes('month')) days = num * 30;
-    }
-    const next = new Date(last);
-    next.setDate(next.getDate() + days);
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return next.toLocaleDateString('en-US', options);
-  } catch(e){ return null; }
-}
-
-/* ---------- Email transcript (unchanged behavior) ---------- */
-function emailConversation(){
-  addMessage('system','Preparing email...');
-  clearQuickActions();
-  const customerInfo=window.customerData.isLoggedIn?`
-Customer: ${window.customerData.firstName} ${window.customerData.lastName}
-Email: ${window.customerData.email}
-ID: ${window.customerData.id}
-`:'Anonymous user';
-  const conversationText=conversationHistory.map(msg=>`[${msg.sender.toUpperCase()}]: ${msg.text.replace(/<[^>]*>/g,'').replace(/\*\*/g,'')}`).join('\n\n');
-  const subject=`Support Request: ${currentTopic||'General Inquiry'}`;
-  const body=`Support Conversation Transcript
-Date: ${new Date().toLocaleString()}
-Topic: ${currentTopic||'Not specified'}
-
-${customerInfo}
-
-Conversation:
-${conversationText}
-
----
-This conversation was sent from ${window.location.hostname}`;
-  const mailtoLink=`mailto:${window.shopSettings.contactEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  setTimeout(()=>{
-    window.location.href=mailtoLink;
-    addMessage('system','Email opened with conversation transcript.');
-    addQuickAction('Continue Chat',()=>{clearQuickActions();if(currentTopic){showStep(currentTopic,currentStep)}},true);
-    addQuickAction('Start Over',()=>{addMessage('system','Conversation restarted');setTimeout(resetChat,400)},false,'destructive');
-  },600);
-}
-
-
-
-/* ---------- Render Topics Menu ---------- */
-function renderTopicsMenu(){
-  // Group intents by category
-  var categories = {
-    'orders': {name: 'Orders & Shipping', icon: '📦', intents: []},
-    'subscriptions': {name: 'Subscriptions', icon: '🔄', intents: []},
-    'account': {name: 'Account & Billing', icon: '👤', intents: []},
-    'products': {name: 'Products & Info', icon: '🛍️', intents: []},
-    'support': {name: 'Support & Contact', icon: '💬', intents: []}
-  };
-
-  // Filter and categorize intents that should show in topics
-  for(var i = 0; i < chatIntents.length; i++){
-    var intent = chatIntents[i];
-    if(intent.showInTopics && categories[intent.category]){
-      categories[intent.category].intents.push(intent);
-    }
-  }
-
-  // Build HTML
-  var html = '<div class="topics-menu">';
-
-  for(var categoryKey in categories){
-    var category = categories[categoryKey];
-    if(category.intents.length > 0){
-      html += '<div class="topic-category">';
-      html += '<div class="topic-accordion-header">';
-      html += '<span class="category-icon">' + category.icon + '</span>';
-      html += '<span class="category-name">' + category.name + '</span>';
-      html += '<span class="accordion-icon">›</span>';
-      html += '</div>';
-      html += '<div class="topic-accordion-content" style="max-height:0">';
-
-      for(var j = 0; j < category.intents.length; j++){
-        var intent = category.intents[j];
-        html += '<div class="topic-menu-item" data-intent-id="' + intent.id + '">';
-        html += intent.name;
-        html += '</div>';
-      }
-
-      html += '</div>';
-      html += '</div>';
-    }
-  }
-
-  html += '</div>';
-  return html;
-}
-
-/* ---------- Topics Modal ---------- */
-function toggleTopics(){
-  var modalOverlay = document.getElementById('topicsModalOverlay');
-  var modalBody = document.getElementById('topicsModalBody');
-
-  // Move modal to document.body for proper full viewport coverage
-  // This ensures it's not constrained by parent container positioning
-  if (modalOverlay.parentElement !== document.body) {
-    document.body.appendChild(modalOverlay);
-  }
-
-  // Render categorized topics menu
-  modalBody.innerHTML = renderTopicsMenu();
-
-  // Show modal with animation
-  modalOverlay.classList.add('active');
-  document.body.style.overflow = 'hidden'; // Prevent background scrolling
-
-  // IMPORTANT: Wait for DOM to be ready
-  setTimeout(function(){
-    // Add accordion toggle handlers
-    var accordionHeaders = modalBody.querySelectorAll('.topic-accordion-header');
-    for(var i = 0; i < accordionHeaders.length; i++){
-      (function(header){
-        header.addEventListener('click', function(e){
-          e.stopPropagation(); // Prevent bubbling
-          var content = header.nextElementSibling;
-          var icon = header.querySelector('.accordion-icon');
-          var isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
-
-          if(isOpen){
-            content.style.maxHeight = '0';
-            icon.style.transform = 'rotate(0deg)';
-            header.style.background = '#fff';
-          } else {
-            content.style.maxHeight = content.scrollHeight + 'px';
-            icon.style.transform = 'rotate(90deg)';
-            header.style.background = '#fff';
-          }
+        const event = new KeyboardEvent('keydown', { 
+          key: 'Enter', 
+          keyCode: 13,
+          bubbles: true 
         });
-      })(accordionHeaders[i]);
-    }
+        chatInput.dispatchEvent(event);
+      }, 100);
+    });
 
-    // Add click handlers to topic items
-    var menuItems = modalBody.querySelectorAll('.topic-menu-item');
-    for(var i = 0; i < menuItems.length; i++){
-      (function(item){
-        item.addEventListener('click', function handler(e){
-          e.preventDefault();
-          e.stopPropagation();
+    container.appendChild(pill);
+  });
 
-          var intentId = item.getAttribute('data-intent-id');
-          triggerIntent(intentId);
-
-          // Close modal
-          closeTopicsModal();
-
-          // Remove this specific listener to prevent duplicates
-          item.removeEventListener('click', handler);
-        }, {once: true}); // This ensures it only fires once
-      })(menuItems[i]);
-    }
-  }, 50);
+  container.style.display = 'flex';
+  container.offsetHeight;
+  
+  requestAnimationFrame(() => {
+    container.style.opacity = '1';
+    container.style.transform = 'translateY(0)';
+  });
 }
 
-function closeTopicsModal(){
-  var modalOverlay = document.getElementById('topicsModalOverlay');
-  modalOverlay.classList.remove('active');
-  document.body.style.overflow = ''; // Restore scrolling
-
-  // Clear modal content after animation
-  setTimeout(function(){
-    var modalBody = document.getElementById('topicsModalBody');
-    if(modalBody) modalBody.innerHTML = '';
+hideSuggestions(container) {
+  container.style.opacity = '0';
+  container.style.transform = 'translateY(10px)';
+  
+  setTimeout(() => {
+    container.style.display = 'none';
   }, 300);
 }
 
-// Close modal on escape key
-document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape'){
-    var modalOverlay = document.getElementById('topicsModalOverlay');
-    if(modalOverlay && modalOverlay.classList.contains('active')){
-      closeTopicsModal();
-    }
-  }
-});
+getSuggestions(input) {
+  const query = input.toLowerCase().trim();
+  const templates = this.getSuggestionTemplates();
+  const matches = [];
 
-/* ===== ChatGPT-like input ergonomics ===== */
-(function chatInputUX(){
-  const ta = document.getElementById('chatInput');
-  if(!ta) return;
-
-  // Enter to send, Shift+Enter for newline
-  ta.addEventListener('keydown', (e)=>{
-    if(e.key === 'Enter' && !e.shiftKey){
-      e.preventDefault();
-      const text = ta.value.trim();
-      if(text){ sendMessage(); }
-    }
-  });
-
-  // Cmd/Ctrl + K focuses the input (like ChatGPT search)
-  window.addEventListener('keydown', (e)=>{
-    const k = e.key.toLowerCase();
-    if((e.metaKey || e.ctrlKey) && k === 'k'){
-      e.preventDefault();
-      ta.focus();
-    }
-  });
-
-  // Auto-grow textarea height smoothly
-  const autoGrow = () =>{
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(150, ta.scrollHeight) + 'px';
-    // nudge scroller padding if you’re using the docked input padding var
-    if(window.__setInputHeightVar) window.__setInputHeightVar();
-  };
-  ta.addEventListener('input', () => requestAnimationFrame(autoGrow));
-  window.addEventListener('load', autoGrow);
-})();
-
-/* ===== Type-by-type streaming renderer (optional) ===== */
-(function streamingBot(){
-  const messagesContainer = document.getElementById('chatMessages');
-  const typing = document.getElementById('typingIndicator');
-
-  function showTyping(){ typing && typing.classList.add('active'); }
-  function hideTyping(){ typing && typing.classList.remove('active'); }
-
-  // Call this instead of addMessage('bot', text) to stream
-  window.streamBotMessage = async function(text, opts = {speed: 18}){
-    const speed = Math.max(8, opts.speed || 18);
-
-    // create empty bot bubble
-    const wrap = document.createElement('div');
-    wrap.className = 'message bot';
-    const avatar = document.createElement('div');
-    avatar.className = 'message-avatar';
-    avatar.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>';
-    const bubble = document.createElement('div');
-    bubble.className = 'message-bubble';
-    bubble.innerHTML = '';  // will stream in
-    wrap.appendChild(avatar);
-    wrap.appendChild(bubble);
-    messagesContainer.appendChild(wrap);
-
-    // animate in
-    requestAnimationFrame(()=> wrap.classList.add('show'));
-    if(window.__scrollToBottom) window.__scrollToBottom({force:true});
-
-    // stream characters
-    showTyping();
-    const chunks = Array.from(text);
-    let out = '';
-    for(let i=0;i<chunks.length;i++){
-      out += chunks[i];
-      // lightweight markdown-ish: bold and paragraphs
-      bubble.innerHTML = out
-        .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-        .replace(/\n\n/g,'</p><p>')
-        .replace(/^((?!<p>).+)$/,'<p>$1</p>');
-      if(i % 3 === 0 && window.__scrollToBottom) window.__scrollToBottom({force:false});
-      await new Promise(r => setTimeout(r, 1000/speed));
-    }
-    hideTyping();
-
-    // push to convo history like addMessage does
-    (window.conversationHistory || (window.conversationHistory = [])).push({sender:'bot', text, timestamp:new Date().toISOString()});
-    if(window.__scrollToBottom) window.__scrollToBottom({force:true});
-  };
-})();
-
-
-/* ===== Lock layout to viewport & robust autoscroll ===== */
-(function chatViewportScrollFix(){
-  const scroller = document.getElementById('chatContent');   // internal scroller
-  const list     = document.getElementById('chatMessages');
-  const inputSec = document.getElementById('inputSection');
-  const ta       = document.getElementById('chatInput');
-
-  // 1) Keep a live CSS var for the input height so content never hides behind it
-  function setInputHeightVar(){
-    if(!inputSec) return;
-    const h = Math.round(inputSec.getBoundingClientRect().height + 6);
-    document.documentElement.style.setProperty('--input-h', h + 'px');
-  }
-  window.__setInputHeightVar = setInputHeightVar; // expose for other code
-  ['load','resize'].forEach(ev => window.addEventListener(ev, ()=>requestAnimationFrame(setInputHeightVar)));
-  ta && ta.addEventListener('input', ()=>requestAnimationFrame(setInputHeightVar));
-
-  // 2) Smart bottom stick: only scroll if user is near bottom
-  function isNearBottom(){
-    if(!scroller) return true;
-    const delta = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
-    return delta < 120;
-  }
-  function scrollToBottom(force=false){
-    if(!scroller) return;
-    if(!force && !isNearBottom()) return;
-    requestAnimationFrame(()=>{
-      const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if(smooth) scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
-      else scroller.scrollTop = scroller.scrollHeight;
+  for (const [category, items] of Object.entries(templates)) {
+    items.forEach(item => {
+      const score = this.matchScore(query, item.text.toLowerCase());
+      if (score > 0) {
+        matches.push({
+          text: item.text,
+          category: category,
+          score: score
+        });
+      }
     });
   }
-  window.__scrollToBottom = (opts={}) => scrollToBottom(!!opts.force);
 
-  // 3) Wait for images in the newest message (cards) before snapping
-  function waitForImages(el, timeoutMs=3000){
-    try{
-      const imgs = Array.from(el.querySelectorAll('img')).filter(i => !i.complete);
-      if(!imgs.length) return Promise.resolve();
-      return Promise.race([
-        Promise.all(imgs.map(img => new Promise(res => {
-          img.addEventListener('load', res, {once:true});
-          img.addEventListener('error', res, {once:true});
-        }))),
-        new Promise(res => setTimeout(res, timeoutMs))
-      ]);
-    }catch(_){ return Promise.resolve(); }
+  matches.sort((a, b) => b.score - a.score);
+  return matches.slice(0, 6);
+}
+
+matchScore(query, text) {
+  if (text.includes(query)) {
+    const position = text.indexOf(query);
+    return 100 - position;
   }
 
-  // 4) Enhance addMessage: measure → reveal → wait images → snap bottom
-  const addMessageOrig = window.addMessage;
-  window.addMessage = function(sender, text){
-    addMessageOrig(sender, text);
+  const queryWords = query.split(/\s+/);
+  const textWords = text.split(/\s+/);
+  let matchedWords = 0;
 
-    // Re-measure input height (in case helper pills / rows changed)
-    requestAnimationFrame(setInputHeightVar);
+  queryWords.forEach(qWord => {
+    if (textWords.some(tWord => tWord.startsWith(qWord))) {
+      matchedWords++;
+    }
+  });
 
-    const messages = list.querySelectorAll('.message');
-    const last = messages[messages.length - 1];
-    if(!last) return;
+  return (matchedWords / queryWords.length) * 50;
+}
 
-    // If you’re using the .show animation, trigger it
-    requestAnimationFrame(()=> last.classList.add('show'));
-
-    // Scroll now (if near bottom) and again after images/cards settle
-    if(window.__scrollToBottom) window.__scrollToBottom({force:false});
-    waitForImages(last).then(()=> requestAnimationFrame(()=> scrollToBottom(true)));
+getSuggestionTemplates() {
+  return {
+    'Orders': [
+      { text: 'Where is my order?' },
+      { text: 'Track my order' },
+      { text: 'When will my order arrive?' },
+      { text: 'I haven\'t received my order' },
+      { text: 'View my order history' }
+    ],
+    'Subscriptions': [
+      { text: 'Cancel my subscription' },
+      { text: 'Pause my subscription' },
+      { text: 'Update my subscription address' },
+      { text: 'Change subscription frequency' },
+      { text: 'When is my next delivery?' },
+      { text: 'Update payment method' }
+    ],
+    'Account': [
+      { text: 'Update my email address' },
+      { text: 'Change my password' },
+      { text: 'Update my shipping address' },
+      { text: 'View my account information' },
+      { text: 'Delete my account' }
+    ],
+    'Products': [
+      { text: 'Is this product in stock?' },
+      { text: 'Tell me about this product' },
+      { text: 'Do you have any deals?' },
+      { text: 'Show me your best sellers' }
+    ],
+    'Support': [
+      { text: 'I need help' },
+      { text: 'Talk to a human' },
+      { text: 'Contact customer support' },
+      { text: 'File a complaint' },
+      { text: 'Request a refund' }
+    ]
   };
+}
 
-  // 5) Also observe any late reflow (fonts/images) and keep bottom in view
-  if('ResizeObserver' in window && list){
-    const ro = new ResizeObserver(() => scrollToBottom(false));
-    ro.observe(list);
+  /**
+   * ========================================
+   * SMART QUICK REPLIES (Deduplication)
+   * ========================================
+   */
+
+  initQuickReplies() {
+    // Only create container if it doesn't exist
+    if (document.querySelector('.quick-replies-container')) {
+      this.quickRepliesContainer = document.querySelector('.quick-replies-container');
+      return;
+    }
+
+    this.quickRepliesContainer = document.createElement('div');
+    this.quickRepliesContainer.className = 'quick-replies-container';
+    this.quickRepliesContainer.style.cssText = `
+      padding: 12px;
+      display: none;
+      gap: 8px;
+      overflow-x: auto;
+      background: #fafafa;
+      border-top: 1px solid #e0e0e0;
+      scrollbar-width: thin;
+    `;
+
+    const chatContainer = document.querySelector('#chat-container') ||
+                         document.querySelector('[data-chat-container]') ||
+                         document.querySelector('.chat-widget');
+
+    if (chatContainer) {
+      chatContainer.appendChild(this.quickRepliesContainer);
+    }
   }
 
-  // 6) On first chat start, measure and snap to bottom
-  const startChatOrig = window.startChat;
-  window.startChat = function(){
-    startChatOrig.apply(this, arguments);
-    requestAnimationFrame(()=> { setInputHeightVar(); scrollToBottom(true); });
-    setTimeout(()=> scrollToBottom(true), 140);
-  };
-})();
+  updateQuickReplies(context = {}) {
+    if (!this.quickRepliesContainer) return;
 
-/* ===== Persistent Start Over pill behavior ===== */
-(function initStartOverPill(){
-  const pill = document.getElementById('startOverPill');
-  if(!pill) return;
+    // Don't show if we're processing a custom intent
+    if (this.conversationContext.processingCustomIntent && this.config.prioritizeCustomIntents) {
+      console.log('⏭️ Skipping quick replies - custom intent is being processed');
+      return;
+    }
 
-  function hardReset(){
+    // Don't show if quick replies already exist from custom handlers
+    if (this.hasQuickRepliesInDOM() && this.quickRepliesContainer.children.length === 0) {
+      console.log('⏭️ Skipping quick replies - already shown by custom handler');
+      return;
+    }
+
+    // Only show once per intent if configured
+    if (this.config.onlyShowQuickRepliesOnce && this.conversationContext.quickRepliesShown) {
+      return;
+    }
+
+    const replies = this.getQuickReplies(context);
+
+    if (replies.length === 0) {
+      this.quickRepliesContainer.style.display = 'none';
+      return;
+    }
+
+    // Clear existing to prevent duplicates
+    this.quickRepliesContainer.innerHTML = '';
+
+    this.quickRepliesContainer.innerHTML = replies.map(reply => `
+      <button class="quick-reply-btn" 
+              data-text="${this.escapeHtml(reply.text)}"
+              data-action="${reply.action}"
+              style="
+        padding: 10px 18px;
+        background: white;
+        border: 1.5px solid #e0e0e0;
+        border-radius: 24px;
+        cursor: pointer;
+        white-space: nowrap;
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      ">
+        <span>${reply.icon}</span>
+        <span>${this.escapeHtml(reply.text)}</span>
+      </button>
+    `).join('');
+
+    this.quickRepliesContainer.querySelectorAll('.quick-reply-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.handleQuickReply(btn.dataset.action, btn.dataset.text);
+      });
+
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = '#f0f0f0';
+        btn.style.borderColor = '#999';
+        btn.style.transform = 'translateY(-1px)';
+      });
+
+      btn.addEventListener('mouseleave', () => {
+        btn.style.background = 'white';
+        btn.style.borderColor = '#e0e0e0';
+        btn.style.transform = 'translateY(0)';
+      });
+    });
+
+    this.quickRepliesContainer.style.display = 'flex';
+    this.conversationContext.quickRepliesShown = true;
+  }
+
+  getQuickReplies(context = {}) {
+    const lastIntent = context.intent || context.lastIntent || this.conversationContext.lastIntent;
+
+    // Don't show generic quick replies if there's a custom handler for this intent
+    if (this.config.prioritizeCustomIntents && this.hasCustomIntentHandler(lastIntent)) {
+      console.log(`⏭️ Skipping generic quick replies - custom handler exists for ${lastIntent}`);
+      return [];
+    }
+
+    // Context-based quick replies
+    if (lastIntent === 'subscription_info' || lastIntent === 'subscription_manage') {
+      return [
+        { text: 'Pause', action: 'subscription_pause', icon: '⏸️' },
+        { text: 'Update Address', action: 'subscription_address', icon: '📍' },
+        { text: 'Change Frequency', action: 'subscription_frequency', icon: '🔄' },
+        { text: 'Cancel', action: 'subscription_cancel', icon: '❌' }
+      ];
+    }
+
+    if (lastIntent === 'order_tracking' || lastIntent === 'order_status') {
+      return [
+        { text: 'Track Another', action: 'order_track_another', icon: '🔍' },
+        { text: 'Order History', action: 'order_history', icon: '📋' },
+        { text: 'Contact Support', action: 'support', icon: '💬' }
+      ];
+    }
+
+    // Default quick replies (only if no custom intent)
+    if (!lastIntent || lastIntent === 'greeting' || lastIntent === 'general') {
+      return [
+        { text: 'Track Order', action: 'order_tracking', icon: '📦' },
+        { text: 'Subscriptions', action: 'subscription_info', icon: '🔄' },
+        { text: 'My Account', action: 'account_info', icon: '👤' },
+        { text: 'Contact Support', action: 'support', icon: '💬' }
+      ];
+    }
+
+    return [];
+  }
+
+  hasCustomIntentHandler(intent) {
+    // Check if there's a custom handler function for this intent
+    const handlerName = `handle${intent.charAt(0).toUpperCase() + intent.slice(1).replace(/_([a-z])/g, (_, c) => c.toUpperCase())}`;
+    return typeof window[handlerName] === 'function';
+  }
+
+  clearQuickReplies() {
+    if (this.quickRepliesContainer) {
+      this.quickRepliesContainer.innerHTML = '';
+      this.quickRepliesContainer.style.display = 'none';
+      this.conversationContext.quickRepliesShown = false;
+    }
+  }
+
+  handleQuickReply(action, text) {
+    // Clear quick replies
+    this.clearQuickReplies();
+    
+    // Send message to chat
+    this.sendMessage(text);
+
+    // Handle specific actions (only if no custom handler)
+    if (!this.hasCustomIntentHandler(action)) {
+      switch (action) {
+        case 'order_tracking':
+          this.promptOrderLookup();
+          break;
+        case 'order_history':
+          this.showOrderHistory();
+          break;
+        case 'subscription_info':
+          this.showSubscriptionInfo();
+          break;
+        case 'account_info':
+          this.showAccountInfo();
+          break;
+      }
+    }
+
+    // Update context
+    this.conversationContext.lastIntent = action;
+    this.saveSession();
+  }
+
+  /**
+   * ========================================
+   * MESSAGE HANDLING (Deduplication)
+   * ========================================
+   */
+
+  addMessageToUI(message, sender, isHtml = false, skipDuplicateCheck = false) {
+    // Check for duplicates unless explicitly skipped (like during restore)
+    if (!skipDuplicateCheck && this.isMessageDuplicate(message)) {
+      console.log('⏭️ Skipping duplicate message:', message.substring(0, 50));
+      return;
+    }
+
+    // Track this message
+    const messageHash = this.hashMessage(message);
+    if (messageHash) {
+      this.conversationContext.processedMessages.add(messageHash);
+    }
+
+    // Add to UI using existing functions
+    if (window.addChatMessage) {
+      window.addChatMessage(message, sender, isHtml);
+    } else if (sender === 'bot' && window.addBotMessage) {
+      window.addBotMessage(message);
+    } else {
+      console.log(`[${sender}]:`, message);
+    }
+
+    // Add to context
+    if (sender === 'bot') {
+      this.conversationContext.messages.push({
+        sender: 'bot',
+        message: message,
+        timestamp: new Date().toISOString(),
+        isHtml: isHtml
+      });
+    }
+  }
+
+  sendMessage(text) {
+    this.conversationContext.messages.push({
+      sender: 'user',
+      message: text,
+      timestamp: new Date().toISOString()
+    });
+
+    // Track as processed
+    const messageHash = this.hashMessage(text);
+    if (messageHash) {
+      this.conversationContext.processedMessages.add(messageHash);
+    }
+
+    // Log to Google Apps Script if configured
+    if (this.config.loggingUrl) {
+      this.logToGoogleSheets({
+        sessionId: this.sessionId,
+        sender: 'user',
+        message: text,
+        timestamp: new Date().toISOString(),
+        shopDomain: this.config.shopDomain
+      });
+    }
+
+    this.saveSession();
+  }
+
+  /**
+   * ========================================
+   * ORDER & SUBSCRIPTION INFO
+   * ========================================
+   */
+
+  promptOrderLookup() {
+    const orderNumber = prompt('Enter your order number (e.g., #1234):');
+    if (orderNumber) {
+      this.lookupOrder(orderNumber.replace('#', ''));
+    }
+  }
+
+  async lookupOrder(orderNumber) {
+    if (!this.config.customer) {
+      this.addMessageToUI('Please sign in to view your orders.', 'bot');
+      return;
+    }
+
+    this.addMessageToUI('Looking up your order...', 'bot');
+    
+    const message = `
+      <div style="padding: 16px; background: #f8f8f8; border-radius: 8px; margin: 8px 0;">
+        <p style="margin: 0 0 12px 0;"><strong>Order Lookup</strong></p>
+        <p style="margin: 0 0 12px 0; font-size: 14px;">
+          To view your order #${orderNumber}, please visit your account page.
+        </p>
+        <a href="/account" style="
+          display: inline-block;
+          padding: 10px 20px;
+          background: #000;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+          font-size: 14px;
+        ">View My Orders</a>
+      </div>
+    `;
+    
+    this.addMessageToUI(message, 'bot', true);
+  }
+
+  showOrderHistory() {
+    if (!this.config.customer) {
+      this.addMessageToUI('Please sign in to view your order history.', 'bot');
+      return;
+    }
+
+    const message = `
+      <div style="padding: 16px; background: #f8f8f8; border-radius: 8px;">
+        <p style="margin: 0 0 12px 0;"><strong>Your Order History</strong></p>
+        <a href="/account" style="
+          display: inline-block;
+          padding: 10px 20px;
+          background: #000;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+        ">View All Orders</a>
+      </div>
+    `;
+    
+    this.addMessageToUI(message, 'bot', true);
+  }
+
+  showSubscriptionInfo() {
+    if (!this.config.customer) {
+      this.addMessageToUI('Please sign in to manage your subscriptions.', 'bot');
+      return;
+    }
+
+    const message = `
+      <div style="padding: 16px; background: #f8f8f8; border-radius: 8px;">
+        <p style="margin: 0 0 12px 0;"><strong>Manage Your Subscriptions</strong></p>
+        <p style="margin: 0 0 12px 0; font-size: 14px;">
+          You can pause, skip, or cancel your subscriptions anytime.
+        </p>
+        <a href="/account" style="
+          display: inline-block;
+          padding: 10px 20px;
+          background: #000;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+          margin-right: 8px;
+        ">Manage Subscriptions</a>
+      </div>
+    `;
+    
+    this.addMessageToUI(message, 'bot', true);
+  }
+
+  showAccountInfo() {
+    if (!this.config.customer) {
+      this.addMessageToUI('Please sign in to view your account information.', 'bot');
+      return;
+    }
+
+    const customer = this.config.customer;
+    const message = `
+      <div style="padding: 16px; background: #f8f8f8; border-radius: 8px;">
+        <p style="margin: 0 0 12px 0;"><strong>Your Account</strong></p>
+        <p style="margin: 0 0 6px 0; font-size: 14px;">
+          <strong>Name:</strong> ${customer.first_name} ${customer.last_name}
+        </p>
+        <p style="margin: 0 0 12px 0; font-size: 14px;">
+          <strong>Email:</strong> ${customer.email}
+        </p>
+        <a href="/account" style="
+          display: inline-block;
+          padding: 10px 20px;
+          background: #000;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+        ">Edit Account</a>
+      </div>
+    `;
+    
+    this.addMessageToUI(message, 'bot', true);
+  }
+
+  /**
+   * ========================================
+   * CHAT HISTORY & GDPR (unchanged)
+   * ========================================
+   */
+
+  showWelcomeBack() {
+    if (!this.config.customer?.email) return;
+
     try {
-      // Clear any saved chat resume/intent (both stores for safety)
-      sessionStorage.removeItem('supportChatResumeState');
-      localStorage.removeItem('supportChatResumeState');
-    } catch(_) {}
+      const historyKey = 'chat_history_' + this.hashEmail(this.config.customer.email);
+      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
 
-    // Let users see the system note, then reset to centered welcome
-    addMessage('system','Conversation restarted');
-    setTimeout(()=>{
-      resetChat();
-      // Recompute input height for docked layout, if helper exists
-      if(typeof window.__setInputHeightVar === 'function'){
-        requestAnimationFrame(window.__setInputHeightVar);
+      if (history.length > 0) {
+        const lastSession = history[history.length - 1];
+        const lastDate = new Date(lastSession.timestamp).toLocaleDateString();
+        
+        const message = `Welcome back, ${this.config.customer.first_name}! Last time we chatted on ${lastDate}. How can I help you today?`;
+        
+        setTimeout(() => {
+          this.addMessageToUI(message, 'bot');
+        }, 1000);
       }
-      // Focus the input for immediate typing
-      const ta = document.getElementById('chatInput');
-      ta && ta.focus();
-    }, 150);
+    } catch (error) {
+      console.error('Failed to show welcome back:', error);
+    }
   }
 
-  pill.addEventListener('click', hardReset);
-})();
+  initGDPRTools() {
+    const gdprButton = document.createElement('button');
+    gdprButton.innerHTML = '🔒 Privacy';
+    gdprButton.style.cssText = `
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      padding: 6px 12px;
+      background: transparent;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      z-index: 100;
+    `;
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
+    gdprButton.addEventListener('click', () => this.showGDPROptions());
 
-// Smoothly animate an element's height from its current size to its new size
-function animateHeight(el, mutateFn, duration = 280){
-  if (!el) { mutateFn?.(); return; }
-  const rmo = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (rmo) { mutateFn?.(); return; }
+    const chatHeader = document.querySelector('.chat-header') ||
+                      document.querySelector('[data-chat-header]');
 
-  // FIRST
-  const startH = el.getBoundingClientRect().height;
+    if (chatHeader) {
+      chatHeader.style.position = 'relative';
+      chatHeader.appendChild(gdprButton);
+    }
+  }
 
-  // Lock current height to allow transition from a concrete value
-  el.style.height = startH + 'px';
-  el.style.overflow = 'hidden';
+  showGDPROptions() {
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+    `;
 
-  // MUTATE
-  mutateFn?.();
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        padding: 28px;
+        border-radius: 12px;
+        max-width: 420px;
+        width: 90%;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      ">
+        <h3 style="margin: 0 0 8px 0; font-size: 20px;">🔒 Your Privacy & Data</h3>
+        <p style="font-size: 14px; color: #666; margin: 0 0 20px 0;">
+          All your chat data is stored locally in your browser. You have full control.
+        </p>
+        
+        <button id="gdpr-export" style="
+          width: 100%;
+          padding: 14px;
+          margin-bottom: 10px;
+          background: #4CAF50;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 15px;
+          font-weight: 500;
+        ">📥 Export My Data</button>
+        
+        <button id="gdpr-delete" style="
+          width: 100%;
+          padding: 14px;
+          margin-bottom: 10px;
+          background: #f44336;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 15px;
+          font-weight: 500;
+        ">🗑️ Delete My Data</button>
+        
+        <button id="gdpr-close" style="
+          width: 100%;
+          padding: 14px;
+          background: #f5f5f5;
+          color: #333;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-size: 15px;
+          font-weight: 500;
+        ">Close</button>
+      </div>
+    `;
 
-  // LAST (next frame so styles apply)
-  requestAnimationFrame(()=>{
-    const endH = el.scrollHeight; // target height after mutation
-    el.style.transition = `height ${duration}ms cubic-bezier(.4,0,.2,1)`;
-    el.style.height = endH + 'px';
+    document.body.appendChild(modal);
 
-    const cleanup = () => {
-      el.style.transition = '';
-      el.style.height = '';
-      el.style.overflow = '';
-      el.removeEventListener('transitionend', cleanup);
-      // nudge your bottom padding var in case input size changed
-      if (typeof window.__setInputHeightVar === 'function') {
-        requestAnimationFrame(window.__setInputHeightVar);
+    modal.querySelector('#gdpr-export').addEventListener('click', () => {
+      modal.remove();
+      this.exportData();
+    });
+
+    modal.querySelector('#gdpr-delete').addEventListener('click', () => {
+      modal.remove();
+      this.deleteData();
+    });
+
+    modal.querySelector('#gdpr-close').addEventListener('click', () => {
+      modal.remove();
+    });
+
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.remove();
+    });
+  }
+
+  exportData() {
+    try {
+      const data = {
+        exportDate: new Date().toISOString(),
+        customer: this.config.customer ? {
+          email: this.config.customer.email,
+          name: `${this.config.customer.first_name} ${this.config.customer.last_name}`
+        } : null,
+        sessionData: JSON.parse(localStorage.getItem('chat_session_data') || '{}'),
+        chatHistory: this.config.customer ? 
+          JSON.parse(localStorage.getItem('chat_history_' + this.hashEmail(this.config.customer.email)) || '[]') :
+          [],
+        format: 'JSON',
+        note: 'All data is stored locally in your browser'
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat-data-export-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      alert('✅ Your data has been exported and downloaded!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('❌ Failed to export data. Please try again.');
+    }
+  }
+
+  deleteData() {
+    const confirmed = confirm(
+      'Are you sure you want to delete all your chat data?\n\nThis will remove:\n- Current chat session\n- Chat history\n- All saved preferences\n\nThis action cannot be undone.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      localStorage.removeItem('chat_session_id');
+      localStorage.removeItem('chat_session_data');
+      
+      if (this.config.customer?.email) {
+        const historyKey = 'chat_history_' + this.hashEmail(this.config.customer.email);
+        localStorage.removeItem(historyKey);
       }
-      // keep newest content visible
-      if (typeof window.__scrollToBottom === 'function') {
-        requestAnimationFrame(()=>window.__scrollToBottom({force:true}));
-      }
+
+      this.conversationContext = {
+        messages: [],
+        lastIntent: null,
+        metadata: {},
+        processedMessages: new Set(),
+        quickRepliesShown: false
+      };
+
+      alert('✅ All your chat data has been deleted.');
+      window.location.reload();
+    } catch (error) {
+      console.error('Delete failed:', error);
+      alert('❌ Failed to delete data. Please try again.');
+    }
+  }
+
+  /**
+   * ========================================
+   * UTILITY FUNCTIONS
+   * ========================================
+   */
+
+  async logToGoogleSheets(data) {
+    if (!this.config.loggingUrl) return;
+    
+    try {
+      await fetch(this.config.loggingUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+    } catch (error) {
+      console.error('Logging failed:', error);
+    }
+  }
+
+  hashEmail(email) {
+    let hash = 0;
+    for (let i = 0; i < email.length; i++) {
+      const char = email.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return hash.toString(36);
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  updateContext(intent, metadata = {}) {
+    this.conversationContext.lastIntent = intent;
+    this.conversationContext.metadata = {
+      ...this.conversationContext.metadata,
+      ...metadata
     };
-    el.addEventListener('transitionend', cleanup, {once:true});
-  });
-}
-
-/* Helper to fade/slide small elements in place (chips, etc.) */
-function fadeInChildren(el){
-  if (!el) return;
-  const kids = el.children || [];
-  [...kids].forEach((node, i) => {
-    node.style.opacity = 0;
-    node.style.transform = 'translateY(8px)';
-    node.style.transition = 'transform .22s ease, opacity .22s ease';
-    requestAnimationFrame(()=>{
-      setTimeout(()=>{
-        node.style.opacity = 1;
-        node.style.transform = 'translateY(0)';
-      }, i * 18); // tiny stagger
-    });
-  });
-}
-
-  
-  
-// Trigger an intent by ID
-function triggerIntent(intentId){
-  console.log('triggerIntent CALLED with:', intentId);
-  
-  // Start chat if not already started
-  if(typeof startChat === 'function'){
-    try {
-      startChat();
-    } catch(e) {
-      console.log('startChat error (may be already started):', e);
+    
+    // Reset quick replies shown flag when intent changes
+    this.conversationContext.quickRepliesShown = false;
+    
+    // Update quick replies with new context
+    if (this.config.enableQuickReplies) {
+      setTimeout(() => {
+        this.updateQuickReplies({ intent });
+      }, 100);
     }
+    
+    this.saveSession();
   }
-  
-  var intent = null;
-  for(var i = 0; i < chatIntents.length; i++){
-    if(chatIntents[i].id === intentId){
-      intent = chatIntents[i];
-      break;
-    }
-  }
-  
-  console.log('Found intent:', intent);
-  
-  if(!intent) {
-    console.error('Intent not found!');
-    return;
-  }
-  
-  console.log('Adding user message:', intent.name);
-  addMessage('user', intent.name);
 
-  // Check if login required
-  if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
-    addMessage('bot', 'Please sign in to continue.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){
-      requireAuthAndContinue('customIntent', {intentId: intent.id});
-    }, true);
-    return;
-  }
-  
-  console.log('About to call executeIntentAction');
-  executeIntentAction(intent);
-}
-// Execute an intent's action
-function executeIntentAction(intent){
-
-  if(intent.actionType === 'message'){
-    var html = intent.responseMessage;
-    if(intent.responseImage){
-      html += '<img src="' + intent.responseImage + '" alt="" style="max-width:100%;border-radius:12px;margin:16px 0;">';
-    }
-    console.log('About to call addMessage');
-    addMessage('bot', html);
-    console.log('addMessage called successfully');
-    clearQuickActions();
-    addQuickAction('Ask Something Else', function(){clearQuickActions()}, false);
-    addQuickAction('Contact Support', function(){handleCustomerSupport()}, false);
-  } else if(intent.actionType === 'topic'){
-    var topicName = intent.actionValue;
-    if(conversationData[topicName]){
-      currentTopic = topicName;
-      currentStep = 0;
-      addMessage('bot', 'Let me help you with ' + topicName + '.');
-      setTimeout(function(){
-        showStep(topicName, 0);
-      }, 500);
-    } else {
-      addMessage('bot', 'Sorry, I couldn\'t find that topic. Please contact support.');
-      clearQuickActions();
-      addQuickAction('Contact Support', function(){handleCustomerSupport()}, true);
-    }
-  } else if(intent.actionType === 'handler'){
-    var functionName = intent.actionValue;
-    if(typeof window[functionName] === 'function'){
-      window[functionName]();
-    } else {
-      console.error('Handler function not found:', functionName);
-      addMessage('bot', 'Sorry, I encountered a technical issue. Please contact support to resolve your concern.');
-      clearQuickActions();
-      addQuickAction('Contact Support', function(){handleCustomerSupport()}, true);
-    }
-  } else if(intent.actionType === 'url'){
-    window.location.href = intent.actionValue;
+  // Public method to manually clear duplicates
+  resetDuplicateTracking() {
+    this.conversationContext.processedMessages.clear();
+    this.conversationContext.quickRepliesShown = false;
+    console.log('✅ Duplicate tracking reset');
   }
 }
 
-// ============================================================================
-// AUTO-RESUME STORED INTENT ON PAGE LOAD
-// ============================================================================
-
-(function autoResumeIntent() {
-  function tryExecuteIntent() {
-    const raw = localStorage.getItem('supportChatResumeState');
-    
-    if (!raw) {
-      console.log('No stored intent');
-      return false;
-    }
-    
-    console.log('Found stored intent');
-    
-    // Check if user is logged in
-    if (!window.customerData || !window.customerData.isLoggedIn) {
-      console.log('User not logged in yet');
-      return false;
-    }
-    
-    console.log('User is logged in!');
-    
-    let state;
-    try {
-      state = JSON.parse(raw);
-    } catch(e) {
-      console.error('Invalid state:', e);
-      localStorage.removeItem('supportChatResumeState');
-      return true;
-    }
-    
-    // SECURITY: Validate intent whitelist
-    const allowedIntents = ['showOrders', 'showSubs', 'nextOrder', 'manageSub', 'cancelSub', 'customIntent', 'initialSignIn'];
-    if (!allowedIntents.includes(state.intent)) {
-      console.error('Invalid intent in stored state');
-      localStorage.removeItem('supportChatResumeState');
-      addMessage('system', 'Invalid session data. Please try again.');
-      return true;
-    }
-    
-    // SECURITY: Validate signature
-    const expectedSignature = generateSimpleHash(state.intent, state.payload, state.customerId);
-    if (state.signature !== expectedSignature) {
-      console.error('Signature mismatch');
-      localStorage.removeItem('supportChatResumeState');
-      addMessage('system', 'Session validation failed. Please try again.');
-      return true;
-    }
-    
-    // SECURITY: Validate timestamp (5 minutes)
-    if (state.ts && Date.now() - state.ts > 300000) {
-      console.warn('Intent expired');
-      localStorage.removeItem('supportChatResumeState');
-      addMessage('bot', 'Your session expired. Please login again.');
-      return true;
-    }
-    
-    // SECURITY: Validate customer ID
-    if (state.customerId && state.customerId !== window.customerData.id) {
-      console.error('Customer ID mismatch');
-      localStorage.removeItem('supportChatResumeState');
-      addMessage('system', 'Security error: Session mismatch.');
-      return true;
-    }
-    
-    // Clear state immediately
-    localStorage.removeItem('supportChatResumeState');
-    
-    console.log('Starting chat and executing intent:', state.intent);
-    
-    // Start chat
-    startChat();
-
-    // Show welcome message
-    if (state.intent === 'initialSignIn') {
-      addMessage('system', 'Welcome! You\'re now signed in.');
-    } else {
-      addMessage('system', 'Welcome back! Continuing where you left off...');
-    }
-    
-    // Execute intent - wait for functions to be loaded
-    var executeAttempts = 0;
-    var maxAttempts = 50;
-    
-    function executeStoredIntent(){
-      const payload = state.payload || {};
-      
-      executeAttempts++;
-      console.log('Attempt', executeAttempts, '- Attempting to execute intent:', state.intent);
-      
-      // Give up after max attempts
-      if(executeAttempts >= maxAttempts){
-        console.error('Gave up waiting for functions to load');
-        addMessage('bot', 'There were too many attempts. Please refresh the page and try again.');
-        return;
-      }
-      
-      // Check if key functions exist (wait if not loaded yet)
-      if(typeof handleOrderStatusQuery !== 'function'){
-        console.log('Functions not loaded yet, waiting...');
-        setTimeout(executeStoredIntent, 200);
-        return;
-      }
-      
-      console.log('Functions loaded, executing...');
-      
-      // SECURITY: Validate payload before execution
-      switch (state.intent) {
-        case 'showOrders': 
-          handleOrderStatusQuery(); 
-          break;
-          
-        case 'showSubs':
-          const validFilters = ['all', 'active', 'paused', 'canceled', 'expired'];
-          const filter = validFilters.includes(payload.filter) ? payload.filter : 'all';
-          handleSubscriptionInfoQuery(filter); 
-          break;
-          
-        case 'nextOrder':  
-          handleNextOrderIntent(); 
-          break;
-          
-        case 'manageSub':
-          const validActions = ['general', 'address', 'payment', 'frequency', 'pause', 'date'];
-          const action = validActions.includes(payload.action) ? payload.action : 'general';
-          handleSubscriptionManagement(action);
-          break;
-          
-        case 'cancelSub':
-          handleCancelSubscription();
-          break;
-          
-        case 'customIntent':
-          if(payload.intentId) {
-            triggerIntent(payload.intentId);
-          } else {
-            console.error('Invalid intentId');
-            addMessage('bot', 'Something went wrong. Please try again.');
-          }
-          break;
-
-        case 'initialSignIn':
-          // User signed in from initial state - just show welcome message
-          addMessage('bot', 'Welcome! How can I help you today?');
-          break;
-
-        default:
-          addMessage('bot', 'You\'re signed in. What would you like to do next?');
-      }
-    }
-    
-    // Start trying to execute after initial delay
-    setTimeout(executeStoredIntent, 800);
-    
-    return true;
-  }
-  
-  // Try immediately
-  if (tryExecuteIntent()) return;
-  
-  // Retry in case customerData loads late
-  let tries = 0;
-  const interval = setInterval(function(){
-    if (tryExecuteIntent() || ++tries >= 15) {
-      clearInterval(interval);
-    }
-  }, 200);
-  
-  window.addEventListener('load', tryExecuteIntent);
-})();
-
-</script>
-
-
-
-{% schema %}
-{
-  "name": "Support Chat",
-  "settings": [
-    {
-      "type": "header",
-      "content": "Header"
-    },
-    {
-      "type": "text",
-      "id": "header_title",
-      "label": "Header title (logged out)",
-      "default": "Support Center"
-    },
-    {
-      "type": "text",
-      "id": "header_title_logged_in",
-      "label": "Header title (logged in)",
-      "default": "Hi NAME_PLACEHOLDER",
-      "info": "Use NAME_PLACEHOLDER for customer's first name"
-    },
-    {
-      "type": "text",
-      "id": "header_subtitle",
-      "label": "Header subtitle (optional)",
-      "default": "How can we help you today?"
-    },
-    {
-      "type": "header",
-      "content": "Chat"
-    },
-    {
-      "type": "text",
-      "id": "input_placeholder",
-      "label": "Input placeholder",
-      "default": "Message..."
-    },
-    {
-      "type": "header",
-      "content": "AI-Powered Intent Recognition"
-    },
-    {
-      "type": "checkbox",
-      "id": "enable_ai_intent",
-      "label": "Enable AI Intent Recognition",
-      "info": "Use OpenAI to better understand natural language queries",
-      "default": false
-    },
-    {
-      "type": "text",
-      "id": "openai_api_key",
-      "label": "OpenAI API Key",
-      "info": "Your OpenAI API key for intent classification. Leave empty if AI is disabled."
-    }
-  ],
-  "blocks": [
-    {
-      "type": "topic",
-      "name": "Topic",
-      "settings": [
-        {
-          "type": "text",
-          "id": "topic_title",
-          "label": "Topic title",
-          "default": "Getting Started"
-        },
-        {
-          "type": "textarea",
-          "id": "topic_description",
-          "label": "Topic description",
-          "default": "Let me walk you through the basics"
-        }
-      ]
-    },
-    {
-      "type": "step",
-      "name": "Step",
-      "settings": [
-        {
-          "type": "text",
-          "id": "topic_title",
-          "label": "Topic Title",
-          "info": "Must match parent topic exactly"
-        },
-        {
-          "type": "text",
-          "id": "step_title",
-          "label": "Step Title"
-        },
-        {
-          "type": "richtext",
-          "id": "step_content",
-          "label": "Step Content",
-          "default": "<p>Enter your step instructions here.</p>"
-        },
-        {
-          "type": "image_picker",
-          "id": "step_image",
-          "label": "Step Image (optional)"
-        },
-        {
-          "type": "textarea",
-          "id": "tip",
-          "label": "Tip (optional)"
-        },
-        {
-          "type": "textarea",
-          "id": "warning",
-          "label": "Warning (optional)"
-        },
-        {
-          "type": "text",
-          "id": "button_text",
-          "label": "Button Text (optional)"
-        },
-        {
-          "type": "url",
-          "id": "button_link",
-          "label": "Button Link (optional)"
-        }
-      ]
-    },
-    {
-  "type": "intent",
-  "name": "💬 Chat Intent",
-  "settings": [
-    {
-      "type": "paragraph",
-      "content": "Configure what happens when users type specific phrases. Intents are checked in order from top to bottom."
-    },
-    {
-      "type": "text",
-      "id": "intent_name",
-      "label": "Intent Name",
-      "info": "Display name for this intent",
-      "default": "My Intent"
-    },
-    {
-      "type": "select",
-      "id": "category",
-      "label": "Category",
-      "options": [
-        {"value": "orders", "label": "Orders & Shipping"},
-        {"value": "subscriptions", "label": "Subscriptions"},
-        {"value": "account", "label": "Account & Billing"},
-        {"value": "products", "label": "Products & Info"},
-        {"value": "support", "label": "Support & Contact"}
-      ],
-      "default": "support",
-      "info": "Group this intent into a category"
-    },
-    {
-      "type": "checkbox",
-      "id": "show_in_topics",
-      "label": "Show in Topics Menu",
-      "info": "Display this intent as a clickable topic in the Find More Topics menu",
-      "default": true
-    },
-    {
-      "type": "textarea",
-      "id": "trigger_phrases",
-      "label": "Trigger Phrases",
-      "info": "One phrase per line. User messages containing ANY of these will trigger this intent.",
-      "placeholder": "how do i cancel\ncancel my subscription\nstop subscription",
-      "default": "blank"
-    },
-    {
-      "type": "select",
-      "id": "action_type",
-      "label": "What Should Happen?",
-      "options": [
-        {"value": "message", "label": "💬 Show Message"},
-        {"value": "topic", "label": "📖 Show Topic Steps"},
-        {"value": "handler", "label": "⚙️ Run Function"},
-        {"value": "url", "label": "🔗 Redirect to URL"}
-      ],
-      "default": "message"
-    },
-    {
-      "type": "html",
-      "id": "response_message",
-      "label": "Response Message",
-      "info": "Only used if action is 'Show Message'",
-      "default": "<p>Here's your answer...</p>"
-    },
-    {
-      "type": "image_picker",
-      "id": "response_image",
-      "label": "Response Image (optional)",
-      "info": "Image will appear below the message. Only used if action is 'Show Message'"
-    },
-    {
-      "type": "text",
-      "id": "action_value",
-      "label": "Action Value",
-      "info": "• For Topic: exact topic name\n• For Function: function name like 'handleOrderTracking'\n• For URL: full URL or path like '/pages/help'\n• Not needed for Message"
-    },
-    {
-      "type": "checkbox",
-      "id": "require_login",
-      "label": "Require Login",
-      "info": "If checked, user must be signed in to use this intent",
-      "default": false
-    }
-  ]
+// Export
+if (typeof window !== 'undefined') {
+  window.ShopifyChatFeatures = ShopifyChatFeatures;
 }
-  ],
-  "presets": [
-    {
-      "name": "Support Chat (Centered)",
-      "blocks": [
-        {
-          "type": "topic",
-          "settings": {
-            "topic_title": "Cancel My Subscription",
-            "topic_description": "Learn how to cancel your subscription"
-          }
-        },
-        {
-          "type": "step",
-          "settings": {
-            "topic_title": "Cancel My Subscription",
-            "step_title": "Step 1: Sign In",
-            "step_content": "<p>Go to your account and sign in.</p>"
-          }
-        },
-        {
-          "type": "step",
-          "settings": {
-            "topic_title": "Cancel My Subscription",
-            "step_title": "Step 2: Manage Subscriptions",
-            "step_content": "<p>Click on Manage Subscriptions in your account dashboard.</p>"
-          }
-        }
-      ]
-    }
-  ]
-}
-{% endschema %}
