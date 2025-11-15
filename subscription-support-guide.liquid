@@ -2009,6 +2009,20 @@ async function logChatMessageAnonymously(sender, text, timestamp) {
 function sanitizeMessageForLogging(text) {
   let sanitized = text;
 
+  // Replace HTML content with descriptive placeholders
+  if (sanitized.includes('mobile-login')) {
+    return '[LOGIN_PROMPT]';
+  }
+  if (sanitized.includes('order-card')) {
+    return '[ORDER_CARD]';
+  }
+  if (sanitized.includes('subscription-card')) {
+    return '[SUBSCRIPTION_CARD]';
+  }
+  if (sanitized.includes('<div') || sanitized.includes('<a ')) {
+    return '[HTML_CONTENT]';
+  }
+
   // Remove email addresses
   sanitized = sanitized.replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '[EMAIL_REDACTED]');
 
@@ -2020,11 +2034,6 @@ function sanitizeMessageForLogging(text) {
 
   // Remove SSN patterns
   sanitized = sanitized.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN_REDACTED]');
-
-  // Keep HTML cards and system messages but remove any embedded data
-  if (sanitized.includes('order-card') || sanitized.includes('subscription-card')) {
-    sanitized = '[ORDER/SUBSCRIPTION_CARD_DISPLAYED]';
-  }
 
   return sanitized;
 }
