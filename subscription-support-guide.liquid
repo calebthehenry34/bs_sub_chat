@@ -1,9 +1,3 @@
-{% comment %}
-Support Chat (Centered) — parity + enhancements
-- Keeps original structure: topics/steps, email transcript, rotating placeholder, chat flow
-- Upgrades: centered welcome, order/returns/refund/payment, subscription buckets, next-order intent, working "View order"
-{% endcomment %}
-
 <style>
 
 
@@ -63,17 +57,17 @@ html, body {
   .chat-content::-webkit-scrollbar{width:0;display:none}
   .chat-content{-ms-overflow-style:none;scrollbar-width:none}
   .chat-messages{padding:20px 0;display:flex;flex-direction:column;gap:16px;background:#fff}
-  .message{display:flex;gap:10px;max-width:85%;animation:slideIn .3s cubic-bezier(.4,0,.2,1)}
+  .message{display:flex;gap:10px;max-width:85%;animation:slideIn .3s cubic-bezier(.4,0,.2,1);display: flex;align-items: center;}
   @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-  .message.user{align-self:flex-end;flex-direction:row-reverse}
+  .message.user{align-self:flex-end;flex-direction:row-reverse;display: flex;align-items: center;}
   .message.bot{align-self:flex-start}
   .message.system{align-self:center;max-width:100%}
   .message-avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#f0f0f0;flex-shrink:0}
-  .message.user .message-avatar{background:#007AFF}
+  .message.user .message-avatar{background:#0d0d0d}
   .message-avatar svg{width:18px;height:18px;fill:#86868b}
   .message.user .message-avatar svg{fill:#fff}
-  .message-bubble{background:#f0f0f0;color:#1d1d1f;padding:12px 16px;border-radius:20px;font-size:15px;line-height:1.5;letter-spacing:-0.01em;font-weight:400}
-  .message.user .message-bubble{background:#007AFF;color:#fff;}
+  .message-bubble{background:#f1f1f2;color:#1d1d1f;padding:12px 16px;border-radius:20px;font-size:15px;line-height:1.5;letter-spacing:-0.01em;font-weight:400}
+  .message.user .message-bubble{background:#f1f1f2;color:#fff;}
   .message.bot .message-bubble{border-radius:15px}
   .message.system .message-bubble{background:rgba(0,0,0,.05);color:#86868b;font-size:13px;padding:8px 14px;border-radius:16px;text-align:center}
   .message-bubble p{margin:0 0 10px}
@@ -433,17 +427,16 @@ html, body {
   margin-top: 16px;              /* more space when sender changes */
 }
 
-/* Softer, more ChatGPT-like bubbles */
+
 .message-bubble{
   border-radius: 16px;
-  box-shadow: 0 1px 0 rgba(0,0,0,.04);
 }
 .message.bot .message-bubble{
-  background: #f7f7f8;           /* light gray like ChatGPT */
+  background: #f7f7f8;        
 }
 .message.user .message-bubble{
-  background: #007aff;
-  color:#fff;
+  background:rgb(255, 255, 255);
+  color:#0d0d0d;
 }
 .message.system .message-bubble{
   background: #f1f5f9;
@@ -471,7 +464,7 @@ html, body {
 .chat-window::after{
   bottom: 0;
   background: linear-gradient(rgba(255,255,255,0), #fff);
-  opacity: .9;
+  opacity: .2;
 }
 
 /* Typing dots look more like ChatGPT */
@@ -891,9 +884,20 @@ html, body { height: auto; min-height: 100%; }
     margin-bottom: 20px;
   }
   
+
+  .mobile-login {
+     display:flex!important;
+     flex-direction:column!important;
+  }
+
+  .mobile-login-button {
+    width:100%!important;
+    text-align:Center!important;
+  }
+  
   .message-bubble {
     padding: 10px 14px;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1.5;
     word-wrap: break-word;
     word-break: break-word;
@@ -1354,25 +1358,24 @@ function requireAuthAndContinue(intent, payload = {}) {
     
     // Show message with clickable link (bypasses popup blocker)
     addMessage('system', `
-      <div style="padding:20px;background:#f0f7ff;border:2px solid #007AFF;border-radius:12px;text-align:center;">
-        <p style="margin:0 0 16px;font-weight:600;font-size:16px;">Login</p>
-        <a href="/account/login" 
+      <div class="mobile-login" style="padding:20px;border-radius:12px;text-align:left;display: flex;flex-direction: row;gap:50px;align-items: center;">
+        <p style="margin:0;color:#555;font-size:14px;line-height:1.6;">
+          We need you to login first. It'll open in a new tab but simply return to this window when you're done and tap the 'Continue' button.
+        </p> 
+        <a class="mobile-login-button" href="/account/login" 
            target="_blank"
-           style="display:inline-block;background:#007AFF;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;margin-bottom:16px;transition:transform 0.2s ease;"
+           style="display:inline-block;background:#393939;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;transition:transform 0.2s ease;"
            onmouseover="this.style.transform='scale(1.05)'"
            onmouseout="this.style.transform='scale(1)'">
-          Sign In (Opens New Tab)
+          Login
         </a>
-        <p style="margin:0;color:#555;font-size:14px;line-height:1.6;">
-          After signing in, return here and click "Continue" below
-        </p>
       </div>
     `);
     
     clearQuickActions();
     
     // Add continue button
-    addQuickAction('Continue (After Signing In)', function(){
+    addQuickAction('I\'m logged in, continue', function(){
       location.reload();
     }, true);
     
@@ -1402,7 +1405,7 @@ function handleInitialSignIn() {
     };
 
     localStorage.setItem('supportChatResumeState', JSON.stringify(intentData));
-    console.log('Saved initial sign-in intent');
+  
 
     // Open login page in new tab
     window.open('/account/login', '_blank');
@@ -2377,7 +2380,7 @@ function renderOrderCard(o, heading){
 
 function handleOrderStatusQuery(){
   if(!window.customerData || !window.customerData.isLoggedIn){
-    addMessage('bot','To check your order status, please sign in to your account first.');
+    addMessage('bot','To check your order status, please login to your account first.');
     clearQuickActions();
     addQuickAction('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
     return;
@@ -2441,7 +2444,7 @@ function routeIntent(lowerText){
           if(conversationData[topicName]){
             currentTopic = topicName;
             currentStep = 0;
-            addMessage('bot', 'Let me help you with ' + topicName + '.');
+            addMessage('bot', 'I can help you with ' + topicName + '.');
             setTimeout(function(){
               showStep(topicName, 0);
             }, 500);
@@ -3559,12 +3562,8 @@ function triggerIntent(intentId){
 }
 // Execute an intent's action
 function executeIntentAction(intent){
-  console.log('=== executeIntentAction CALLED ===');
-  console.log('Intent:', intent);
-  console.log('Action type:', intent.actionType);
-  
+
   if(intent.actionType === 'message'){
-    console.log('Executing MESSAGE action');
     var html = intent.responseMessage;
     if(intent.responseImage){
       html += '<img src="' + intent.responseImage + '" alt="" style="max-width:100%;border-radius:12px;margin:16px 0;">';
@@ -3595,7 +3594,7 @@ function executeIntentAction(intent){
       window[functionName]();
     } else {
       console.error('Handler function not found:', functionName);
-      addMessage('bot', 'Sorry, something went wrong. Please contact support.');
+      addMessage('bot', 'Sorry, I encountered a technical issue. Please contact support to resolve your concern.');
       clearQuickActions();
       addQuickAction('Contact Support', function(){handleCustomerSupport()}, true);
     }
@@ -3658,7 +3657,7 @@ function executeIntentAction(intent){
     if (state.ts && Date.now() - state.ts > 300000) {
       console.warn('Intent expired');
       localStorage.removeItem('supportChatResumeState');
-      addMessage('bot', 'Your session expired. Please try again.');
+      addMessage('bot', 'Your session expired. Please login again.');
       return true;
     }
     
@@ -3698,7 +3697,7 @@ function executeIntentAction(intent){
       // Give up after max attempts
       if(executeAttempts >= maxAttempts){
         console.error('Gave up waiting for functions to load');
-        addMessage('bot', 'Something went wrong. Please try again.');
+        addMessage('bot', 'There were too many attempts. Please refresh the page and try again.');
         return;
       }
       
