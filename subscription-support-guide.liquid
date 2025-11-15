@@ -1513,7 +1513,7 @@ var productDatabase = [];
 // Load product recommendation flows
 var productRecommendationFlows = [];
 {% for block in section.blocks %}
-  {% if block.type == 'product_recommendation_flow' %}
+  {% if block.type == 'product_flow' %}
     productRecommendationFlows.push({
       id: "{{ block.id }}",
       name: "{{ block.settings.flow_name | escape }}",
@@ -4712,7 +4712,7 @@ function triggerProductRecommendationFlow(flowId) {
       ]
     },
     {
-      "type": "product_recommendation_flow",
+      "type": "product_flow",
       "name": "🎯 Product Recommendation Flow",
       "settings": [
         {
