@@ -2226,6 +2226,13 @@ function addQuickAction(text,callback,isPrimary=false,type=''){
 }
 
 function clearQuickActions(){ quickActionsContainer.innerHTML=''; }
+
+// Helper function to add quick actions after message animation completes (300ms)
+function addQuickActionDelayed(text,callback,isPrimary=false,type='',delay=350){
+  setTimeout(function(){
+    addQuickAction(text,callback,isPrimary,type);
+  }, delay);
+}
 function showTyping(){ typingIndicator.classList.add('active'); scrollToBottom();}
 function hideTyping(){ typingIndicator.classList.remove('active'); }
 
@@ -2407,7 +2414,7 @@ function handleOrderStatusQuery(){
   if(!window.customerData || !window.customerData.isLoggedIn){
     addMessage('bot','To check your order status, please login to your account first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
+    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('showOrders')}, true);
     return;
   }
   
@@ -2607,7 +2614,7 @@ function routeIntent(lowerText, aiResult){
         if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
           addMessage('bot', 'Please sign in to continue.');
           clearQuickActions();
-          addQuickAction('Sign In', function(){
+          addQuickActionDelayed('Sign In', function(){
             requireAuthAndContinue('customIntent', {intentId: intent.id});
           }, true);
           return;
@@ -2936,11 +2943,11 @@ function handleCustomerSupport(){
 
 function handleAccountUpdate(type){
   if(!type) type = 'general';
-  
+
   if(!window.customerData || !window.customerData.isLoggedIn){
     addMessage('bot','To update your account, please sign in first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){window.location.href='/account/login'}, true);
+    addQuickActionDelayed('Sign In', function(){window.location.href='/account/login'}, true);
     return;
   }
   
@@ -2961,11 +2968,11 @@ function handleAccountUpdate(type){
 
 function handleSubscriptionManagement(action){
   if(!action) action = 'general';
-  
+
   if(!window.customerData.isLoggedIn){
     addMessage('bot','To manage your subscriptions, please sign in first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){requireAuthAndContinue('manageSub')}, true);
+    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('manageSub')}, true);
     return;
   }
   
@@ -3037,7 +3044,7 @@ function handleSubscriptionManagement(action){
 function handleNextOrderIntent(){
   if(!window.customerData.isLoggedIn){
     addMessage('bot','Sign in to check your next order.');
-    clearQuickActions(); addQuickAction('Sign In',()=>requireAuthAndContinue('nextOrder'),true);
+    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('nextOrder'),true);
     return;
   }
   const orders=window.customerOrders||[];
@@ -3080,7 +3087,7 @@ function handleNextOrderIntent(){
 function handleSubscriptionInfoQuery(filter='all'){
   if(!window.customerData.isLoggedIn){
     addMessage('bot','To view your subscriptions, please sign in to your account first.');
-    clearQuickActions(); addQuickAction('Sign In',()=>requireAuthAndContinue('showSubs',{filter}),true);
+    clearQuickActions(); addQuickActionDelayed('Sign In',()=>requireAuthAndContinue('showSubs',{filter}),true);
     return;
   }
   // Deduplicate by productId + variantTitle
@@ -3140,7 +3147,7 @@ function handleCancelSubscription(){
   if(!window.customerData || !window.customerData.isLoggedIn){
     addMessage('bot','To cancel a subscription, please sign in to your account first.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){requireAuthAndContinue('cancelSub')}, true);
+    addQuickActionDelayed('Sign In', function(){requireAuthAndContinue('cancelSub')}, true);
     return;
   }
   
@@ -3734,12 +3741,12 @@ function triggerIntent(intentId){
   
   console.log('Adding user message:', intent.name);
   addMessage('user', intent.name);
-  
+
   // Check if login required
   if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
     addMessage('bot', 'Please sign in to continue.');
     clearQuickActions();
-    addQuickAction('Sign In', function(){
+    addQuickActionDelayed('Sign In', function(){
       requireAuthAndContinue('customIntent', {intentId: intent.id});
     }, true);
     return;
