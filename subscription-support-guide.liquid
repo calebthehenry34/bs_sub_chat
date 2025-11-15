@@ -1489,60 +1489,145 @@ var aiIntentConfig = {
 // INITIALIZE WELCOME TOPIC PILLS
 // ============================================================================
 
-// Add three initial topic pills below the greeting
-(function initWelcomeTopics(){
+// Dynamic suggestion pills based on user input
+(function initDynamicSuggestions(){
   var welcomeTopicsContainer = document.getElementById('welcomeTopics');
+  var chatInput = document.getElementById('chatInput');
   if(!welcomeTopicsContainer) return;
 
-  // Combine intents and product recommendation flows
+  // Build complete topics database with triggers for matching
   var allTopics = [];
 
-  // Add product recommendation flows first (they're typically high priority)
+  // Add product recommendation flows
   for(var i = 0; i < productRecommendationFlows.length; i++){
-    if(productRecommendationFlows[i].showInTopics){
+    var flow = productRecommendationFlows[i];
+    if(flow.showInTopics){
       allTopics.push({
         type: 'product_flow',
-        id: productRecommendationFlows[i].id,
-        name: productRecommendationFlows[i].name,
-        requireLogin: false
+        id: flow.id,
+        name: flow.name,
+        triggers: flow.triggers || [],
+        requireLogin: false,
+        priority: 1 // High priority for product flows
       });
     }
   }
 
   // Add regular intents
   for(var i = 0; i < chatIntents.length; i++){
-    if(chatIntents[i].showInTopics){
+    var intent = chatIntents[i];
+    if(intent.showInTopics){
       allTopics.push({
         type: 'intent',
-        id: chatIntents[i].id,
-        name: chatIntents[i].name,
-        requireLogin: chatIntents[i].requireLogin || false
+        id: intent.id,
+        name: intent.name,
+        triggers: intent.triggers || [],
+        requireLogin: intent.requireLogin || false,
+        priority: 2
       });
     }
   }
 
-  // Get first 3 topics
-  var topicsToShow = allTopics.slice(0, 3);
+  // Score a topic based on how well it matches the input
+  function scoreTopic(topic, input){
+    if(!input || input.length < 1) return topic.priority; // Default priority when no input
 
-  // Create and append topic pills
-  topicsToShow.forEach(function(topic){
-    var btn = document.createElement('button');
-    btn.className = 'suggestion-pill';
-    // Add lock icon for login-required topics
-    if(topic.requireLogin){
-      btn.innerHTML = '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + topic.name;
-    } else {
-      btn.textContent = topic.name;
+    var score = 0;
+    var inputLower = input.toLowerCase().trim();
+    var inputWords = inputLower.split(/\s+/);
+
+    // Check topic name
+    var nameLower = topic.name.toLowerCase();
+    if(nameLower.includes(inputLower)){
+      score += 100; // Strong match on name
     }
-    btn.onclick = function(){
-      if(topic.type === 'product_flow'){
-        triggerProductRecommendationFlow(topic.id);
-      } else {
-        triggerIntent(topic.id);
+
+    // Check individual words in name
+    for(var w = 0; w < inputWords.length; w++){
+      if(inputWords[w].length > 2 && nameLower.includes(inputWords[w])){
+        score += 30;
       }
-    };
-    welcomeTopicsContainer.appendChild(btn);
-  });
+    }
+
+    // Check triggers for matches
+    for(var t = 0; t < topic.triggers.length; t++){
+      var trigger = topic.triggers[t].toLowerCase().trim();
+      if(trigger.includes(inputLower)){
+        score += 80; // Full input found in trigger
+      }
+      // Check individual words
+      for(var w = 0; w < inputWords.length; w++){
+        if(inputWords[w].length > 2 && trigger.includes(inputWords[w])){
+          score += 20;
+        }
+      }
+    }
+
+    // Boost for priority (product flows are higher priority)
+    score += (10 - topic.priority);
+
+    return score;
+  }
+
+  // Get top 3 most relevant topics
+  function getTopSuggestions(input){
+    var scored = [];
+    for(var i = 0; i < allTopics.length; i++){
+      scored.push({
+        topic: allTopics[i],
+        score: scoreTopic(allTopics[i], input)
+      });
+    }
+
+    // Sort by score descending
+    scored.sort(function(a, b){ return b.score - a.score; });
+
+    // Return top 3
+    var top3 = [];
+    for(var i = 0; i < Math.min(3, scored.length); i++){
+      top3.push(scored[i].topic);
+    }
+    return top3;
+  }
+
+  // Render suggestion pills
+  function renderSuggestions(input){
+    var topicsToShow = getTopSuggestions(input);
+    welcomeTopicsContainer.innerHTML = '';
+
+    topicsToShow.forEach(function(topic){
+      var btn = document.createElement('button');
+      btn.className = 'suggestion-pill';
+      // Add lock icon for login-required topics
+      if(topic.requireLogin){
+        btn.innerHTML = '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + topic.name;
+      } else {
+        btn.textContent = topic.name;
+      }
+      btn.onclick = function(){
+        if(topic.type === 'product_flow'){
+          triggerProductRecommendationFlow(topic.id);
+        } else {
+          triggerIntent(topic.id);
+        }
+      };
+      welcomeTopicsContainer.appendChild(btn);
+    });
+  }
+
+  // Initial render with default top 3
+  renderSuggestions('');
+
+  // Update suggestions as user types
+  if(chatInput){
+    var debounceTimer;
+    chatInput.addEventListener('input', function(){
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function(){
+        renderSuggestions(chatInput.value);
+      }, 150); // Debounce for performance
+    });
+  }
 })();
 
 // ============================================================================
