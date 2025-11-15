@@ -1980,37 +1980,26 @@ function getAnonymousSessionId() {
 
 // Anonymously log chat messages (strips all PII)
 async function logChatMessageAnonymously(sender, text, timestamp) {
-  if (!CHAT_LOG_CONFIG.enabled || CHAT_LOG_CONFIG.endpoint === 'https://script.google.com/macros/s/AKfycby9HnX28ulxsW9AilxmAVOr-IceiUsUI7JH0wdIUIFUyq5mr5TenFagYpSJ_Om4Ori3LA/exec') {
-    return; // Skip if not configured
+  if (!CHAT_LOG_CONFIG.enabled || !CHAT_LOG_CONFIG.endpoint || CHAT_LOG_CONFIG.endpoint === 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL') {
+    return;
   }
 
   try {
-    // Create anonymous log entry - NO customer emails, IDs, or PII
     const logData = {
       sessionId: getAnonymousSessionId(),
-      sender: sender, // 'user' or 'bot' or 'system'
+      sender: sender,
       message: sanitizeMessageForLogging(text),
       timestamp: timestamp,
       topic: currentTopic || '',
-      userAgent: navigator.userAgent.split(' ')[0], // Just browser type, not full UA
+      userAgent: navigator.userAgent.split(' ')[0],
       shopDomain: window.location.hostname
     };
 
-    // Build URL with query parameters (GET request - no CORS preflight!)
     const params = new URLSearchParams(logData);
     const url = `${CHAT_LOG_CONFIG.endpoint}?${params.toString()}`;
 
-    // Send as GET request to avoid CORS issues
-    fetch(url, {
-      method: 'GET',
-      mode: 'no-cors' // Prevents CORS errors
-    }).catch(err => {
-      // Silently fail - don't disrupt user experience
-      console.debug('Chat logging failed:', err);
-    });
-  } catch (err) {
-    console.debug('Chat logging error:', err);
-  }
+    fetch(url).catch(() => {});
+  } catch (err) {}
 }
 
 // Sanitize message to remove any accidentally included PII
