@@ -87,12 +87,48 @@ function doPost(e) {
 }
 
 /**
- * Handle GET requests (for testing)
+ * Handle GET requests - now used for logging to avoid CORS issues
  */
 function doGet(e) {
-  return ContentService
-    .createTextOutput('Chat Logger is running! Send POST requests to log chats.')
-    .setMimeType(ContentService.MimeType.TEXT);
+  try {
+    // If no parameters, return test message
+    if (!e || !e.parameter || Object.keys(e.parameter).length === 0) {
+      return ContentService
+        .createTextOutput('Chat Logger is running! Send GET requests with query parameters to log chats.')
+        .setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    // Extract data from query parameters
+    const data = {
+      sessionId: e.parameter.sessionId,
+      sender: e.parameter.sender,
+      message: e.parameter.message,
+      timestamp: e.parameter.timestamp,
+      topic: e.parameter.topic || '',
+      userAgent: e.parameter.userAgent || '',
+      shopDomain: e.parameter.shopDomain || ''
+    };
+
+    // Validate required fields
+    if (!data.sessionId || !data.sender || !data.message || !data.timestamp) {
+      console.error('Missing required fields. Received data:', JSON.stringify(data));
+      return createResponse(400, { error: 'Missing required fields' });
+    }
+
+    // Get or create the sheet
+    const sheet = getOrCreateSheet(CONFIG.SHEET_NAME);
+
+    // Append the log entry
+    appendLog(sheet, data);
+
+    console.log('Successfully logged message from:', data.sender);
+    return createResponse(200, { success: true, message: 'Log stored' });
+
+  } catch (error) {
+    console.error('Error logging chat:', error);
+    console.error('Stack trace:', error.stack);
+    return createResponse(500, { error: error.toString() });
+  }
 }
 
 /**
