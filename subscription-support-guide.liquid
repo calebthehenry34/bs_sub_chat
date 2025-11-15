@@ -95,6 +95,10 @@ html, body {
   .subscription-card-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;gap:12px;padding:14px 14px 0}
   .subscription-product{font-weight:700;font-size:15px;color:#000;flex:1;line-height:1.3}
   .subscription-status{font-size:11px;padding:4px 10px;border-radius:12px;font-weight:800;background:rgba(0, 0, 0, 1);color:#fff;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .subscription-status.active{background:#22c55e;color:#fff}
+  .subscription-status.cancelled{background:#ef4444;color:#fff}
+  .subscription-status.paused{background:#f59e0b;color:#fff}
+  .subscription-status.expired{background:#6b7280;color:#fff}
   .subscription-details{font-size:13px;color:rgba(0, 0, 0, 0.9);line-height:1.6;padding:0 14px 12px}
   .subscription-actions{display:flex;gap:8px;padding:10px 12px;background:#f1f1f2;border-radius: 20px;}
   .subscription-actions .btn{background:#fff;color:#333}
@@ -2052,16 +2056,16 @@ function sanitizeMessageForLogging(text) {
 // Enhanced subscription status detection with intelligent defaults
 function bucketizeSubscription(sub){
   if(!sub) return 'inactive';
-  
+
   const rawStatus = (
-    sub.status || 
-    sub.subscription_status || 
-    sub.state || 
+    sub.status ||
+    sub.subscription_status ||
+    sub.state ||
     sub.subscriptionStatus ||
     sub.deliveryStatus ||
     ''
   ).toString().trim().toLowerCase();
-  
+
   const now = new Date();
   
   // CHECK FOR CANCELLATION FIRST (highest priority)
