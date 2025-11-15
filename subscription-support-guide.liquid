@@ -2349,9 +2349,13 @@ function addQuickAction(text,callback,isPrimary=false,type=''){
 
 function clearQuickActions(){ quickActionsContainer.innerHTML=''; }
 
+// Track pending quick action timeouts so we can cancel them
+var pendingQuickActionTimeout = null;
+
 // Helper function to add quick actions after message animation completes (300ms)
 function addQuickActionDelayed(text,callback,isPrimary=false,type='',delay=350){
-  setTimeout(function(){
+  pendingQuickActionTimeout = setTimeout(function(){
+    pendingQuickActionTimeout = null;
     addQuickAction(text,callback,isPrimary,type);
   }, delay);
 }
@@ -2361,8 +2365,15 @@ function addBotMessageWithActions(message, actions){
   addMessage('bot', message);
   clearQuickActions();
 
+  // Cancel any pending quick action timeout
+  if(pendingQuickActionTimeout){
+    clearTimeout(pendingQuickActionTimeout);
+    pendingQuickActionTimeout = null;
+  }
+
   // Delay quick actions to appear after message animation (300ms) + small buffer
-  setTimeout(function(){
+  pendingQuickActionTimeout = setTimeout(function(){
+    pendingQuickActionTimeout = null;
     actions.forEach(function(action){
       addQuickAction(action.text, action.callback, action.isPrimary || false, action.type || '');
     });
@@ -2446,6 +2457,14 @@ function scrollToBottom(){
 async function sendMessage(){
   const text=chatInput.value.trim();
   if(!text)return;
+
+  // Immediately clear quick actions and cancel pending timeouts
+  clearQuickActions();
+  if(pendingQuickActionTimeout){
+    clearTimeout(pendingQuickActionTimeout);
+    pendingQuickActionTimeout = null;
+  }
+
   startChat();
   addMessage('user',text);
   chatInput.value='';
