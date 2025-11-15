@@ -44,8 +44,8 @@ html, body {
   .centered-welcome-title{font-size:28px;font-weight:600;color:#1d1d1f;margin:0}
   .centered-welcome-subtitle{font-size:16px;color:#86868b;margin:0}
   .welcome-topics{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:600px;margin:12px auto 0}
-  .welcome-topic-btn{background:#fff;border:1px solid rgba(0,0,0,.1);padding:10px 18px;border-radius:24px;cursor:pointer;transition:all .2s ease;font-size:13px;font-weight:500;color:#1d1d1f;letter-spacing:-0.01em}
-  .welcome-topic-btn:hover{background:#f8f8f8;border-color:rgba(0,0,0,.2);transform:translateY(-1px)}
+  .suggestion-pill{background:#fff;border:1px solid rgba(0,0,0,.1);padding:10px 18px;border-radius:24px;cursor:pointer;transition:all .2s ease;font-size:13px;font-weight:500;color:#1d1d1f;letter-spacing:-0.01em}
+  .suggestion-pill:hover{background:#f8f8f8;border-color:rgba(0,0,0,.2);transform:translateY(-1px)}
 
   .input-section{display:flex;flex-direction:column;gap:16px;align-items:center;width:100%;transition:all .4s cubic-bezier(.4,0,.2,1);flex-shrink:0}
   .input-section.fixed-bottom{padding:16px 20px;background:#fff;box-shadow:0 -2px 10px rgba(0,0,0,.05);border-top:1px solid rgba(0,0,0,.06)}
@@ -115,49 +115,7 @@ html, body {
   .quick-action-btn:hover{background:#f8f8f8;border-color:rgba(0,0,0,.2)}
   .quick-action-btn.primary{background:#f1f1f2;color:black;border:none}
 
-  .topics-section{width:100%;max-width:700px;margin:16px auto 0;transition:all .3s ease}
   .bottom-actions-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;flex-wrap:wrap;width:100%;padding-bottom: 30px;}
-  .topics-toggle{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 16px;cursor:pointer;color:#007AFF;font-size:13px;font-weight:500;letter-spacing:-0.01em;transition:all .2s ease;border-radius:20px;border:1px solid rgba(0,122,255,.2);background:#fff}
-  .topics-toggle:hover{background:#f8f8f8;border-color:rgba(0,122,255,.4)}
-  .topics-toggle-icon{width:16px;height:16px;transition:transform .3s ease;display:flex;align-items:center;justify-content:center}
-  .topics-toggle-icon.rotated{transform:rotate(180deg)}
-  .topics-toggle-icon svg{fill:#007AFF;width:100%;height:100%}
-
-  /* Modal Overlay */
-  .topics-modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;min-width:100vw;min-height:100vh;background:rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:10000;align-items:center;justify-content:center;opacity:0;transition:opacity .3s ease}
-  .topics-modal-overlay.active{display:flex;opacity:1}
-
-  /* Modal Container */
-  .topics-modal{background:#fff;border-radius:16px;width:100%;max-width:600px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);transform:scale(.9);transition:transform .3s ease}
-  .topics-modal-overlay.active .topics-modal{transform:scale(1)}
-
-  /* Modal Header */
-  .topics-modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid rgba(0,0,0,.1)}
-  .topics-modal-title{font-size:16px;font-weight:600;color:#1d1d1f;margin:0}
-  .topics-modal-close{background:transparent;border:none;font-size:24px;color:#86868b;cursor:pointer;width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:all .2s ease;padding:0}
-  .topics-modal-close:hover{background:#f5f5f7;color:#1d1d1f}
-
-  /* Modal Body with Scrolling */
-  .topics-modal-body{overflow-y:auto;flex:1;padding:0;-webkit-overflow-scrolling:touch}
-  .topics-modal-body::-webkit-scrollbar{width:8px}
-  .topics-modal-body::-webkit-scrollbar-track{background:#f5f5f7}
-  .topics-modal-body::-webkit-scrollbar-thumb{background:#c7c7cc;border-radius:4px}
-  .topics-modal-body::-webkit-scrollbar-thumb:hover{background:#aeaeb2}
-
-  .topics-menu{background:#fff}
-  .topic-category{border-bottom:1px solid rgba(0,0,0,.06)}
-  .topic-category:last-child{border-bottom:none}
-  .topic-accordion-header{display:flex;align-items:center;gap:12px;padding:16px 24px;cursor:pointer;background:#fff;transition:all .2s ease;user-select:none}
-  .topic-accordion-header:hover{background:#fff}
-  .topic-accordion-header .category-icon{font-size:18px}
-  .topic-accordion-header .category-name{flex:1;font-size:14px;font-weight:600;color:#1d1d1f}
-  .topic-accordion-header .accordion-icon{font-size:20px;color:#86868b;transition:transform .3s ease;font-weight:bold}
-  .topic-accordion-content{overflow:hidden;transition:max-height .3s ease;background:#fff}
-  .topic-menu-item{padding:14px 24px 14px 56px;cursor:pointer;font-size:14px;color:#1d1d1f;transition:all .2s ease;}
-  .topic-menu-item:hover{padding-left:60px}
-  .topic-menu-item:first-child{border-top:none}
-
-  .persistent-topics{width:100%;max-width:700px;margin:0 auto}
 
   .chat-input-wrapper{width:100%;max-width:700px;margin:0 auto}
   .chat-input-container{display:flex;gap:8px;align-items:center;background:#f5f5f7;border-radius:28px;padding:6px 8px 6px 20px;transition:all .2s ease;border:2px solid transparent}
@@ -177,7 +135,7 @@ html, body {
 
   @media(max-width:767px){
     .welcome-topics{flex-direction:column;width:100%}
-    .welcome-topic-btn{width:100%;text-align:center}
+    .suggestion-pill{width:100%;text-align:center}
     .input-section.fixed-bottom{padding:16px 20px}
     .bottom-actions-row{flex-direction:column;gap:8px;margin-bottom:0px !important}
     .account-link{text-align:center;margin-top:8px}
@@ -724,7 +682,7 @@ textarea.chat-input:focus-visible {
     justify-items: stretch;                /* equal width per column */
   }
 
-  .welcome-topic-btn {
+  .suggestion-pill {
     width: 100%;
     padding: 10px 12px;
     font-size: 14px;
@@ -1055,7 +1013,7 @@ html, body { height: auto; min-height: 100%; }
     justify-items: stretch;
   }
   
-  .welcome-topic-btn {
+  .suggestion-pill {
     width: 100%;
     padding: 10px 12px;
     font-size: 13px;
@@ -1094,52 +1052,7 @@ html, body { height: auto; min-height: 100%; }
     font-size: 12px;
     line-height: 1.4;
   }
-  
-  /* === TOPICS MODAL (MOBILE OPTIMIZED) === */
-  .topics-toggle {
-    font-size: 12px;
-    padding: 8px 14px;
-  }
 
-  .topics-modal {
-    max-width: 95%;
-    max-height: 90vh;
-    margin: 10px;
-  }
-
-  .topics-modal-header {
-    padding: 11px 17px;
-  }
-
-  .topics-modal-title {
-    font-size: 14px;
-  }
-
-  .topics-menu {
-    font-size: 13px;
-  }
-
-  .topic-accordion-header {
-    padding: 12px 20px;
-  }
-
-  .topic-accordion-header .category-icon {
-    font-size: 13px;
-  }
-
-  .topic-accordion-header .category-name {
-    font-size: 13px;
-  }
-
-  .topic-menu-item {
-    padding: 12px 20px 12px 48px;
-    font-size: 13px;
-  }
-
-  .topic-menu-item:hover {
-    padding-left: 48px;
-  }
-  
   /* === BUTTONS === */
   .btn {
     font-size: 12px;
@@ -1614,7 +1527,7 @@ var aiIntentConfig = {
   // Create and append topic pills
   topicsToShow.forEach(function(topic){
     var btn = document.createElement('button');
-    btn.className = 'welcome-topic-btn';
+    btn.className = 'suggestion-pill';
     // Add lock icon for login-required topics
     if(topic.requireLogin){
       btn.innerHTML = '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + topic.name;
@@ -1978,32 +1891,12 @@ window.addEventListener('beforeunload', function() {
         </div>
         
         <div class="bottom-actions-row">
-          <div class="topics-toggle" onclick="toggleTopics()">
-            <span id="topicsToggleText">Find More Topics</span>
-            <span class="topics-toggle-icon rotated" id="topicsToggleIcon">
-              <svg viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-            </span>
-          </div>
-          
           <div class="account-link">
             {% if customer %}
               Signed in as {{ customer.first_name }} · <a href="{{ routes.account_url }}">Manage Account</a> · <a href="#" id="exitChatLink">Exit Chat</a>
             {% else %}
               Already have an account? <a href="#" onclick="handleInitialSignIn(); return false;">Sign In</a>
             {% endif %}
-          </div>
-        </div>
-        
-        <!-- Topics Modal -->
-        <div class="topics-modal-overlay" id="topicsModalOverlay" onclick="if(event.target === this) closeTopicsModal()">
-          <div class="topics-modal">
-            <div class="topics-modal-header">
-              <h3 class="topics-modal-title">Browse Topics</h3>
-              <button class="topics-modal-close" onclick="closeTopicsModal()" aria-label="Close">&times;</button>
-            </div>
-            <div class="topics-modal-body" id="topicsModalBody">
-              <!-- Topics menu will be inserted here -->
-            </div>
           </div>
         </div>
       </div>
@@ -3442,175 +3335,6 @@ This conversation was sent from ${window.location.hostname}`;
 }
 
 
-
-/* ---------- Render Topics Menu ---------- */
-function renderTopicsMenu(){
-  // Group intents by category
-  var categories = {
-    'orders': {name: 'Orders & Shipping', icon: '📦', intents: []},
-    'subscriptions': {name: 'Subscriptions', icon: '🔄', intents: []},
-    'account': {name: 'Account & Billing', icon: '👤', intents: []},
-    'products': {name: 'Products & Info', icon: '🛍️', intents: []},
-    'support': {name: 'Support & Contact', icon: '💬', intents: []}
-  };
-
-  // Add product recommendation flows to the products category first
-  for(var i = 0; i < productRecommendationFlows.length; i++){
-    var flow = productRecommendationFlows[i];
-    if(flow.showInTopics){
-      categories['products'].intents.push({
-        id: flow.id,
-        name: flow.name,
-        type: 'product_flow',
-        requireLogin: false
-      });
-    }
-  }
-
-  // Filter and categorize intents that should show in topics
-  for(var i = 0; i < chatIntents.length; i++){
-    var intent = chatIntents[i];
-    if(intent.showInTopics && categories[intent.category]){
-      categories[intent.category].intents.push({
-        id: intent.id,
-        name: intent.name,
-        type: 'intent',
-        requireLogin: intent.requireLogin || false
-      });
-    }
-  }
-
-  // Build HTML
-  var html = '<div class="topics-menu">';
-
-  for(var categoryKey in categories){
-    var category = categories[categoryKey];
-    if(category.intents.length > 0){
-      html += '<div class="topic-category">';
-      html += '<div class="topic-accordion-header">';
-      html += '<span class="category-icon">' + category.icon + '</span>';
-      html += '<span class="category-name">' + category.name + '</span>';
-      html += '<span class="accordion-icon">›</span>';
-      html += '</div>';
-      html += '<div class="topic-accordion-content" style="max-height:0">';
-
-      for(var j = 0; j < category.intents.length; j++){
-        var item = category.intents[j];
-        var dataAttr = item.type === 'product_flow' ? 'data-flow-id' : 'data-intent-id';
-        html += '<div class="topic-menu-item" ' + dataAttr + '="' + item.id + '">';
-        if(item.type === 'product_flow'){
-          html += '🎯 ' + item.name;
-        } else if(item.requireLogin){
-          html += '<span style="font-size:0.85em;margin-right:4px;opacity:0.7;">🔒</span>' + item.name;
-        } else {
-          html += item.name;
-        }
-        html += '</div>';
-      }
-
-      html += '</div>';
-      html += '</div>';
-    }
-  }
-
-  html += '</div>';
-  return html;
-}
-
-/* ---------- Topics Modal ---------- */
-function toggleTopics(){
-  var modalOverlay = document.getElementById('topicsModalOverlay');
-  var modalBody = document.getElementById('topicsModalBody');
-
-  // Move modal to document.body for proper full viewport coverage
-  // This ensures it's not constrained by parent container positioning
-  if (modalOverlay.parentElement !== document.body) {
-    document.body.appendChild(modalOverlay);
-  }
-
-  // Render categorized topics menu
-  modalBody.innerHTML = renderTopicsMenu();
-
-  // Show modal with animation
-  modalOverlay.classList.add('active');
-  document.body.style.overflow = 'hidden'; // Prevent background scrolling
-
-  // IMPORTANT: Wait for DOM to be ready
-  setTimeout(function(){
-    // Add accordion toggle handlers
-    var accordionHeaders = modalBody.querySelectorAll('.topic-accordion-header');
-    for(var i = 0; i < accordionHeaders.length; i++){
-      (function(header){
-        header.addEventListener('click', function(e){
-          e.stopPropagation(); // Prevent bubbling
-          var content = header.nextElementSibling;
-          var icon = header.querySelector('.accordion-icon');
-          var isOpen = content.style.maxHeight && content.style.maxHeight !== '0px';
-
-          if(isOpen){
-            content.style.maxHeight = '0';
-            icon.style.transform = 'rotate(0deg)';
-            header.style.background = '#fff';
-          } else {
-            content.style.maxHeight = content.scrollHeight + 'px';
-            icon.style.transform = 'rotate(90deg)';
-            header.style.background = '#fff';
-          }
-        });
-      })(accordionHeaders[i]);
-    }
-
-    // Add click handlers to topic items
-    var menuItems = modalBody.querySelectorAll('.topic-menu-item');
-    for(var i = 0; i < menuItems.length; i++){
-      (function(item){
-        item.addEventListener('click', function handler(e){
-          e.preventDefault();
-          e.stopPropagation();
-
-          var intentId = item.getAttribute('data-intent-id');
-          var flowId = item.getAttribute('data-flow-id');
-
-          if(flowId){
-            // Handle product recommendation flow
-            triggerProductRecommendationFlow(flowId);
-          } else if(intentId){
-            // Handle regular intent
-            triggerIntent(intentId);
-          }
-
-          // Close modal
-          closeTopicsModal();
-
-          // Remove this specific listener to prevent duplicates
-          item.removeEventListener('click', handler);
-        }, {once: true}); // This ensures it only fires once
-      })(menuItems[i]);
-    }
-  }, 50);
-}
-
-function closeTopicsModal(){
-  var modalOverlay = document.getElementById('topicsModalOverlay');
-  modalOverlay.classList.remove('active');
-  document.body.style.overflow = ''; // Restore scrolling
-
-  // Clear modal content after animation
-  setTimeout(function(){
-    var modalBody = document.getElementById('topicsModalBody');
-    if(modalBody) modalBody.innerHTML = '';
-  }, 300);
-}
-
-// Close modal on escape key
-document.addEventListener('keydown', function(e){
-  if(e.key === 'Escape'){
-    var modalOverlay = document.getElementById('topicsModalOverlay');
-    if(modalOverlay && modalOverlay.classList.contains('active')){
-      closeTopicsModal();
-    }
-  }
-});
 
 /* ===== ChatGPT-like input ergonomics ===== */
 (function chatInputUX(){
