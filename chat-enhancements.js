@@ -39,6 +39,17 @@ class ChatEnhancements {
       metadata: {}
     };
 
+    // Product recommendation wizard state
+    this.recommendationWizard = {
+      active: false,
+      step: 0,
+      selections: {
+        concern: null,
+        applicationMethod: null,
+        strength: null
+      }
+    };
+
     // Toast notification queue
     this.toastQueue = [];
     this.activeToasts = [];
@@ -552,40 +563,360 @@ class ChatEnhancements {
   }
 
   async showRecommendations() {
-    if (!this.customerEmail) {
-      this.showMessage('Sign in to get personalized recommendations!');
-      return;
+    // Start the product recommendation wizard
+    this.startRecommendationWizard();
+  }
+
+  /**
+   * PRODUCT RECOMMENDATION WIZARD
+   */
+
+  startRecommendationWizard() {
+    this.recommendationWizard = {
+      active: true,
+      step: 1,
+      selections: {
+        concern: null,
+        applicationMethod: null,
+        strength: null
+      }
+    };
+
+    this.showMessage("Let's find the perfect product for you! I'll ask you a few quick questions.", 'bot');
+
+    setTimeout(() => {
+      this.showWizardStep(1);
+    }, 500);
+  }
+
+  showWizardStep(step) {
+    const steps = {
+      1: this.showConcernSelection.bind(this),
+      2: this.showApplicationMethodSelection.bind(this),
+      3: this.showStrengthSelection.bind(this)
+    };
+
+    if (steps[step]) {
+      steps[step]();
     }
+  }
+
+  showConcernSelection() {
+    const concerns = [
+      { id: 'acne', label: 'Acne & Breakouts', icon: '🔴' },
+      { id: 'aging', label: 'Anti-Aging & Wrinkles', icon: '✨' },
+      { id: 'hydration', label: 'Hydration & Dryness', icon: '💧' },
+      { id: 'dark_spots', label: 'Dark Spots & Pigmentation', icon: '🎯' },
+      { id: 'sensitivity', label: 'Sensitivity & Redness', icon: '🌸' },
+      { id: 'texture', label: 'Texture & Pores', icon: '🪞' }
+    ];
+
+    const message = `
+      <div class="wizard-step" style="margin: 8px 0;">
+        <h4 style="margin: 0 0 12px 0; color: #333;">Step 1 of 3: What's your primary concern?</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px;">
+          ${concerns.map(concern => `
+            <button class="wizard-option" data-wizard-action="concern" data-value="${concern.id}" style="
+              padding: 14px;
+              background: white;
+              border: 2px solid #e0e0e0;
+              border-radius: 10px;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            ">
+              <span style="font-size: 24px;">${concern.icon}</span>
+              <span style="font-weight: 500; font-size: 14px;">${concern.label}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    this.showMessage(message, 'bot', true);
+    this.attachWizardListeners();
+  }
+
+  showApplicationMethodSelection() {
+    const methods = [
+      { id: 'serum', label: 'Serum', icon: '💉', description: 'Concentrated, fast-absorbing' },
+      { id: 'cream', label: 'Cream/Moisturizer', icon: '🧴', description: 'Rich, hydrating formula' },
+      { id: 'cleanser', label: 'Cleanser', icon: '🫧', description: 'Daily cleansing routine' },
+      { id: 'mask', label: 'Mask/Treatment', icon: '🎭', description: 'Intensive weekly treatment' },
+      { id: 'toner', label: 'Toner/Essence', icon: '💦', description: 'Prep and balance skin' },
+      { id: 'spot', label: 'Spot Treatment', icon: '🎯', description: 'Targeted application' }
+    ];
+
+    const message = `
+      <div class="wizard-step" style="margin: 8px 0;">
+        <h4 style="margin: 0 0 12px 0; color: #333;">Step 2 of 3: Preferred application method?</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px;">
+          ${methods.map(method => `
+            <button class="wizard-option" data-wizard-action="applicationMethod" data-value="${method.id}" style="
+              padding: 14px;
+              background: white;
+              border: 2px solid #e0e0e0;
+              border-radius: 10px;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            ">
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                <span style="font-size: 24px;">${method.icon}</span>
+                <span style="font-weight: 600; font-size: 14px;">${method.label}</span>
+              </div>
+              <p style="margin: 0; font-size: 12px; color: #666;">${method.description}</p>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    this.showMessage(message, 'bot', true);
+    this.attachWizardListeners();
+  }
+
+  showStrengthSelection() {
+    const strengths = [
+      {
+        id: 'gentle',
+        label: 'Gentle',
+        icon: '🌱',
+        description: 'Low concentration, minimal irritation risk',
+        best_for: 'Sensitive skin, daily use'
+      },
+      {
+        id: 'moderate',
+        label: 'Moderate',
+        icon: '⚖️',
+        description: 'Balanced formula for visible results',
+        best_for: 'Most skin types, regular use'
+      },
+      {
+        id: 'strong',
+        label: 'Strong',
+        icon: '💪',
+        description: 'High concentration for maximum efficacy',
+        best_for: 'Resistant concerns, experienced users'
+      }
+    ];
+
+    const message = `
+      <div class="wizard-step" style="margin: 8px 0;">
+        <h4 style="margin: 0 0 12px 0; color: #333;">Step 3 of 3: What strength level do you prefer?</h4>
+        <div style="display: grid; grid-template-columns: 1fr; gap: 10px; max-width: 400px;">
+          ${strengths.map(strength => `
+            <button class="wizard-option" data-wizard-action="strength" data-value="${strength.id}" style="
+              padding: 16px;
+              background: white;
+              border: 2px solid #e0e0e0;
+              border-radius: 10px;
+              cursor: pointer;
+              text-align: left;
+              transition: all 0.2s;
+            ">
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                <span style="font-size: 28px;">${strength.icon}</span>
+                <span style="font-weight: 600; font-size: 16px;">${strength.label}</span>
+              </div>
+              <p style="margin: 0 0 4px 0; font-size: 13px; color: #444;">${strength.description}</p>
+              <p style="margin: 0; font-size: 12px; color: #667eea; font-weight: 500;">Best for: ${strength.best_for}</p>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    this.showMessage(message, 'bot', true);
+    this.attachWizardListeners();
+  }
+
+  attachWizardListeners() {
+    // Use setTimeout to ensure DOM is updated
+    setTimeout(() => {
+      const buttons = document.querySelectorAll('.wizard-option:not([data-listener-attached])');
+      buttons.forEach(button => {
+        button.setAttribute('data-listener-attached', 'true');
+
+        button.addEventListener('mouseenter', () => {
+          button.style.borderColor = '#667eea';
+          button.style.background = '#f8f8ff';
+          button.style.transform = 'translateY(-2px)';
+          button.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.2)';
+        });
+
+        button.addEventListener('mouseleave', () => {
+          button.style.borderColor = '#e0e0e0';
+          button.style.background = 'white';
+          button.style.transform = 'translateY(0)';
+          button.style.boxShadow = 'none';
+        });
+
+        button.addEventListener('click', () => {
+          const action = button.dataset.wizardAction;
+          const value = button.dataset.value;
+          this.handleWizardSelection(action, value);
+        });
+      });
+    }, 100);
+  }
+
+  handleWizardSelection(action, value) {
+    this.recommendationWizard.selections[action] = value;
+
+    // Show user's selection
+    const labels = {
+      concern: {
+        acne: 'Acne & Breakouts',
+        aging: 'Anti-Aging & Wrinkles',
+        hydration: 'Hydration & Dryness',
+        dark_spots: 'Dark Spots & Pigmentation',
+        sensitivity: 'Sensitivity & Redness',
+        texture: 'Texture & Pores'
+      },
+      applicationMethod: {
+        serum: 'Serum',
+        cream: 'Cream/Moisturizer',
+        cleanser: 'Cleanser',
+        mask: 'Mask/Treatment',
+        toner: 'Toner/Essence',
+        spot: 'Spot Treatment'
+      },
+      strength: {
+        gentle: 'Gentle',
+        moderate: 'Moderate',
+        strong: 'Strong'
+      }
+    };
+
+    const selectionLabel = labels[action]?.[value] || value;
+    this.showMessage(`Selected: ${selectionLabel}`, 'user');
+
+    // Move to next step
+    if (action === 'concern') {
+      this.recommendationWizard.step = 2;
+      setTimeout(() => this.showWizardStep(2), 300);
+    } else if (action === 'applicationMethod') {
+      this.recommendationWizard.step = 3;
+      setTimeout(() => this.showWizardStep(3), 300);
+    } else if (action === 'strength') {
+      this.recommendationWizard.step = 4;
+      setTimeout(() => this.fetchFilteredRecommendations(), 300);
+    }
+  }
+
+  async fetchFilteredRecommendations() {
+    this.showMessage('Finding the perfect products for you...', 'bot');
 
     try {
       const response = await fetch(
-        `${this.config.backendUrl}/api/shopify?action=recommendations&email=${encodeURIComponent(this.customerEmail)}`
+        `${this.config.backendUrl}/api/shopify?action=guided-recommendations`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            concern: this.recommendationWizard.selections.concern,
+            applicationMethod: this.recommendationWizard.selections.applicationMethod,
+            strength: this.recommendationWizard.selections.strength,
+            email: this.customerEmail
+          })
+        }
       );
 
       const data = await response.json();
 
       if (data.success && data.recommendations.length > 0) {
-        const message = `
-          <div class="recommendations" style="margin: 8px 0;">
-            <h4>Recommended for You</h4>
-            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 12px;">
-              ${data.recommendations.map(product => `
-                <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; cursor: pointer;">
-                  <img src="${product.image}" alt="${product.title}" style="width: 100%; height: 150px; object-fit: cover;">
-                  <div style="padding: 8px;">
-                    <p style="margin: 0; font-size: 14px; font-weight: 500;">${product.title}</p>
-                    <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: bold; color: #667eea;">$${product.price}</p>
-                  </div>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-        this.showMessage(message, 'bot', true);
+        this.displayFilteredRecommendations(data.recommendations, data.matchInfo);
+      } else {
+        this.showMessage('No exact matches found, but here are some products you might like:', 'bot');
+        // Fallback to showing available products
+        const fallbackResponse = await fetch(
+          `${this.config.backendUrl}/api/shopify?action=recommendations&email=${encodeURIComponent(this.customerEmail || 'guest')}`
+        );
+        const fallbackData = await fallbackResponse.json();
+        if (fallbackData.success && fallbackData.recommendations.length > 0) {
+          this.displayFilteredRecommendations(fallbackData.recommendations, null);
+        } else {
+          this.showMessage('Please contact our support team for personalized recommendations.', 'bot');
+        }
       }
     } catch (error) {
-      console.error('Recommendations failed:', error);
+      console.error('Guided recommendations failed:', error);
+      this.showMessage('Sorry, there was an error fetching recommendations. Please try again.', 'bot');
     }
+
+    // Reset wizard state
+    this.recommendationWizard.active = false;
+    this.recommendationWizard.step = 0;
+  }
+
+  displayFilteredRecommendations(recommendations, matchInfo) {
+    const matchText = matchInfo ? `
+      <div style="background: #f0f8ff; padding: 12px; border-radius: 8px; margin-bottom: 16px;">
+        <p style="margin: 0; font-size: 14px; color: #333;">
+          <strong>Based on your preferences:</strong><br>
+          Concern: ${matchInfo.concern} | Method: ${matchInfo.applicationMethod} | Strength: ${matchInfo.strength}
+        </p>
+      </div>
+    ` : '';
+
+    const message = `
+      <div class="recommendations" style="margin: 8px 0;">
+        <h4 style="margin: 0 0 12px 0;">Your Personalized Recommendations</h4>
+        ${matchText}
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;">
+          ${recommendations.map(product => `
+            <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.2s;"
+                 onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'; this.style.transform='translateY(-2px)';"
+                 onmouseout="this.style.boxShadow='none'; this.style.transform='translateY(0)';">
+              <img src="${product.image}" alt="${this.escapeHtml(product.title)}" style="width: 100%; height: 150px; object-fit: cover;">
+              <div style="padding: 10px;">
+                <p style="margin: 0; font-size: 14px; font-weight: 500; line-height: 1.3;">${this.escapeHtml(product.title)}</p>
+                ${product.matchScore ? `
+                  <p style="margin: 4px 0 0 0; font-size: 11px; color: #10b981; font-weight: 500;">
+                    ${product.matchScore}% match
+                  </p>
+                ` : ''}
+                <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: bold; color: #667eea;">$${product.price}</p>
+                ${product.url ? `
+                  <a href="${product.url}" target="_blank" style="
+                    display: inline-block;
+                    margin-top: 8px;
+                    padding: 6px 12px;
+                    background: #667eea;
+                    color: white;
+                    text-decoration: none;
+                    border-radius: 4px;
+                    font-size: 12px;
+                    font-weight: 500;
+                  ">View Product</a>
+                ` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div style="margin-top: 16px; text-align: center;">
+          <button onclick="window.chatEnhancements?.startRecommendationWizard()" style="
+            padding: 10px 20px;
+            background: transparent;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+          " onmouseover="this.style.background='#667eea'; this.style.color='white';"
+             onmouseout="this.style.background='transparent'; this.style.color='#667eea';">
+            Start Over
+          </button>
+        </div>
+      </div>
+    `;
+
+    this.showMessage(message, 'bot', true);
   }
 
   /**
