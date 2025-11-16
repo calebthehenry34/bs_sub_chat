@@ -36,6 +36,7 @@ class SuggestionsEngine {
         'Delete my account'
       ],
       products: [
+        'Help me find the right product',
         'Tell me about this product',
         'Is this product in stock?',
         'What are your best sellers?',
@@ -130,7 +131,7 @@ class SuggestionsEngine {
       ];
     } else if (lastIntent === 'product_question') {
       quickReplies = [
-        { text: 'See recommendations', action: 'product_recommendations', icon: '⭐' },
+        { text: 'Find my perfect product', action: 'product_recommendations', icon: '🎯' },
         { text: 'Check availability', action: 'product_stock', icon: '📊' },
         { text: 'View similar products', action: 'product_similar', icon: '🔄' },
         { text: 'Add to cart', action: 'product_add_cart', icon: '🛒' }
@@ -309,10 +310,10 @@ class SuggestionsEngine {
    */
   async _getDefaultQuickReplies(context) {
     return [
+      { text: 'Find my product', action: 'product_recommendations', icon: '🎯' },
       { text: 'Track order', action: 'order_tracking', icon: '📦' },
       { text: 'Manage subscription', action: 'subscription_manage', icon: '🔄' },
-      { text: 'Contact support', action: 'customer_support', icon: '💬' },
-      { text: 'View account', action: 'account_view', icon: '👤' }
+      { text: 'Contact support', action: 'customer_support', icon: '💬' }
     ];
   }
 

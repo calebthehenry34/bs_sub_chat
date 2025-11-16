@@ -130,6 +130,32 @@ module.exports = async (req, res) => {
         res.status(200).json(recommendationsResult);
         break;
 
+      case 'guided-recommendations':
+        // Get guided product recommendations based on user preferences
+        if (req.method !== 'POST') {
+          res.status(405).json({ error: 'POST method required for guided recommendations' });
+          return;
+        }
+
+        const { concern, applicationMethod, strength } = req.body;
+
+        if (!concern || !applicationMethod || !strength) {
+          res.status(400).json({
+            error: 'Missing required fields',
+            required: ['concern', 'applicationMethod', 'strength'],
+            received: { concern, applicationMethod, strength }
+          });
+          return;
+        }
+
+        const guidedResult = await shopify.getGuidedRecommendations({
+          concern,
+          applicationMethod,
+          strength
+        });
+        res.status(200).json(guidedResult);
+        break;
+
       case 'loyalty-points':
         // Get loyalty points
         const loyaltyEmail = req.query.email;
@@ -170,6 +196,7 @@ module.exports = async (req, res) => {
             'subscriptions',
             'manage-subscription',
             'recommendations',
+            'guided-recommendations',
             'loyalty-points',
             'redeem-points'
           ]

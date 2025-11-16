@@ -280,6 +280,173 @@ class ShopifyIntegration {
   }
 
   /**
+   * Get guided product recommendations based on user preferences
+   * Filters products by area of concern, application method, and strength
+   */
+  async getGuidedRecommendations(filters = {}) {
+    try {
+      const { concern, applicationMethod, strength } = filters;
+
+      // Fetch all products from Shopify
+      const response = await this._request('/products.json?limit=250&published_status=published');
+      const products = response.products || [];
+
+      // Define product attribute mappings
+      const concernKeywords = {
+        acne: ['acne', 'breakout', 'blemish', 'pimple', 'oil control', 'salicylic', 'benzoyl', 'tea tree', 'clarifying'],
+        aging: ['anti-aging', 'wrinkle', 'retinol', 'collagen', 'firming', 'lifting', 'peptide', 'vitamin c', 'mature'],
+        hydration: ['hydrating', 'moisturizing', 'hyaluronic', 'dry skin', 'nourishing', 'hydration', 'moisture', 'plumping'],
+        dark_spots: ['brightening', 'dark spot', 'hyperpigmentation', 'vitamin c', 'niacinamide', 'even tone', 'radiance', 'spot corrector'],
+        sensitivity: ['sensitive', 'calming', 'soothing', 'gentle', 'redness', 'rosacea', 'chamomile', 'aloe', 'fragrance-free'],
+        texture: ['exfoliating', 'pore', 'texture', 'smoothing', 'resurfacing', 'aha', 'bha', 'glycolic', 'lactic']
+      };
+
+      const methodKeywords = {
+        serum: ['serum', 'concentrate', 'essence', 'ampoule', 'booster'],
+        cream: ['cream', 'moisturizer', 'lotion', 'balm', 'butter'],
+        cleanser: ['cleanser', 'wash', 'gel', 'foam', 'cleansing', 'micellar'],
+        mask: ['mask', 'treatment', 'peel', 'overnight', 'weekly'],
+        toner: ['toner', 'essence', 'mist', 'water', 'prep'],
+        spot: ['spot', 'targeted', 'treatment', 'patch', 'corrector']
+      };
+
+      const strengthIndicators = {
+        gentle: {
+          keywords: ['gentle', 'mild', 'sensitive', 'light', 'daily', 'soothing'],
+          negatives: ['strong', 'intensive', 'powerful', 'maximum', 'high concentration'],
+          percentageMax: 5
+        },
+        moderate: {
+          keywords: ['balanced', 'regular', 'medium', 'effective'],
+          negatives: [],
+          percentageRange: [5, 15]
+        },
+        strong: {
+          keywords: ['strong', 'intensive', 'powerful', 'maximum', 'professional', 'high concentration', 'advanced'],
+          negatives: ['gentle', 'mild', 'sensitive'],
+          percentageMin: 15
+        }
+      };
+
+      // Score and filter products
+      const scoredProducts = products.map(product => {
+        let score = 0;
+        const title = product.title.toLowerCase();
+        const description = (product.body_html || '').toLowerCase().replace(/<[^>]*>/g, '');
+        const tags = (product.tags || '').toLowerCase();
+        const combinedText = `${title} ${description} ${tags}`;
+
+        // Score by concern
+        if (concern && concernKeywords[concern]) {
+          concernKeywords[concern].forEach(keyword => {
+            if (combinedText.includes(keyword)) {
+              score += 30;
+            }
+          });
+        }
+
+        // Score by application method
+        if (applicationMethod && methodKeywords[applicationMethod]) {
+          methodKeywords[applicationMethod].forEach(keyword => {
+            if (combinedText.includes(keyword)) {
+              score += 25;
+            }
+          });
+        }
+
+        // Score by strength
+        if (strength && strengthIndicators[strength]) {
+          const indicator = strengthIndicators[strength];
+
+          indicator.keywords.forEach(keyword => {
+            if (combinedText.includes(keyword)) {
+              score += 20;
+            }
+          });
+
+          indicator.negatives.forEach(keyword => {
+            if (combinedText.includes(keyword)) {
+              score -= 15;
+            }
+          });
+
+          // Check for percentage mentions
+          const percentageMatch = combinedText.match(/(\d+(?:\.\d+)?)\s*%/);
+          if (percentageMatch) {
+            const percentage = parseFloat(percentageMatch[1]);
+            if (strength === 'gentle' && percentage <= (indicator.percentageMax || 5)) {
+              score += 15;
+            } else if (strength === 'moderate' && percentage > 5 && percentage <= 15) {
+              score += 15;
+            } else if (strength === 'strong' && percentage > 15) {
+              score += 15;
+            }
+          }
+        }
+
+        return {
+          id: product.id,
+          title: product.title,
+          image: product.images[0]?.src || '',
+          price: product.variants[0]?.price || '0.00',
+          url: `https://${this.shopDomain}/products/${product.handle}`,
+          score: score,
+          matchScore: Math.min(100, Math.round((score / 75) * 100))
+        };
+      });
+
+      // Filter products with minimum score and sort by score
+      const filteredProducts = scoredProducts
+        .filter(p => p.score > 20)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6);
+
+      // Create human-readable match info
+      const concernLabels = {
+        acne: 'Acne & Breakouts',
+        aging: 'Anti-Aging',
+        hydration: 'Hydration',
+        dark_spots: 'Dark Spots',
+        sensitivity: 'Sensitivity',
+        texture: 'Texture & Pores'
+      };
+
+      const methodLabels = {
+        serum: 'Serum',
+        cream: 'Cream/Moisturizer',
+        cleanser: 'Cleanser',
+        mask: 'Mask/Treatment',
+        toner: 'Toner/Essence',
+        spot: 'Spot Treatment'
+      };
+
+      const strengthLabels = {
+        gentle: 'Gentle',
+        moderate: 'Moderate',
+        strong: 'Strong'
+      };
+
+      return {
+        success: true,
+        recommendations: filteredProducts,
+        matchInfo: {
+          concern: concernLabels[concern] || concern,
+          applicationMethod: methodLabels[applicationMethod] || applicationMethod,
+          strength: strengthLabels[strength] || strength
+        },
+        basedOn: 'guided_preferences'
+      };
+    } catch (error) {
+      console.error('Guided recommendations error:', error);
+      return {
+        success: false,
+        error: error.message,
+        recommendations: []
+      };
+    }
+  }
+
+  /**
    * Get loyalty program points (if using loyalty app)
    */
   async getLoyaltyPoints(customerEmail) {
