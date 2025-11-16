@@ -1,0 +1,472 @@
+{% comment %}
+  BlueSky CBD Chat Widget Section
+  Configurable product recommendation wizard through theme editor
+{% endcomment %}
+
+<div id="bluesky-chat-container"
+     data-backend-url="{{ section.settings.backend_url }}"
+     data-shop-domain="{{ shop.permanent_domain }}"
+     style="display: none;">
+</div>
+
+{% render 'chat-enhancements', section: section %}
+
+{% schema %}
+{
+  "name": "CBD Chat Widget",
+  "tag": "section",
+  "class": "chat-widget-section",
+  "settings": [
+    {
+      "type": "header",
+      "content": "General Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_chat",
+      "label": "Enable Chat Widget",
+      "default": true
+    },
+    {
+      "type": "url",
+      "id": "backend_url",
+      "label": "Backend API URL",
+      "info": "URL of your chat backend service"
+    },
+    {
+      "type": "header",
+      "content": "Wizard Introduction"
+    },
+    {
+      "type": "text",
+      "id": "wizard_intro",
+      "label": "Wizard Introduction Message",
+      "default": "Let's find the perfect CBD product for you! I'll ask you a few quick questions."
+    },
+    {
+      "type": "header",
+      "content": "Step 1: Concerns"
+    },
+    {
+      "type": "text",
+      "id": "concern_title",
+      "label": "Concern Step Title",
+      "default": "What are you looking to address?"
+    },
+    {
+      "type": "checkbox",
+      "id": "concern_pain",
+      "label": "Show Pain & Inflammation",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "concern_pain_label",
+      "label": "Pain Label",
+      "default": "Pain & Inflammation"
+    },
+    {
+      "type": "text",
+      "id": "concern_pain_icon",
+      "label": "Pain Icon",
+      "default": "💪"
+    },
+    {
+      "type": "checkbox",
+      "id": "concern_sleep",
+      "label": "Show Sleep & Relaxation",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "concern_sleep_label",
+      "label": "Sleep Label",
+      "default": "Sleep & Relaxation"
+    },
+    {
+      "type": "text",
+      "id": "concern_sleep_icon",
+      "label": "Sleep Icon",
+      "default": "😴"
+    },
+    {
+      "type": "checkbox",
+      "id": "concern_anxiety",
+      "label": "Show Anxiety & Stress",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "concern_anxiety_label",
+      "label": "Anxiety Label",
+      "default": "Anxiety & Stress"
+    },
+    {
+      "type": "text",
+      "id": "concern_anxiety_icon",
+      "label": "Anxiety Icon",
+      "default": "🧘"
+    },
+    {
+      "type": "checkbox",
+      "id": "concern_recovery",
+      "label": "Show Recovery & Wellness",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "concern_recovery_label",
+      "label": "Recovery Label",
+      "default": "Recovery & Wellness"
+    },
+    {
+      "type": "text",
+      "id": "concern_recovery_icon",
+      "label": "Recovery Icon",
+      "default": "🔄"
+    },
+    {
+      "type": "checkbox",
+      "id": "concern_focus",
+      "label": "Show Focus & Clarity",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "concern_focus_label",
+      "label": "Focus Label",
+      "default": "Focus & Clarity"
+    },
+    {
+      "type": "text",
+      "id": "concern_focus_icon",
+      "label": "Focus Icon",
+      "default": "🎯"
+    },
+    {
+      "type": "checkbox",
+      "id": "concern_general",
+      "label": "Show General Wellness",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "concern_general_label",
+      "label": "General Label",
+      "default": "General Wellness"
+    },
+    {
+      "type": "text",
+      "id": "concern_general_icon",
+      "label": "General Icon",
+      "default": "✨"
+    },
+    {
+      "type": "header",
+      "content": "Step 2: Application Methods"
+    },
+    {
+      "type": "text",
+      "id": "method_title",
+      "label": "Method Step Title",
+      "default": "How would you like to take your CBD?"
+    },
+    {
+      "type": "checkbox",
+      "id": "method_oil",
+      "label": "Show CBD Oil/Tincture",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "method_oil_label",
+      "label": "Oil Label",
+      "default": "CBD Oil/Tincture"
+    },
+    {
+      "type": "text",
+      "id": "method_oil_desc",
+      "label": "Oil Description",
+      "default": "Fast-acting sublingual drops"
+    },
+    {
+      "type": "text",
+      "id": "method_oil_icon",
+      "label": "Oil Icon",
+      "default": "💧"
+    },
+    {
+      "type": "checkbox",
+      "id": "method_gummies",
+      "label": "Show Gummies/Edibles",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "method_gummies_label",
+      "label": "Gummies Label",
+      "default": "Gummies/Edibles"
+    },
+    {
+      "type": "text",
+      "id": "method_gummies_desc",
+      "label": "Gummies Description",
+      "default": "Tasty, pre-dosed servings"
+    },
+    {
+      "type": "text",
+      "id": "method_gummies_icon",
+      "label": "Gummies Icon",
+      "default": "🍬"
+    },
+    {
+      "type": "checkbox",
+      "id": "method_topical",
+      "label": "Show Topical/Cream",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "method_topical_label",
+      "label": "Topical Label",
+      "default": "Topical/Cream"
+    },
+    {
+      "type": "text",
+      "id": "method_topical_desc",
+      "label": "Topical Description",
+      "default": "Targeted relief application"
+    },
+    {
+      "type": "text",
+      "id": "method_topical_icon",
+      "label": "Topical Icon",
+      "default": "🧴"
+    },
+    {
+      "type": "checkbox",
+      "id": "method_capsules",
+      "label": "Show Capsules/Softgels",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "method_capsules_label",
+      "label": "Capsules Label",
+      "default": "Capsules/Softgels"
+    },
+    {
+      "type": "text",
+      "id": "method_capsules_desc",
+      "label": "Capsules Description",
+      "default": "Convenient daily supplement"
+    },
+    {
+      "type": "text",
+      "id": "method_capsules_icon",
+      "label": "Capsules Icon",
+      "default": "💊"
+    },
+    {
+      "type": "checkbox",
+      "id": "method_vape",
+      "label": "Show Vape/Inhale",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "method_vape_label",
+      "label": "Vape Label",
+      "default": "Vape/Inhale"
+    },
+    {
+      "type": "text",
+      "id": "method_vape_desc",
+      "label": "Vape Description",
+      "default": "Fastest absorption method"
+    },
+    {
+      "type": "text",
+      "id": "method_vape_icon",
+      "label": "Vape Icon",
+      "default": "💨"
+    },
+    {
+      "type": "checkbox",
+      "id": "method_pet",
+      "label": "Show Pet Products",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "method_pet_label",
+      "label": "Pet Label",
+      "default": "Pet Products"
+    },
+    {
+      "type": "text",
+      "id": "method_pet_desc",
+      "label": "Pet Description",
+      "default": "CBD for your furry friends"
+    },
+    {
+      "type": "text",
+      "id": "method_pet_icon",
+      "label": "Pet Icon",
+      "default": "🐕"
+    },
+    {
+      "type": "header",
+      "content": "Step 3: Strength Levels"
+    },
+    {
+      "type": "text",
+      "id": "strength_title",
+      "label": "Strength Step Title",
+      "default": "What strength level do you need?"
+    },
+    {
+      "type": "checkbox",
+      "id": "strength_low",
+      "label": "Show Low Strength",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "strength_low_label",
+      "label": "Low Strength Label",
+      "default": "Low Strength"
+    },
+    {
+      "type": "text",
+      "id": "strength_low_desc",
+      "label": "Low Strength Description",
+      "default": "250mg - 500mg CBD"
+    },
+    {
+      "type": "text",
+      "id": "strength_low_best_for",
+      "label": "Low Strength Best For",
+      "default": "New users, mild symptoms, daily maintenance"
+    },
+    {
+      "type": "text",
+      "id": "strength_low_icon",
+      "label": "Low Strength Icon",
+      "default": "🌱"
+    },
+    {
+      "type": "checkbox",
+      "id": "strength_medium",
+      "label": "Show Medium Strength",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "strength_medium_label",
+      "label": "Medium Strength Label",
+      "default": "Medium Strength"
+    },
+    {
+      "type": "text",
+      "id": "strength_medium_desc",
+      "label": "Medium Strength Description",
+      "default": "500mg - 1500mg CBD"
+    },
+    {
+      "type": "text",
+      "id": "strength_medium_best_for",
+      "label": "Medium Strength Best For",
+      "default": "Regular users, moderate symptoms"
+    },
+    {
+      "type": "text",
+      "id": "strength_medium_icon",
+      "label": "Medium Strength Icon",
+      "default": "⚖️"
+    },
+    {
+      "type": "checkbox",
+      "id": "strength_high",
+      "label": "Show High Strength",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "strength_high_label",
+      "label": "High Strength Label",
+      "default": "High Strength"
+    },
+    {
+      "type": "text",
+      "id": "strength_high_desc",
+      "label": "High Strength Description",
+      "default": "1500mg+ CBD"
+    },
+    {
+      "type": "text",
+      "id": "strength_high_best_for",
+      "label": "High Strength Best For",
+      "default": "Experienced users, severe symptoms"
+    },
+    {
+      "type": "text",
+      "id": "strength_high_icon",
+      "label": "High Strength Icon",
+      "default": "💪"
+    },
+    {
+      "type": "header",
+      "content": "Feature Toggles"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_persistence",
+      "label": "Enable Chat Persistence",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_autocomplete",
+      "label": "Enable Auto-Complete",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_quick_replies",
+      "label": "Enable Quick Replies",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_gdpr",
+      "label": "Enable GDPR Tools",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_toasts",
+      "label": "Enable Toast Notifications",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_analytics",
+      "label": "Enable Analytics",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_sentiment",
+      "label": "Enable Sentiment Detection",
+      "default": true
+    }
+  ],
+  "presets": [
+    {
+      "name": "CBD Chat Widget",
+      "category": "Support"
+    }
+  ]
+}
+{% endschema %}

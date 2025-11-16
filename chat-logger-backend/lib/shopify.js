@@ -291,40 +291,40 @@ class ShopifyIntegration {
       const response = await this._request('/products.json?limit=250&published_status=published');
       const products = response.products || [];
 
-      // Define product attribute mappings
+      // Define product attribute mappings for BlueSky CBD
       const concernKeywords = {
-        acne: ['acne', 'breakout', 'blemish', 'pimple', 'oil control', 'salicylic', 'benzoyl', 'tea tree', 'clarifying'],
-        aging: ['anti-aging', 'wrinkle', 'retinol', 'collagen', 'firming', 'lifting', 'peptide', 'vitamin c', 'mature'],
-        hydration: ['hydrating', 'moisturizing', 'hyaluronic', 'dry skin', 'nourishing', 'hydration', 'moisture', 'plumping'],
-        dark_spots: ['brightening', 'dark spot', 'hyperpigmentation', 'vitamin c', 'niacinamide', 'even tone', 'radiance', 'spot corrector'],
-        sensitivity: ['sensitive', 'calming', 'soothing', 'gentle', 'redness', 'rosacea', 'chamomile', 'aloe', 'fragrance-free'],
-        texture: ['exfoliating', 'pore', 'texture', 'smoothing', 'resurfacing', 'aha', 'bha', 'glycolic', 'lactic']
+        pain: ['pain', 'relief', 'inflammation', 'arthritis', 'muscle', 'joint', 'ache', 'soreness', 'recovery', 'anti-inflammatory'],
+        sleep: ['sleep', 'rest', 'relaxation', 'calm', 'night', 'insomnia', 'melatonin', 'bedtime', 'peaceful', 'restful'],
+        anxiety: ['anxiety', 'stress', 'calm', 'relax', 'soothe', 'tension', 'mood', 'balance', 'tranquil', 'peace'],
+        recovery: ['recovery', 'workout', 'athletic', 'sport', 'muscle', 'post-workout', 'performance', 'endurance', 'fitness'],
+        focus: ['focus', 'clarity', 'energy', 'mental', 'concentration', 'cognitive', 'alert', 'productive', 'daytime'],
+        general: ['wellness', 'daily', 'health', 'balance', 'overall', 'general', 'everyday', 'maintenance', 'support']
       };
 
       const methodKeywords = {
-        serum: ['serum', 'concentrate', 'essence', 'ampoule', 'booster'],
-        cream: ['cream', 'moisturizer', 'lotion', 'balm', 'butter'],
-        cleanser: ['cleanser', 'wash', 'gel', 'foam', 'cleansing', 'micellar'],
-        mask: ['mask', 'treatment', 'peel', 'overnight', 'weekly'],
-        toner: ['toner', 'essence', 'mist', 'water', 'prep'],
-        spot: ['spot', 'targeted', 'treatment', 'patch', 'corrector']
+        oil: ['oil', 'tincture', 'drops', 'sublingual', 'dropper', 'liquid', 'oral'],
+        gummies: ['gummy', 'gummies', 'edible', 'chew', 'candy', 'flavored', 'taste'],
+        topical: ['topical', 'cream', 'balm', 'salve', 'lotion', 'rub', 'apply', 'skin', 'roll-on'],
+        capsules: ['capsule', 'softgel', 'pill', 'tablet', 'supplement', 'gel cap'],
+        vape: ['vape', 'inhale', 'cartridge', 'pen', 'vapor', 'e-liquid'],
+        pet: ['pet', 'dog', 'cat', 'animal', 'canine', 'feline', 'furry']
       };
 
       const strengthIndicators = {
-        gentle: {
-          keywords: ['gentle', 'mild', 'sensitive', 'light', 'daily', 'soothing'],
-          negatives: ['strong', 'intensive', 'powerful', 'maximum', 'high concentration'],
-          percentageMax: 5
+        low: {
+          keywords: ['250mg', '300mg', '500mg', 'low', 'starter', 'beginner', 'mild', 'light'],
+          negatives: ['1000mg', '1500mg', '2000mg', '3000mg', 'extra strength', 'maximum'],
+          mgMax: 500
         },
-        moderate: {
-          keywords: ['balanced', 'regular', 'medium', 'effective'],
+        medium: {
+          keywords: ['750mg', '1000mg', '1500mg', 'medium', 'regular', 'standard'],
           negatives: [],
-          percentageRange: [5, 15]
+          mgRange: [500, 1500]
         },
-        strong: {
-          keywords: ['strong', 'intensive', 'powerful', 'maximum', 'professional', 'high concentration', 'advanced'],
-          negatives: ['gentle', 'mild', 'sensitive'],
-          percentageMin: 15
+        high: {
+          keywords: ['1500mg', '2000mg', '2500mg', '3000mg', 'extra strength', 'maximum', 'high potency', 'strong', 'powerful'],
+          negatives: ['250mg', '300mg', '500mg', 'starter', 'beginner'],
+          mgMin: 1500
         }
       };
 
@@ -370,15 +370,15 @@ class ShopifyIntegration {
             }
           });
 
-          // Check for percentage mentions
-          const percentageMatch = combinedText.match(/(\d+(?:\.\d+)?)\s*%/);
-          if (percentageMatch) {
-            const percentage = parseFloat(percentageMatch[1]);
-            if (strength === 'gentle' && percentage <= (indicator.percentageMax || 5)) {
+          // Check for mg concentration mentions
+          const mgMatch = combinedText.match(/(\d+)\s*mg/i);
+          if (mgMatch) {
+            const mg = parseInt(mgMatch[1]);
+            if (strength === 'low' && mg <= (indicator.mgMax || 500)) {
               score += 15;
-            } else if (strength === 'moderate' && percentage > 5 && percentage <= 15) {
+            } else if (strength === 'medium' && mg > 500 && mg <= 1500) {
               score += 15;
-            } else if (strength === 'strong' && percentage > 15) {
+            } else if (strength === 'high' && mg > 1500) {
               score += 15;
             }
           }
@@ -401,29 +401,29 @@ class ShopifyIntegration {
         .sort((a, b) => b.score - a.score)
         .slice(0, 6);
 
-      // Create human-readable match info
+      // Create human-readable match info for BlueSky CBD
       const concernLabels = {
-        acne: 'Acne & Breakouts',
-        aging: 'Anti-Aging',
-        hydration: 'Hydration',
-        dark_spots: 'Dark Spots',
-        sensitivity: 'Sensitivity',
-        texture: 'Texture & Pores'
+        pain: 'Pain & Inflammation',
+        sleep: 'Sleep & Relaxation',
+        anxiety: 'Anxiety & Stress',
+        recovery: 'Recovery & Wellness',
+        focus: 'Focus & Clarity',
+        general: 'General Wellness'
       };
 
       const methodLabels = {
-        serum: 'Serum',
-        cream: 'Cream/Moisturizer',
-        cleanser: 'Cleanser',
-        mask: 'Mask/Treatment',
-        toner: 'Toner/Essence',
-        spot: 'Spot Treatment'
+        oil: 'CBD Oil/Tincture',
+        gummies: 'Gummies/Edibles',
+        topical: 'Topical/Cream',
+        capsules: 'Capsules/Softgels',
+        vape: 'Vape/Inhale',
+        pet: 'Pet Products'
       };
 
       const strengthLabels = {
-        gentle: 'Gentle',
-        moderate: 'Moderate',
-        strong: 'Strong'
+        low: 'Low Strength',
+        medium: 'Medium Strength',
+        high: 'High Strength'
       };
 
       return {

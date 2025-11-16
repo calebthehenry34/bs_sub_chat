@@ -1,0 +1,433 @@
+{% comment %}
+  BlueSky CBD Chat Enhancements Snippet
+  Integrates chat widget with theme editor settings
+{% endcomment %}
+
+{% if section.settings.enable_chat %}
+  {%- comment -%} Build wizard configuration from theme settings {%- endcomment -%}
+  <script>
+    window.BlueSkyWizardConfig = {
+      concerns: [
+        {% if section.settings.concern_pain %}
+        {
+          id: 'pain',
+          label: {{ section.settings.concern_pain_label | json }},
+          icon: {{ section.settings.concern_pain_icon | json }}
+        },
+        {% endif %}
+        {% if section.settings.concern_sleep %}
+        {
+          id: 'sleep',
+          label: {{ section.settings.concern_sleep_label | json }},
+          icon: {{ section.settings.concern_sleep_icon | json }}
+        },
+        {% endif %}
+        {% if section.settings.concern_anxiety %}
+        {
+          id: 'anxiety',
+          label: {{ section.settings.concern_anxiety_label | json }},
+          icon: {{ section.settings.concern_anxiety_icon | json }}
+        },
+        {% endif %}
+        {% if section.settings.concern_recovery %}
+        {
+          id: 'recovery',
+          label: {{ section.settings.concern_recovery_label | json }},
+          icon: {{ section.settings.concern_recovery_icon | json }}
+        },
+        {% endif %}
+        {% if section.settings.concern_focus %}
+        {
+          id: 'focus',
+          label: {{ section.settings.concern_focus_label | json }},
+          icon: {{ section.settings.concern_focus_icon | json }}
+        },
+        {% endif %}
+        {% if section.settings.concern_general %}
+        {
+          id: 'general',
+          label: {{ section.settings.concern_general_label | json }},
+          icon: {{ section.settings.concern_general_icon | json }}
+        },
+        {% endif %}
+      ],
+      applicationMethods: [
+        {% if section.settings.method_oil %}
+        {
+          id: 'oil',
+          label: {{ section.settings.method_oil_label | json }},
+          icon: {{ section.settings.method_oil_icon | json }},
+          description: {{ section.settings.method_oil_desc | json }}
+        },
+        {% endif %}
+        {% if section.settings.method_gummies %}
+        {
+          id: 'gummies',
+          label: {{ section.settings.method_gummies_label | json }},
+          icon: {{ section.settings.method_gummies_icon | json }},
+          description: {{ section.settings.method_gummies_desc | json }}
+        },
+        {% endif %}
+        {% if section.settings.method_topical %}
+        {
+          id: 'topical',
+          label: {{ section.settings.method_topical_label | json }},
+          icon: {{ section.settings.method_topical_icon | json }},
+          description: {{ section.settings.method_topical_desc | json }}
+        },
+        {% endif %}
+        {% if section.settings.method_capsules %}
+        {
+          id: 'capsules',
+          label: {{ section.settings.method_capsules_label | json }},
+          icon: {{ section.settings.method_capsules_icon | json }},
+          description: {{ section.settings.method_capsules_desc | json }}
+        },
+        {% endif %}
+        {% if section.settings.method_vape %}
+        {
+          id: 'vape',
+          label: {{ section.settings.method_vape_label | json }},
+          icon: {{ section.settings.method_vape_icon | json }},
+          description: {{ section.settings.method_vape_desc | json }}
+        },
+        {% endif %}
+        {% if section.settings.method_pet %}
+        {
+          id: 'pet',
+          label: {{ section.settings.method_pet_label | json }},
+          icon: {{ section.settings.method_pet_icon | json }},
+          description: {{ section.settings.method_pet_desc | json }}
+        },
+        {% endif %}
+      ],
+      strengths: [
+        {% if section.settings.strength_low %}
+        {
+          id: 'low',
+          label: {{ section.settings.strength_low_label | json }},
+          icon: {{ section.settings.strength_low_icon | json }},
+          description: {{ section.settings.strength_low_desc | json }},
+          best_for: {{ section.settings.strength_low_best_for | json }}
+        },
+        {% endif %}
+        {% if section.settings.strength_medium %}
+        {
+          id: 'medium',
+          label: {{ section.settings.strength_medium_label | json }},
+          icon: {{ section.settings.strength_medium_icon | json }},
+          description: {{ section.settings.strength_medium_desc | json }},
+          best_for: {{ section.settings.strength_medium_best_for | json }}
+        },
+        {% endif %}
+        {% if section.settings.strength_high %}
+        {
+          id: 'high',
+          label: {{ section.settings.strength_high_label | json }},
+          icon: {{ section.settings.strength_high_icon | json }},
+          description: {{ section.settings.strength_high_desc | json }},
+          best_for: {{ section.settings.strength_high_best_for | json }}
+        },
+        {% endif %}
+      ],
+      introMessage: {{ section.settings.wizard_intro | json }},
+      concernTitle: {{ section.settings.concern_title | json }},
+      methodTitle: {{ section.settings.method_title | json }},
+      strengthTitle: {{ section.settings.strength_title | json }}
+    };
+  </script>
+
+  {%- comment -%} Chat Widget Container {%- endcomment -%}
+  <div id="chat-widget" class="bluesky-chat-widget">
+    <div class="chat-header" data-chat-header>
+      <h3>BlueSky CBD Support</h3>
+      <button class="chat-minimize" aria-label="Minimize chat">−</button>
+    </div>
+
+    <div id="chat-container" data-chat-container class="chat-messages">
+      <div class="chat-welcome">
+        <p>Welcome to BlueSky CBD! How can we help you today?</p>
+      </div>
+    </div>
+
+    <div class="chat-input-container">
+      <input type="text"
+             id="chat-input"
+             data-chat-input
+             placeholder="Type your message..."
+             autocomplete="off">
+      <button id="chat-send" class="chat-send-btn">Send</button>
+    </div>
+  </div>
+
+  {%- comment -%} Chat Toggle Button {%- endcomment -%}
+  <button id="chat-toggle" class="chat-toggle-btn" aria-label="Open chat">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2Z" fill="currentColor"/>
+    </svg>
+  </button>
+
+  {%- comment -%} Load Chat Enhancement Script {%- endcomment -%}
+  <script src="{{ 'chat-enhancements.js' | asset_url }}" defer></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize Chat Enhancements with theme settings
+      window.chatEnhancements = new ChatEnhancements({
+        backendUrl: {{ section.settings.backend_url | default: '' | json }},
+        shopDomain: '{{ shop.permanent_domain }}',
+        enablePersistence: {{ section.settings.enable_persistence | json }},
+        enableAutoComplete: {{ section.settings.enable_autocomplete | json }},
+        enableQuickReplies: {{ section.settings.enable_quick_replies | json }},
+        enableHistory: true,
+        enableShopify: true,
+        enableGDPR: {{ section.settings.enable_gdpr | json }},
+        enableToasts: {{ section.settings.enable_toasts | json }},
+        enableConsent: {{ section.settings.enable_gdpr | json }},
+        enableAnalytics: {{ section.settings.enable_analytics | json }},
+        enableSentiment: {{ section.settings.enable_sentiment | json }},
+        wizardConfig: window.BlueSkyWizardConfig
+      });
+
+      // Chat toggle functionality
+      const chatWidget = document.getElementById('chat-widget');
+      const chatToggle = document.getElementById('chat-toggle');
+      const chatMinimize = chatWidget.querySelector('.chat-minimize');
+
+      chatToggle.addEventListener('click', function() {
+        chatWidget.classList.add('active');
+        chatToggle.style.display = 'none';
+      });
+
+      chatMinimize.addEventListener('click', function() {
+        chatWidget.classList.remove('active');
+        chatToggle.style.display = 'block';
+      });
+
+      // Chat message handling
+      const chatInput = document.getElementById('chat-input');
+      const chatSend = document.getElementById('chat-send');
+      const chatContainer = document.getElementById('chat-container');
+
+      function sendMessage() {
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        addChatMessage(message, 'user');
+        chatInput.value = '';
+
+        // Track analytics
+        if (window.chatEnhancements) {
+          window.chatEnhancements.trackChatMessage(message, 'user');
+        }
+      }
+
+      chatSend.addEventListener('click', sendMessage);
+      chatInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          sendMessage();
+        }
+      });
+
+      // Global functions for chat enhancements
+      window.addChatMessage = function(message, sender, isHtml = false) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message chat-message-${sender}`;
+
+        if (isHtml) {
+          messageDiv.innerHTML = message;
+        } else {
+          messageDiv.textContent = message;
+        }
+
+        chatContainer.appendChild(messageDiv);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      };
+
+      window.addBotMessage = function(message) {
+        window.addChatMessage(message, 'bot');
+      };
+
+      window.sendChatMessage = function(text) {
+        chatInput.value = text;
+        sendMessage();
+      };
+
+      window.getChatMessages = function() {
+        const messages = [];
+        chatContainer.querySelectorAll('.chat-message').forEach(msg => {
+          messages.push({
+            sender: msg.classList.contains('chat-message-user') ? 'user' : 'bot',
+            text: msg.textContent,
+            html: msg.innerHTML
+          });
+        });
+        return messages;
+      };
+
+      window.restoreChatMessages = function(messages) {
+        messages.forEach(msg => {
+          window.addChatMessage(msg.html || msg.text, msg.sender, !!msg.html);
+        });
+      };
+    });
+  </script>
+
+  <style>
+    .bluesky-chat-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 380px;
+      max-height: 600px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      display: none;
+      flex-direction: column;
+      z-index: 99999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    }
+
+    .bluesky-chat-widget.active {
+      display: flex;
+    }
+
+    .chat-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .chat-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .chat-minimize {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      max-height: 400px;
+      min-height: 300px;
+    }
+
+    .chat-message {
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      border-radius: 18px;
+      max-width: 85%;
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+
+    .chat-message-user {
+      background: #667eea;
+      color: white;
+      margin-left: auto;
+      border-bottom-right-radius: 4px;
+    }
+
+    .chat-message-bot {
+      background: #f0f0f0;
+      color: #333;
+      margin-right: auto;
+      border-bottom-left-radius: 4px;
+    }
+
+    .chat-welcome {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+
+    .chat-input-container {
+      display: flex;
+      padding: 12px;
+      border-top: 1px solid #e0e0e0;
+      gap: 8px;
+    }
+
+    #chat-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    #chat-input:focus {
+      border-color: #667eea;
+    }
+
+    .chat-send-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .chat-send-btn:hover {
+      background: #5a67d8;
+    }
+
+    .chat-toggle-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      z-index: 99998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .chat-toggle-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+    }
+
+    @media (max-width: 480px) {
+      .bluesky-chat-widget {
+        width: calc(100% - 20px);
+        right: 10px;
+        bottom: 10px;
+        max-height: calc(100vh - 80px);
+      }
+
+      .chat-toggle-btn {
+        bottom: 10px;
+        right: 10px;
+      }
+    }
+  </style>
+{% endif %}
