@@ -2772,23 +2772,14 @@ function routeIntent(lowerText, aiResult){
   // ===== CHECK CUSTOM INTENTS =====
   for(var i = 0; i < chatIntents.length; i++){
     var intent = chatIntents[i];
-    
+
     for(var j = 0; j < intent.triggers.length; j++){
       var trigger = intent.triggers[j].toLowerCase().trim();
       if(trigger && lowerText.includes(trigger)){
-        
-        // Check if login required
-        if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
-          addBotMessageWithActions('Please sign in to continue.', [
-            {text: 'Sign In', callback: function(){
-              requireAuthAndContinue('customIntent', {intentId: intent.id});
-            }, isPrimary: true}
-          ]);
-          return;
-        }
 
-        // Execute the action
+        // Execute the action based on type
         if(intent.actionType === 'message'){
+          // Show informational content - no login required for just viewing info
           var html = intent.responseMessage;
 
           // Add image if provided
@@ -2796,12 +2787,20 @@ function routeIntent(lowerText, aiResult){
             html += '<img src="' + intent.responseImage + '" alt="" style="max-width:100%;border-radius:12px;margin:16px 0;">';
           }
 
-          addBotMessageWithActions(html, [
-            {text: 'Ask Something Else', callback: function(){clearQuickActions()}},
-            {text: 'Contact Support', callback: function(){handleCustomerSupport()}}
-          ]);
+          // If this intent requires login for action, add sign-in option
+          var actions = [];
+          if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
+            actions.push({text: 'Sign In to Continue', callback: function(){
+              requireAuthAndContinue('customIntent', {intentId: intent.id});
+            }, isPrimary: true});
+          }
+          actions.push({text: 'Ask Something Else', callback: function(){clearQuickActions()}});
+          actions.push({text: 'Contact Support', callback: function(){handleCustomerSupport()}});
+
+          addBotMessageWithActions(html, actions);
           return;
         } else if(intent.actionType === 'topic'){
+          // Show topic/guide steps - no login required for viewing
           var topicName = intent.actionValue;
           if(conversationData[topicName]){
             currentTopic = topicName;
@@ -2813,11 +2812,29 @@ function routeIntent(lowerText, aiResult){
             return;
           }
         } else if(intent.actionType === 'handler'){
+          // Handler functions may require login - check before executing
+          if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
+            addBotMessageWithActions('Please sign in to continue with this action.', [
+              {text: 'Sign In', callback: function(){
+                requireAuthAndContinue('customIntent', {intentId: intent.id});
+              }, isPrimary: true}
+            ]);
+            return;
+          }
           var functionName = intent.actionValue;
           if(typeof window[functionName] === 'function'){
             return window[functionName]();
           }
         } else if(intent.actionType === 'url'){
+          // URL redirects may require login
+          if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
+            addBotMessageWithActions('Please sign in to access this page.', [
+              {text: 'Sign In', callback: function(){
+                requireAuthAndContinue('customIntent', {intentId: intent.id});
+              }, isPrimary: true}
+            ]);
+            return;
+          }
           window.location.href = intent.actionValue;
           return;
         }
@@ -3731,7 +3748,7 @@ function fadeInChildren(el){
 // Trigger an intent by ID
 function triggerIntent(intentId){
   console.log('triggerIntent CALLED with:', intentId);
-  
+
   // Start chat if not already started
   if(typeof startChat === 'function'){
     try {
@@ -3740,7 +3757,7 @@ function triggerIntent(intentId){
       console.log('startChat error (may be already started):', e);
     }
   }
-  
+
   var intent = null;
   for(var i = 0; i < chatIntents.length; i++){
     if(chatIntents[i].id === intentId){
@@ -3748,27 +3765,17 @@ function triggerIntent(intentId){
       break;
     }
   }
-  
+
   console.log('Found intent:', intent);
-  
+
   if(!intent) {
     console.error('Intent not found!');
     return;
   }
-  
+
   console.log('Adding user message:', intent.name);
   addMessage('user', intent.name);
 
-  // Check if login required
-  if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
-    addMessage('bot', 'Please sign in to continue.');
-    clearQuickActions();
-    addQuickActionDelayed('Sign In', function(){
-      requireAuthAndContinue('customIntent', {intentId: intent.id});
-    }, true);
-    return;
-  }
-  
   console.log('About to call executeIntentAction');
   executeIntentAction(intent);
 }
@@ -3776,17 +3783,27 @@ function triggerIntent(intentId){
 function executeIntentAction(intent){
 
   if(intent.actionType === 'message'){
+    // Show the informational content first - no login block
     var html = intent.responseMessage;
     if(intent.responseImage){
       html += '<img src="' + intent.responseImage + '" alt="" style="max-width:100%;border-radius:12px;margin:16px 0;">';
     }
     console.log('About to call addMessage');
-    addMessage('bot', html);
+
+    // Build actions - add sign-in if needed for further action
+    var actions = [];
+    if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
+      actions.push({text: 'Sign In to Continue', callback: function(){
+        requireAuthAndContinue('customIntent', {intentId: intent.id});
+      }, isPrimary: true});
+    }
+    actions.push({text: 'Ask Something Else', callback: function(){clearQuickActions()}});
+    actions.push({text: 'Contact Support', callback: function(){handleCustomerSupport()}});
+
+    addBotMessageWithActions(html, actions);
     console.log('addMessage called successfully');
-    clearQuickActions();
-    addQuickAction('Ask Something Else', function(){clearQuickActions()}, false);
-    addQuickAction('Contact Support', function(){handleCustomerSupport()}, false);
   } else if(intent.actionType === 'topic'){
+    // Show topic steps - no login required for viewing guides
     var topicName = intent.actionValue;
     if(conversationData[topicName]){
       currentTopic = topicName;
@@ -3801,6 +3818,15 @@ function executeIntentAction(intent){
       addQuickAction('Contact Support', function(){handleCustomerSupport()}, true);
     }
   } else if(intent.actionType === 'handler'){
+    // Handler functions perform real actions - check login if required
+    if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
+      addBotMessageWithActions('Please sign in to continue with this action.', [
+        {text: 'Sign In', callback: function(){
+          requireAuthAndContinue('customIntent', {intentId: intent.id});
+        }, isPrimary: true}
+      ]);
+      return;
+    }
     var functionName = intent.actionValue;
     if(typeof window[functionName] === 'function'){
       window[functionName]();
@@ -3811,6 +3837,15 @@ function executeIntentAction(intent){
       addQuickAction('Contact Support', function(){handleCustomerSupport()}, true);
     }
   } else if(intent.actionType === 'url'){
+    // URL redirects may require login
+    if(intent.requireLogin && (!window.customerData || !window.customerData.isLoggedIn)){
+      addBotMessageWithActions('Please sign in to access this page.', [
+        {text: 'Sign In', callback: function(){
+          requireAuthAndContinue('customIntent', {intentId: intent.id});
+        }, isPrimary: true}
+      ]);
+      return;
+    }
     window.location.href = intent.actionValue;
   }
 }
