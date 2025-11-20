@@ -25,7 +25,26 @@
     </div>
   {% endif %}
 
-  {% comment %} Search Bar {% endcomment %}
+
+
+  {% comment %} Category Filters {% endcomment %}
+  {% if section.settings.enable_categories %}
+    <div class="kc-categories" id="kc-categories-{{ section.id }}">
+      <button class="kc-category-btn active" data-category="all">
+        All
+      </button>
+      {% assign categories = section.settings.categories | split: ',' %}
+      {% for category in categories %}
+        {% assign cat_trimmed = category | strip %}
+        {% if cat_trimmed != blank %}
+          <button class="kc-category-btn" data-category="{{ cat_trimmed | handleize }}">
+            {{ cat_trimmed }}
+          </button>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+   {% comment %} Search Bar {% endcomment %}
   {% if section.settings.enable_search %}
     <div class="kc-search">
       <input
@@ -35,24 +54,6 @@
         id="kc-search-{{ section.id }}"
       >
       <span class="kc-search-icon">🔍</span>
-    </div>
-  {% endif %}
-
-  {% comment %} Category Filters {% endcomment %}
-  {% if section.settings.enable_categories %}
-    <div class="kc-categories" id="kc-categories-{{ section.id }}">
-      {% assign categories = section.settings.categories | split: ',' %}
-      {% for category in categories %}
-        {% assign cat_trimmed = category | strip %}
-        {% if cat_trimmed != blank %}
-          <button class="kc-category-btn{% if forloop.first %} active{% endif %}" data-category="{{ cat_trimmed | handleize }}">
-            {{ cat_trimmed }}
-          </button>
-        {% endif %}
-      {% endfor %}
-      <button class="kc-category-btn" data-category="all">
-        All
-      </button>
     </div>
   {% endif %}
 
@@ -257,7 +258,7 @@
   }
 
   .kc-welcome {
-    text-align: center;
+    text-align: left;
     margin-bottom: 40px;
   }
 
@@ -275,8 +276,10 @@
 
   .kc-search {
     max-width: 600px;
-    margin: 0 auto 30px;
+    margin-bottom: 30px;
     position: relative;
+    display: flex;
+    justify-content: flex-start;
   }
 
   .kc-search-input {
@@ -304,9 +307,9 @@
 
   .kc-categories {
     display: flex;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 12px;
-    justify-content: center;
     margin-bottom: 40px;
   }
 
@@ -355,13 +358,9 @@
     color: inherit;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
 
-  .kc-tile:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
+  
 
   .kc-tile-expandable {
     cursor: pointer;
@@ -440,8 +439,8 @@
     position: absolute;
     top: 20px;
     right: 20px;
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -652,13 +651,8 @@
   const contentBody = document.getElementById('kc-content-body-' + sectionId);
   const tileWrappers = grid.querySelectorAll('.kc-tile-wrapper');
 
-  // Set initial category to the first active button
-  const activeBtn = document.querySelector('#kc-categories-' + sectionId + ' .kc-category-btn.active');
-  let currentCategory = activeBtn ? activeBtn.dataset.category : 'all';
+  let currentCategory = 'all';
   let currentSearch = '';
-
-  // Run initial filter to show only first category
-  filterTiles();
 
   // Category filtering
   categoryBtns.forEach(btn => {
