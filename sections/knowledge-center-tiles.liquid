@@ -73,16 +73,10 @@
       {% endif %}
 
       {% if show_tile %}
-        {% assign has_content = false %}
-        {% assign content_to_display = '' %}
-
         {% comment %} Priority: HTML Embed > Rich Text > Link {% endcomment %}
-        {% if block.settings.html_embed != blank %}
+        {% assign has_content = false %}
+        {% if block.settings.html_embed != blank or block.settings.content != blank %}
           {% assign has_content = true %}
-          {% assign content_to_display = block.settings.html_embed %}
-        {% elsif block.settings.content != blank %}
-          {% assign has_content = true %}
-          {% assign content_to_display = block.settings.content %}
         {% endif %}
 
         {% assign has_link = false %}
@@ -122,7 +116,11 @@
 
             {% comment %} Store content as hidden data {% endcomment %}
             <div class="kc-tile-content-data" id="content-{{ block.id }}" style="display: none;">
-              {{ content_to_display }}
+              {% if block.settings.html_embed != blank %}
+                {{ block.settings.html_embed }}
+              {% else %}
+                {{ block.settings.content }}
+              {% endif %}
             </div>
           </div>
 
