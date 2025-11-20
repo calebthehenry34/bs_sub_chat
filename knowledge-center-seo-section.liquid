@@ -1,0 +1,265 @@
+{% comment %}
+  Knowledge Center Section - SEO Optimized
+
+  Uses Shopify Pages for articles with full SEO support
+
+  Installation:
+  1. In Shopify Admin: Online Store → Themes → Edit code
+  2. In Sections folder: Add a new section
+  3. Name it: knowledge-center-seo
+  4. Paste this code
+  5. Upload knowledge-center-seo.js to Assets
+
+  Then create a page with handle "knowledge-center" to use as the hub
+{% endcomment %}
+
+<div id="knowledge-center-{{ section.id }}" class="knowledge-center-wrapper"></div>
+
+<script src="{{ 'knowledge-center-seo.js' | asset_url }}" defer></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof KnowledgeCenterSEO === 'undefined') {
+      console.error('Knowledge Center SEO script not loaded');
+      return;
+    }
+
+    // Get user tags from customer
+    var userTags = [];
+    {% if customer %}
+      {% if customer.tags contains 'affiliates' %}
+        userTags.push('affiliates');
+      {% endif %}
+      {% if customer.tags contains 'vip' %}
+        userTags.push('vip');
+      {% endif %}
+      {% if customer.tags contains 'premium' %}
+        userTags.push('premium');
+      {% endif %}
+      {% if customer.tags contains 'wholesale' %}
+        userTags.push('wholesale');
+      {% endif %}
+    {% endif %}
+
+    // Custom categories from section settings
+    var categories = {{ section.settings.categories_json | default: '[]' }};
+    if (categories.length === 0) {
+      // Use defaults if none specified
+      categories = [
+        { id: 'getting-started', name: 'Getting Started', icon: '🚀', description: 'New to our platform?' },
+        { id: 'tutorials', name: 'Tutorials', icon: '📚', description: 'Step-by-step guides' },
+        { id: 'faq', name: 'FAQ', icon: '❓', description: 'Frequently asked questions' },
+        { id: 'troubleshooting', name: 'Troubleshooting', icon: '🔧', description: 'Fix common issues' },
+        { id: 'advanced', name: 'Advanced', icon: '⚡', description: 'For power users' },
+        { id: 'affiliates', name: 'Affiliates', icon: '🎯', description: 'Partner resources' }
+      ];
+    }
+
+    // Initialize Knowledge Center
+    new KnowledgeCenterSEO({
+      userEmail: {% if customer %}'{{ customer.email }}'{% else %}null{% endif %},
+      userTags: userTags,
+      categories: categories,
+      containerId: 'knowledge-center-{{ section.id }}',
+      pagePrefix: '{{ section.settings.page_prefix }}',
+      enableSearch: {{ section.settings.enable_search }},
+      enableCategories: {{ section.settings.enable_categories }},
+      articlesPerPage: {{ section.settings.articles_per_page }},
+      showFeaturedFirst: {{ section.settings.show_featured_first }},
+      shopDomain: '{{ shop.domain }}',
+      theme: {
+        primaryColor: '{{ section.settings.primary_color }}',
+        secondaryColor: '{{ section.settings.secondary_color }}',
+        backgroundColor: '{{ section.settings.background_color }}',
+        textColor: '{{ section.settings.text_color }}',
+        borderRadius: '{{ section.settings.border_radius }}',
+        fontFamily: {{ section.settings.font_family | json }},
+        spacing: '{{ section.settings.spacing }}'
+      }
+    });
+  });
+</script>
+
+{% comment %} SEO: Render article links in HTML for crawlers {% endcomment %}
+<noscript>
+  <div class="kb-articles-list-fallback" style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+    <h1 style="text-align: center; margin-bottom: 40px;">Knowledge Center</h1>
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+      {% comment %} This will be populated by the JavaScript, but we provide fallback {% endcomment %}
+      <p style="text-align: center; grid-column: 1/-1; color: #64748b;">
+        Please enable JavaScript to view the knowledge center.
+      </p>
+    </div>
+  </div>
+</noscript>
+
+<style>
+  .knowledge-center-wrapper {
+    margin: {{ section.settings.section_margin_top }}px 0 {{ section.settings.section_margin_bottom }}px;
+    padding: 0 {{ section.settings.section_padding_horizontal }}px;
+  }
+
+  {% comment %} Hide fallback if JS is enabled {% endcomment %}
+  .kb-articles-list-fallback {
+    display: none;
+  }
+
+  noscript .kb-articles-list-fallback {
+    display: block;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Knowledge Center (SEO)",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Configuration"
+    },
+    {
+      "type": "paragraph",
+      "content": "This knowledge center uses Shopify Pages for articles. Each article gets its own URL and full SEO support."
+    },
+    {
+      "type": "text",
+      "id": "page_prefix",
+      "label": "Page Handle Prefix",
+      "default": "kb-",
+      "info": "Articles should be pages with handles starting with this prefix (e.g., kb-getting-started)"
+    },
+    {
+      "type": "header",
+      "content": "Categories"
+    },
+    {
+      "type": "textarea",
+      "id": "categories_json",
+      "label": "Custom Categories (JSON)",
+      "info": "Add custom categories in JSON format. Leave empty to use defaults.",
+      "placeholder": "[{\"id\":\"custom\",\"name\":\"Custom Category\",\"icon\":\"📌\",\"description\":\"Description\"}]"
+    },
+    {
+      "type": "header",
+      "content": "Features"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_search",
+      "label": "Enable Search",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_categories",
+      "label": "Enable Categories",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_featured_first",
+      "label": "Show Featured Articles First",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "articles_per_page",
+      "label": "Articles Per Page",
+      "min": 6,
+      "max": 24,
+      "step": 6,
+      "default": 12
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Primary Color",
+      "default": "#2563eb"
+    },
+    {
+      "type": "color",
+      "id": "secondary_color",
+      "label": "Secondary Color",
+      "default": "#64748b"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#1e293b"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "text",
+      "id": "font_family",
+      "label": "Font Family",
+      "default": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      "info": "CSS font-family value"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "text",
+      "id": "border_radius",
+      "label": "Border Radius",
+      "default": "8px"
+    },
+    {
+      "type": "text",
+      "id": "spacing",
+      "label": "Spacing",
+      "default": "16px"
+    },
+    {
+      "type": "range",
+      "id": "section_margin_top",
+      "label": "Section Top Margin",
+      "min": 0,
+      "max": 100,
+      "step": 10,
+      "default": 40,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "section_margin_bottom",
+      "label": "Section Bottom Margin",
+      "min": 0,
+      "max": 100,
+      "step": 10,
+      "default": 40,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "section_padding_horizontal",
+      "label": "Section Horizontal Padding",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "default": 20,
+      "unit": "px"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Knowledge Center (SEO)"
+    }
+  ]
+}
+{% endschema %}

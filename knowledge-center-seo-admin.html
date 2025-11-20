@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knowledge Center Admin - SEO Optimized</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    .admin-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      color: #2563eb;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      color: #64748b;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 16px;
+      border: none;
+      background: white;
+      cursor: pointer;
+      font-weight: 500;
+      color: #64748b;
+      transition: all 0.2s;
+      border-bottom: 3px solid transparent;
+    }
+
+    .tab-btn:hover {
+      background: #f8fafc;
+    }
+
+    .tab-btn.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+      background: #eff6ff;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-success {
+      background: #10b981;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #059669;
+    }
+
+    .btn-secondary {
+      background: #64748b;
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #475569;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .content-box {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #334155;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-family: inherit;
+    }
+
+    .form-group textarea {
+      min-height: 200px;
+      font-family: inherit;
+    }
+
+    .form-group small {
+      display: block;
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 0.75rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .tags-input-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      min-height: 42px;
+    }
+
+    .tag-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      background: #2563eb;
+      color: white;
+      border-radius: 12px;
+      font-size: 0.75rem;
+    }
+
+    .tag-pill button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .tag-input {
+      border: none;
+      outline: none;
+      flex: 1;
+      min-width: 100px;
+      font-size: 0.875rem;
+    }
+
+    .output-box {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 20px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 600px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+    }
+
+    .alert-success {
+      background: #d1fae5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+    }
+
+    .alert-info {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      color: #1e40af;
+    }
+
+    .alert-warning {
+      background: #fef3c7;
+      border: 1px solid #fde68a;
+      color: #92400e;
+    }
+
+    .instruction-box {
+      background: #eff6ff;
+      border: 2px solid #93c5fd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .instruction-box h3 {
+      color: #1e40af;
+      margin-bottom: 12px;
+    }
+
+    .instruction-box ol {
+      margin-left: 20px;
+      line-height: 1.8;
+      color: #1e3a8a;
+    }
+
+    .instruction-box code {
+      background: #dbeafe;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875em;
+    }
+
+    .category-list {
+      list-style: none;
+    }
+
+    .category-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+
+    .category-item input {
+      flex: 1;
+      padding: 6px;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+    }
+
+    .category-icon {
+      font-size: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="header">
+      <h1>📚 Knowledge Center Admin - SEO Optimized</h1>
+      <p>Create SEO-friendly articles as Shopify Pages with full metadata support</p>
+    </div>
+
+    <div id="alert-container"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('create')">Create Article</button>
+      <button class="tab-btn" onclick="switchTab('categories')">Manage Categories</button>
+      <button class="tab-btn" onclick="switchTab('instructions')">Instructions</button>
+    </div>
+
+    <!-- Create Article Tab -->
+    <div id="tab-create" class="tab-content active">
+      <div class="content-box">
+        <h2>Create Knowledge Base Article</h2>
+        <p style="color: #64748b; margin-bottom: 20px;">Fill in the details below to generate a Shopify page with proper SEO metadata.</p>
+
+        <div class="form-group">
+          <label>Article Title *</label>
+          <input type="text" id="article-title" placeholder="e.g., How to Track Your Order">
+          <small>This will be the page title and H1 heading</small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Category *</label>
+            <select id="article-category"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Author</label>
+            <input type="text" id="article-author" value="Admin">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Content (HTML) *</label>
+          <textarea id="article-content" placeholder="Write your article content here using HTML..."><h2>Introduction</h2>
+<p>Start writing your article here...</p>
+
+<h3>Step 1: ...</h3>
+<p>Detailed instructions...</p>
+
+<h3>Step 2: ...</h3>
+<p>More instructions...</p></textarea>
+          <small>Use HTML formatting: &lt;h2&gt;, &lt;h3&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;img&gt;, &lt;iframe&gt;, etc.</small>
+        </div>
+
+        <div class="form-group">
+          <label>Tags (for search & organization)</label>
+          <div class="tags-input-container" id="tags-container">
+            <input type="text" class="tag-input" id="tag-input" placeholder="Add tag and press Enter..." onkeypress="handleTagInput(event)">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="article-featured">
+              Featured Article
+            </label>
+            <small>Featured articles appear first in the list</small>
+          </div>
+
+          <div class="form-group">
+            <label>Display Order</label>
+            <input type="number" id="article-order" value="999" min="0" max="9999">
+            <small>Lower numbers appear first (0-9999)</small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Required Customer Tags (for gated content)</label>
+          <input type="text" id="article-required-tags" placeholder="e.g., affiliates, premium">
+          <small>Comma-separated. Leave empty for public access. Example: <code>affiliates</code> or <code>vip, premium</code></small>
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 30px;">
+          <button class="btn btn-primary" onclick="generatePageContent()">✨ Generate Shopify Page Content</button>
+          <button class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
+        </div>
+
+        <div id="output-section" style="display: none;">
+          <h3 style="margin-top: 40px; margin-bottom: 16px;">📋 Generated Content</h3>
+          <div class="alert alert-info">
+            Copy the content below and follow the instructions to create the page in Shopify.
+          </div>
+
+          <div style="margin-bottom: 12px; display: flex; gap: 12px;">
+            <button class="btn btn-success" onclick="copyOutput()">📋 Copy to Clipboard</button>
+            <button class="btn btn-secondary" onclick="downloadOutput()">💾 Download as .txt</button>
+          </div>
+
+          <div class="output-box" id="output-content"></div>
+
+          <div class="instruction-box" style="margin-top: 20px;">
+            <h3>📌 Next Steps:</h3>
+            <ol>
+              <li>Copy the generated content above</li>
+              <li>In Shopify Admin: <strong>Online Store → Pages → Add page</strong></li>
+              <li>Set <strong>Title</strong> to: <span id="generated-title"></span></li>
+              <li>Set <strong>Handle</strong> (URL) to: <code id="generated-handle"></code></li>
+              <li>Paste the generated content into the <strong>Content</strong> field</li>
+              <li>Under <strong>Theme template</strong>, select: <code>page.kb-article</code></li>
+              <li>Set <strong>Search engine listing</strong> description (first 155 characters of content)</li>
+              <li>Click <strong>Save</strong></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manage Categories Tab -->
+    <div id="tab-categories" class="tab-content">
+      <div class="content-box">
+        <h2>Manage Categories</h2>
+        <p style="color: #64748b; margin-bottom: 20px;">Customize your knowledge center categories.</p>
+
+        <ul class="category-list" id="category-list"></ul>
+
+        <button class="btn btn-primary" onclick="addCategory()" style="margin-top: 16px;">+ Add Category</button>
+
+        <div style="margin-top: 40px;">
+          <h3 style="margin-bottom: 16px;">Export Categories for Shopify</h3>
+          <p style="color: #64748b; margin-bottom: 12px;">Copy this JSON and paste it into your Shopify section settings under "Custom Categories (JSON)"</p>
+          <button class="btn btn-success" onclick="exportCategories()">📤 Generate Categories JSON</button>
+          <div id="categories-output" style="display: none;">
+            <div style="margin-top: 12px; margin-bottom: 12px;">
+              <button class="btn btn-secondary" onclick="copyCategoriesJSON()">📋 Copy JSON</button>
+            </div>
+            <div class="output-box" id="categories-json"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions Tab -->
+    <div id="tab-instructions" class="tab-content">
+      <div class="content-box">
+        <h2>Setup Instructions</h2>
+
+        <div class="instruction-box">
+          <h3>Step 1: Upload Files to Shopify</h3>
+          <ol>
+            <li>Go to <strong>Online Store → Themes → Edit code</strong></li>
+            <li>In <strong>Assets</strong> folder: Upload <code>knowledge-center-seo.js</code></li>
+            <li>In <strong>Templates</strong> folder: Add new template → Page → Name it <code>page.kb-article</code> → Paste template code</li>
+            <li>In <strong>Sections</strong> folder: Add new section → Name it <code>knowledge-center-seo</code> → Paste section code</li>
+          </ol>
+        </div>
+
+        <div class="instruction-box">
+          <h3>Step 2: Create Knowledge Center Hub Page</h3>
+          <ol>
+            <li>In Shopify Admin: <strong>Online Store → Pages → Add page</strong></li>
+            <li>Set <strong>Title</strong> to: <code>Knowledge Center</code></li>
+            <li>Set <strong>Handle</strong> to: <code>knowledge-center</code> (important!)</li>
+            <li>Leave content empty (or add intro text)</li>
+            <li>In <strong>Theme Customizer</strong>, add the <code>Knowledge Center (SEO)</code> section</li>
+            <li>Save page</li>
+          </ol>
+        </div>
+
+        <div class="instruction-box">
+          <h3>Step 3: Create Your First Article</h3>
+          <ol>
+            <li>Go to <strong>Create Article</strong> tab</li>
+            <li>Fill in article details</li>
+            <li>Click <strong>Generate Shopify Page Content</strong></li>
+            <li>Follow the instructions to create the page in Shopify</li>
+            <li>Make sure to set the template to <code>page.kb-article</code></li>
+          </ol>
+        </div>
+
+        <div class="instruction-box">
+          <h3>Step 4: Set Up Gated Content (Optional)</h3>
+          <ol>
+            <li>In Shopify Admin: <strong>Customers</strong></li>
+            <li>Select a customer</li>
+            <li>Add tags like: <code>affiliates</code>, <code>vip</code>, <code>premium</code></li>
+            <li>When creating articles, add matching tags to <strong>Required Customer Tags</strong></li>
+            <li>Only customers with those tags will see the articles</li>
+          </ol>
+        </div>
+
+        <div class="instruction-box">
+          <h3>SEO Benefits</h3>
+          <ul style="list-style: disc; margin-left: 20px; line-height: 1.8;">
+            <li>✅ Individual URLs for each article (e.g., <code>/pages/kb-how-to-track-orders</code>)</li>
+            <li>✅ Proper HTML title, meta description, and canonical tags</li>
+            <li>✅ Open Graph and Twitter Card tags for social sharing</li>
+            <li>✅ Schema.org Article structured data for rich snippets</li>
+            <li>✅ Automatic inclusion in Shopify sitemap</li>
+            <li>✅ Google indexes perfectly (no JavaScript required)</li>
+            <li>✅ Fast page loads (no API calls)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentTags = [];
+    let categories = [
+      { id: 'getting-started', name: 'Getting Started', icon: '🚀', description: 'New to our platform?' },
+      { id: 'tutorials', name: 'Tutorials', icon: '📚', description: 'Step-by-step guides' },
+      { id: 'faq', name: 'FAQ', icon: '❓', description: 'Frequently asked questions' },
+      { id: 'troubleshooting', name: 'Troubleshooting', icon: '🔧', description: 'Fix common issues' },
+      { id: 'advanced', name: 'Advanced', icon: '⚡', description: 'For power users' },
+      { id: 'affiliates', name: 'Affiliates', icon: '🎯', description: 'Partner resources' }
+    ];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      loadCategories();
+      renderCategories();
+      renderCategoryList();
+    });
+
+    // Tab switching
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+      event.target.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+
+    // Load categories
+    function loadCategories() {
+      const saved = localStorage.getItem('kc-categories');
+      if (saved) {
+        try {
+          categories = JSON.parse(saved);
+        } catch (error) {
+          console.error('Error loading categories:', error);
+        }
+      }
+    }
+
+    // Save categories
+    function saveCategories() {
+      localStorage.setItem('kc-categories', JSON.stringify(categories));
+    }
+
+    // Render category dropdown
+    function renderCategories() {
+      const select = document.getElementById('article-category');
+      select.innerHTML = categories.map(cat =>
+        `<option value="${cat.id}">${cat.icon} ${cat.name}</option>`
+      ).join('');
+    }
+
+    // Render category list
+    function renderCategoryList() {
+      const list = document.getElementById('category-list');
+      list.innerHTML = categories.map((cat, index) => `
+        <li class="category-item">
+          <input type="text" value="${cat.icon}" style="width: 60px;" onchange="updateCategory(${index}, 'icon', this.value)">
+          <input type="text" value="${cat.id}" placeholder="ID" onchange="updateCategory(${index}, 'id', this.value)">
+          <input type="text" value="${cat.name}" placeholder="Name" onchange="updateCategory(${index}, 'name', this.value)">
+          <input type="text" value="${cat.description}" placeholder="Description" onchange="updateCategory(${index}, 'description', this.value)">
+          <button class="btn btn-danger" onclick="removeCategory(${index})">Delete</button>
+        </li>
+      `).join('');
+    }
+
+    function addCategory() {
+      categories.push({
+        id: 'new-category',
+        name: 'New Category',
+        icon: '📌',
+        description: 'Description'
+      });
+      saveCategories();
+      renderCategories();
+      renderCategoryList();
+      showAlert('Category added! Update the details.', 'success');
+    }
+
+    function updateCategory(index, field, value) {
+      categories[index][field] = value;
+      saveCategories();
+      renderCategories();
+    }
+
+    function removeCategory(index) {
+      if (confirm('Delete this category?')) {
+        categories.splice(index, 1);
+        saveCategories();
+        renderCategories();
+        renderCategoryList();
+        showAlert('Category deleted', 'success');
+      }
+    }
+
+    function exportCategories() {
+      const json = JSON.stringify(categories, null, 2);
+      document.getElementById('categories-json').textContent = json;
+      document.getElementById('categories-output').style.display = 'block';
+    }
+
+    function copyCategoriesJSON() {
+      const json = document.getElementById('categories-json').textContent;
+      navigator.clipboard.writeText(json).then(() => {
+        showAlert('Categories JSON copied!', 'success');
+      });
+    }
+
+    // Tag management
+    function handleTagInput(event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        const input = event.target;
+        const tag = input.value.trim();
+
+        if (tag && !currentTags.includes(tag)) {
+          currentTags.push(tag);
+          renderTags();
+          input.value = '';
+        }
+      }
+    }
+
+    function removeTag(tag) {
+      currentTags = currentTags.filter(t => t !== tag);
+      renderTags();
+    }
+
+    function renderTags() {
+      const container = document.getElementById('tags-container');
+      const input = container.querySelector('.tag-input');
+
+      const tagsPills = currentTags.map(tag => `
+        <span class="tag-pill">
+          ${escapeHtml(tag)}
+          <button onclick="removeTag('${escapeHtml(tag)}')">&times;</button>
+        </span>
+      `).join('');
+
+      container.innerHTML = tagsPills + input.outerHTML;
+    }
+
+    // Generate page content
+    function generatePageContent() {
+      const title = document.getElementById('article-title').value.trim();
+      const category = document.getElementById('article-category').value;
+      const author = document.getElementById('article-author').value.trim();
+      const content = document.getElementById('article-content').value.trim();
+      const featured = document.getElementById('article-featured').checked;
+      const order = document.getElementById('article-order').value;
+      const requiredTags = document.getElementById('article-required-tags').value.trim();
+
+      if (!title || !content) {
+        showAlert('Please fill in title and content!', 'warning');
+        return;
+      }
+
+      const handle = generateHandle(title);
+
+      // Generate metadata block
+      const metadata = `<!--KB_METADATA
+category: ${category}
+tags: ${currentTags.join(', ')}
+featured: ${featured}
+order: ${order}
+required_tags: ${requiredTags}
+author: ${author}
+-->`;
+
+      // Combine metadata and content
+      const pageContent = `${metadata}\n\n${content}`;
+
+      // Display output
+      document.getElementById('output-content').textContent = pageContent;
+      document.getElementById('generated-title').textContent = title;
+      document.getElementById('generated-handle').textContent = handle;
+      document.getElementById('output-section').style.display = 'block';
+
+      showAlert('Page content generated! Copy and follow the instructions below.', 'success');
+
+      // Scroll to output
+      document.getElementById('output-section').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function generateHandle(title) {
+      return 'kb-' + title.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+    }
+
+    function clearForm() {
+      document.getElementById('article-title').value = '';
+      document.getElementById('article-content').value = '';
+      document.getElementById('article-author').value = 'Admin';
+      document.getElementById('article-featured').checked = false;
+      document.getElementById('article-order').value = '999';
+      document.getElementById('article-required-tags').value = '';
+      currentTags = [];
+      renderTags();
+      document.getElementById('output-section').style.display = 'none';
+    }
+
+    function copyOutput() {
+      const content = document.getElementById('output-content').textContent;
+      navigator.clipboard.writeText(content).then(() => {
+        showAlert('Content copied to clipboard!', 'success');
+      });
+    }
+
+    function downloadOutput() {
+      const content = document.getElementById('output-content').textContent;
+      const title = document.getElementById('article-title').value.trim();
+      const filename = generateHandle(title) + '.txt';
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showAlert('Downloaded as ' + filename, 'success');
+    }
+
+    function showAlert(message, type = 'success') {
+      const container = document.getElementById('alert-container');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.textContent = message;
+      container.appendChild(alert);
+
+      setTimeout(() => alert.remove(), 5000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
