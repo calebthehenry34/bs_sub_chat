@@ -73,9 +73,8 @@
       {% endif %}
 
       {% if show_tile %}
-        {% comment %} Priority: HTML Embed > Rich Text > Link {% endcomment %}
         {% assign has_content = false %}
-        {% if block.settings.html_embed != blank or block.settings.content != blank %}
+        {% if block.settings.content != blank %}
           {% assign has_content = true %}
         {% endif %}
 
@@ -116,11 +115,7 @@
 
             {% comment %} Store content as hidden data {% endcomment %}
             <div class="kc-tile-content-data" id="content-{{ block.id }}" style="display: none;">
-              {% if block.settings.html_embed != blank %}
-                {{ block.settings.html_embed }}
-              {% else %}
-                {{ block.settings.content }}
-              {% endif %}
+              {{ block.settings.content }}
             </div>
           </div>
 
@@ -434,10 +429,8 @@
     margin-top: 30px;
     margin-bottom: 30px;
     background: white;
-    border-top: 3px solid {{ section.settings.primary_color }};
-    border-bottom: 3px solid {{ section.settings.primary_color }};
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     animation: slideDown 0.3s ease-out;
+    padding:20px;
   }
 
   @keyframes slideDown {
@@ -539,20 +532,6 @@
 
   .kc-content-body a:hover {
     opacity: 0.8;
-  }
-
-  /* Responsive embeds (iframes, videos) */
-  .kc-content-body iframe {
-    max-width: 100%;
-    border-radius: 8px;
-    margin: 1.5rem 0;
-  }
-
-  .kc-content-body video {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-    margin: 1.5rem 0;
   }
 
   .kc-empty {
@@ -896,6 +875,12 @@
           "default": "Article Title"
         },
         {
+          "type": "html",
+          "id": "html_embed",
+          "label": "HTML Embed",
+          "info": "Paste HTML code (iframe, video embed, etc.). Takes priority over Rich Text. Leave empty if using Rich Text or Link."
+        },
+        {
           "type": "textarea",
           "id": "description",
           "label": "Description",
@@ -905,19 +890,13 @@
           "type": "richtext",
           "id": "content",
           "label": "Content (Rich Text)",
-          "info": "Add content here to make tile expandable. Leave empty if using HTML Embed or Link instead."
-        },
-        {
-          "type": "html",
-          "id": "html_embed",
-          "label": "HTML Embed",
-          "info": "Paste HTML code (iframe, video embed, etc.). Takes priority over Rich Text. Leave empty if using Rich Text or Link."
+          "info": "Add content here to make tile expandable. Leave empty if using Link instead."
         },
         {
           "type": "url",
           "id": "link",
           "label": "Link (External URL)",
-          "info": "Link to page, article, video, or external URL. Only used if Content and HTML Embed are empty."
+          "info": "Link to page, article, video, or external URL. Only used if Content is empty."
         },
         {
           "type": "image_picker",
