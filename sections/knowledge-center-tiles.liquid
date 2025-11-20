@@ -112,14 +112,14 @@
 
               <span class="kc-tile-expand-icon">+</span>
             </div>
-            {% comment %} Store content as hidden data in script tag {% endcomment %}
-            <script type="text/html" class="kc-tile-content-data" id="content-{{ block.id }}">
+            {% comment %} Store content as hidden but SEO-friendly div {% endcomment %}
+            <div class="kc-tile-content-data" id="content-{{ block.id }}" aria-hidden="true">
               {%- if block.settings.html_embed != blank -%}
                 {{ block.settings.html_embed }}
               {%- else -%}
                 {{ block.settings.content }}
               {%- endif -%}
-            </script>
+            </div>
           </div>
 
         {% elsif has_link %}
@@ -206,6 +206,45 @@
     <p>Try adjusting your search or filters</p>
   </div>
 </div>
+
+{% comment %} Schema.org Structured Data {% endcomment %}
+{% assign schema_enabled_blocks = section.blocks | where: 'settings.enable_schema', true %}
+{% if schema_enabled_blocks.size > 0 %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {%- for block in schema_enabled_blocks -%}
+        {%- if block.settings.content != blank and block.settings.html_embed == blank -%}
+          {%- assign show_in_schema = true -%}
+          {%- if block.settings.required_tags != blank -%}
+            {%- assign required_tags = block.settings.required_tags | split: ',' -%}
+            {%- for required_tag in required_tags -%}
+              {%- assign req_tag_trimmed = required_tag | strip -%}
+              {%- unless customer.tags contains req_tag_trimmed -%}
+                {%- assign show_in_schema = false -%}
+                {%- break -%}
+              {%- endunless -%}
+            {%- endfor -%}
+          {%- endif -%}
+
+          {%- if show_in_schema -%}
+            {
+              "@type": "Question",
+              "name": {{ block.settings.title | json }},
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": {{ block.settings.content | strip_html | strip | json }}
+              }
+            }{%- unless forloop.last -%},{%- endunless -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    ]
+  }
+  </script>
+{% endif %}
 
 <style>
   .knowledge-center {
@@ -330,8 +369,16 @@
     position: relative;
   }
 
-  script.kc-tile-content-data {
-    display: none !important;
+  .kc-tile-content-data {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
 
   .kc-tile-image {
@@ -918,6 +965,17 @@
           "id": "required_tags",
           "label": "Required Customer Tags (for gated access)",
           "info": "Comma-separated. Leave empty for public. Example: affiliates, vip"
+        },
+        {
+          "type": "header",
+          "content": "SEO & Schema"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_schema",
+          "label": "Enable FAQ Schema (for Google Rich Results)",
+          "default": false,
+          "info": "Adds structured data for search engines. Only works with Rich Text content (not HTML embeds). Helps your tile appear in Google's FAQ rich results."
         }
       ]
     }
