@@ -26,8 +26,8 @@ Done! Now add it to any page.
 
 Add content in the **Content (Rich Text)** field:
 - Tile shows with a **+ icon** in the corner
-- Click tile → Content expands below
-- Click again → Collapses
+- Click tile → Content displays in full-width frame below grid
+- Click again (or close button) → Frame closes
 - Perfect for FAQs, guides, tutorials
 
 **Example:**
@@ -38,7 +38,7 @@ Content: [Add rich text with steps, images, videos]
 Category: FAQ
 ```
 
-Result: Click tile → Full guide expands below with formatting
+Result: Click tile → Full guide displays in full-width frame with formatting
 
 ### Option 2: Link Tile (Navigates to URL)
 
@@ -145,7 +145,7 @@ Required Tags: affiliates
 
 **Result:**
 - Only customers with `affiliates` tag see this tile
-- Click tile → Guide expands with full content
+- Click tile → Guide displays in full-width frame with full content
 
 ### Example 4: External Resource Link
 
@@ -198,8 +198,10 @@ Required Customer Tags: affiliates
 
 ### Expandable Tiles (With Content)
 - Shows **+ icon** (blue circle) in top-right corner
-- Click to expand → icon rotates to ×
-- Content appears below tile
+- Click to open → tile gets highlighted border
+- Content displays in full-width frame below the grid
+- Frame has top/bottom borders and a close button (×)
+- Click tile again or close button to collapse
 - Fully responsive on mobile
 
 ### Link Tiles (External URLs)
@@ -230,15 +232,17 @@ The **Content** field supports:
 
 ### Desktop
 - Grid layout (3-4 tiles per row depending on size)
-- Expanded content appears below tile
+- Expanded content appears in full-width frame below grid
 - Smooth animations
+- Content frame spans entire page width
 
 ### Mobile
 - Single column (1 tile per row)
 - Full-width tiles
 - Touch-friendly
-- Expanded content fits screen
+- Content frame adapts to mobile width
 - Categories scroll horizontally
+- Close button positioned for easy tapping
 
 ## Customization (Theme Editor)
 
