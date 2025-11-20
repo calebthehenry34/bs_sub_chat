@@ -112,11 +112,14 @@
 
               <span class="kc-tile-expand-icon">+</span>
             </div>
-
-            {% comment %} Store content as hidden data {% endcomment %}
-            <div class="kc-tile-content-data" id="content-{{ block.id }}" style="display: none;">
-              {{ block.settings.content }}
-            </div>
+            {% comment %} Store content as hidden data in script tag {% endcomment %}
+            <script type="text/html" class="kc-tile-content-data" id="content-{{ block.id }}">
+              {%- if block.settings.html_embed != blank -%}
+                {{ block.settings.html_embed }}
+              {%- else -%}
+                {{ block.settings.content }}
+              {%- endif -%}
+            </script>
           </div>
 
         {% elsif has_link %}
@@ -327,7 +330,7 @@
     position: relative;
   }
 
-  .kc-tile-content-data {
+  script.kc-tile-content-data {
     display: none !important;
   }
 
@@ -632,8 +635,9 @@
         // Close if clicking the same tile
         closeContentFrame();
       } else {
-        // Open with new content
-        openContentFrame(this, contentData.innerHTML);
+        // Open with new content - trim to remove whitespace
+        const content = contentData.innerHTML.trim();
+        openContentFrame(this, content);
       }
     });
   });
