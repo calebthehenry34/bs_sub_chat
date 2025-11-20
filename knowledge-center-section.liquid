@@ -1,0 +1,242 @@
+{% comment %}
+  Knowledge Center Section for Shopify
+
+  Installation:
+  1. In Shopify Admin, go to Online Store → Themes → Edit code
+  2. In the "Sections" folder, click "Add a new section"
+  3. Name it "knowledge-center"
+  4. Paste this entire code
+  5. Upload knowledge-center-shopify.js to Assets folder
+
+  Usage:
+  - Add this section to any page via the theme customizer
+  - Or add to a template with: {% section 'knowledge-center' %}
+{% endcomment %}
+
+<div id="knowledge-center-{{ section.id }}" class="knowledge-center-wrapper"></div>
+
+<script src="{{ 'knowledge-center-shopify.js' | asset_url }}" defer></script>
+
+<script>
+  // Wait for DOM and script to load
+  document.addEventListener('DOMContentLoaded', function() {
+    // Check if script is loaded
+    if (typeof KnowledgeCenterShopify === 'undefined') {
+      console.error('Knowledge Center script not loaded');
+      return;
+    }
+
+    // Get user tags from customer
+    var userTags = [];
+    {% if customer %}
+      {% comment %} Add tags based on customer tags {% endcomment %}
+      {% if customer.tags contains 'affiliates' %}
+        userTags.push('affiliates');
+      {% endif %}
+      {% if customer.tags contains 'vip' %}
+        userTags.push('vip');
+      {% endif %}
+      {% if customer.tags contains 'premium' %}
+        userTags.push('premium');
+      {% endif %}
+    {% endif %}
+
+    // Article data from section settings
+    var articlesData = {{ section.settings.articles_json | default: '[]' }};
+
+    // Initialize Knowledge Center
+    new KnowledgeCenterShopify({
+      dataSource: '{{ section.settings.data_source }}',
+      articlesData: articlesData,
+      jsonUrl: {{ section.settings.json_url | json }},
+      userEmail: {% if customer %}'{{ customer.email }}'{% else %}null{% endif %},
+      userTags: userTags,
+      containerId: 'knowledge-center-{{ section.id }}',
+      enableSearch: {{ section.settings.enable_search }},
+      enableCategories: {{ section.settings.enable_categories }},
+      articlesPerPage: {{ section.settings.articles_per_page }},
+      showFeaturedFirst: {{ section.settings.show_featured_first }},
+      theme: {
+        primaryColor: '{{ section.settings.primary_color }}',
+        secondaryColor: '{{ section.settings.secondary_color }}',
+        backgroundColor: '{{ section.settings.background_color }}',
+        textColor: '{{ section.settings.text_color }}',
+        borderRadius: '{{ section.settings.border_radius }}',
+        fontFamily: {{ section.settings.font_family | json }},
+        spacing: '{{ section.settings.spacing }}'
+      }
+    });
+  });
+</script>
+
+<style>
+  .knowledge-center-wrapper {
+    margin: {{ section.settings.section_margin_top }}px 0 {{ section.settings.section_margin_bottom }}px;
+    padding: 0 {{ section.settings.section_padding_horizontal }}px;
+  }
+</style>
+
+{% schema %}
+{
+  "name": "Knowledge Center",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Data Source"
+    },
+    {
+      "type": "select",
+      "id": "data_source",
+      "label": "Data Source",
+      "options": [
+        {
+          "value": "inline",
+          "label": "Inline JSON (paste below)"
+        },
+        {
+          "value": "json",
+          "label": "JSON File URL"
+        }
+      ],
+      "default": "inline",
+      "info": "Choose how to load articles"
+    },
+    {
+      "type": "textarea",
+      "id": "articles_json",
+      "label": "Articles JSON Data",
+      "info": "Paste your articles JSON here (use the admin tool to generate)",
+      "default": "[]"
+    },
+    {
+      "type": "url",
+      "id": "json_url",
+      "label": "JSON File URL",
+      "info": "URL to a JSON file with articles (if using JSON File source)"
+    },
+    {
+      "type": "header",
+      "content": "Features"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_search",
+      "label": "Enable Search",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_categories",
+      "label": "Enable Categories",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_featured_first",
+      "label": "Show Featured Articles First",
+      "default": true
+    },
+    {
+      "type": "range",
+      "id": "articles_per_page",
+      "label": "Articles Per Page",
+      "min": 6,
+      "max": 24,
+      "step": 6,
+      "default": 12
+    },
+    {
+      "type": "header",
+      "content": "Colors"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Primary Color",
+      "default": "#2563eb"
+    },
+    {
+      "type": "color",
+      "id": "secondary_color",
+      "label": "Secondary Color",
+      "default": "#64748b"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text Color",
+      "default": "#1e293b"
+    },
+    {
+      "type": "header",
+      "content": "Typography"
+    },
+    {
+      "type": "text",
+      "id": "font_family",
+      "label": "Font Family",
+      "default": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      "info": "CSS font-family value"
+    },
+    {
+      "type": "header",
+      "content": "Layout"
+    },
+    {
+      "type": "text",
+      "id": "border_radius",
+      "label": "Border Radius",
+      "default": "8px",
+      "info": "CSS border-radius value (e.g., 8px, 1rem)"
+    },
+    {
+      "type": "text",
+      "id": "spacing",
+      "label": "Spacing",
+      "default": "16px",
+      "info": "Base spacing unit (e.g., 16px, 1rem)"
+    },
+    {
+      "type": "range",
+      "id": "section_margin_top",
+      "label": "Section Top Margin",
+      "min": 0,
+      "max": 100,
+      "step": 10,
+      "default": 40,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "section_margin_bottom",
+      "label": "Section Bottom Margin",
+      "min": 0,
+      "max": 100,
+      "step": 10,
+      "default": 40,
+      "unit": "px"
+    },
+    {
+      "type": "range",
+      "id": "section_padding_horizontal",
+      "label": "Section Horizontal Padding",
+      "min": 0,
+      "max": 50,
+      "step": 5,
+      "default": 20,
+      "unit": "px"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Knowledge Center"
+    }
+  ]
+}
+{% endschema %}
