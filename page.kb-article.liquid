@@ -1,0 +1,408 @@
+{% comment %}
+  Knowledge Base Article Page Template
+
+  Installation:
+  1. In Shopify Admin: Online Store → Themes → Edit code
+  2. In Templates folder, click "Add a new template" → Page
+  3. Name it: page.kb-article
+  4. Paste this code
+
+  Usage:
+  1. Create a new page in Shopify Admin
+  2. Set the template to "page.kb-article"
+  3. Add the article metadata (see below)
+{% endcomment %}
+
+{%comment %}
+  ARTICLE METADATA
+  Add these as HTML comments at the TOP of your page content in Shopify Admin:
+
+  <!--KB_METADATA
+  category: getting-started
+  tags: tutorial, beginner, setup
+  featured: true
+  order: 1
+  required_tags: affiliates
+  author: Admin
+  -->
+
+  Or use the data attributes method (see below)
+{% endcomment %}
+
+{% assign page_content = page.content %}
+{% assign kb_category = 'general' %}
+{% assign kb_tags = '' %}
+{% assign kb_featured = false %}
+{% assign kb_order = 999 %}
+{% assign kb_required_tags = '' %}
+{% assign kb_author = 'Admin' %}
+
+{% comment %} Parse metadata from content if present {% endcomment %}
+{% if page.content contains '<!--KB_METADATA' %}
+  {% assign metadata_block = page.content | split: '<!--KB_METADATA' | last | split: '-->' | first %}
+
+  {% assign metadata_lines = metadata_block | split: '
+' %}
+  {% for line in metadata_lines %}
+    {% assign parts = line | split: ':' %}
+    {% if parts.size == 2 %}
+      {% assign key = parts[0] | strip %}
+      {% assign value = parts[1] | strip %}
+
+      {% case key %}
+        {% when 'category' %}
+          {% assign kb_category = value %}
+        {% when 'tags' %}
+          {% assign kb_tags = value %}
+        {% when 'featured' %}
+          {% if value == 'true' %}
+            {% assign kb_featured = true %}
+          {% endif %}
+        {% when 'order' %}
+          {% assign kb_order = value | plus: 0 %}
+        {% when 'required_tags' %}
+          {% assign kb_required_tags = value %}
+        {% when 'author' %}
+          {% assign kb_author = value %}
+      {% endcase %}
+    {% endif %}
+  {% endfor %}
+
+  {% comment %} Remove metadata from displayed content {% endcomment %}
+  {% assign page_content = page.content | split: '<!--KB_METADATA' | first %}
+  {% assign after_metadata = page.content | split: '-->' | last %}
+  {% assign page_content = page_content | append: after_metadata %}
+{% endif %}
+
+{% comment %} Check access control {% endcomment %}
+{% assign has_access = true %}
+{% if kb_required_tags != '' %}
+  {% assign required_tags_array = kb_required_tags | split: ',' %}
+  {% for required_tag in required_tags_array %}
+    {% assign required_tag = required_tag | strip %}
+    {% unless customer.tags contains required_tag %}
+      {% assign has_access = false %}
+      {% break %}
+    {% endunless %}
+  {% endfor %}
+{% endif %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page.title }} - {{ shop.name }}</title>
+
+  {% comment %} SEO Meta Tags {% endcomment %}
+  <meta name="description" content="{{ page.content | strip_html | truncate: 155 }}">
+  <link rel="canonical" href="{{ shop.url }}{{ page.url }}">
+
+  {% comment %} Open Graph Tags {% endcomment %}
+  <meta property="og:title" content="{{ page.title }}">
+  <meta property="og:description" content="{{ page.content | strip_html | truncate: 155 }}">
+  <meta property="og:url" content="{{ shop.url }}{{ page.url }}">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="{{ shop.name }}">
+
+  {% comment %} Twitter Card {% endcomment %}
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{ page.title }}">
+  <meta name="twitter:description" content="{{ page.content | strip_html | truncate: 155 }}">
+
+  {% comment %} Structured Data (Schema.org) {% endcomment %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": {{ page.title | json }},
+    "description": {{ page.content | strip_html | truncate: 200 | json }},
+    "author": {
+      "@type": "Organization",
+      "name": {{ shop.name | json }}
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": {{ shop.name | json }},
+      "logo": {
+        "@type": "ImageObject",
+        "url": {{ shop.secure_url | append: shop.cdn_url | append: shop.logo | json }}
+      }
+    },
+    "datePublished": {{ page.created_at | date: '%Y-%m-%dT%H:%M:%S%z' | json }},
+    "dateModified": {{ page.updated_at | date: '%Y-%m-%dT%H:%M:%S%z' | json }},
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": {{ page.url | prepend: shop.url | json }}
+    }
+  }
+  </script>
+
+  {{ content_for_header }}
+
+  <style>
+    .kb-article-container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    .kb-article-header {
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .kb-back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #2563eb;
+      text-decoration: none;
+      font-size: 0.875rem;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+
+    .kb-back-link:hover {
+      text-decoration: underline;
+    }
+
+    .kb-article-title {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #1e293b;
+      line-height: 1.2;
+    }
+
+    .kb-article-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      font-size: 0.875rem;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+
+    .kb-article-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .kb-tag {
+      padding: 4px 12px;
+      background: #f1f5f9;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      color: #475569;
+    }
+
+    .kb-article-content {
+      line-height: 1.8;
+      color: #334155;
+    }
+
+    .kb-article-content h2 {
+      font-size: 1.875rem;
+      margin: 2rem 0 1rem;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    .kb-article-content h3 {
+      font-size: 1.5rem;
+      margin: 1.5rem 0 0.75rem;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    .kb-article-content h4 {
+      font-size: 1.25rem;
+      margin: 1.25rem 0 0.5rem;
+      color: #1e293b;
+      font-weight: 600;
+    }
+
+    .kb-article-content p {
+      margin-bottom: 1rem;
+    }
+
+    .kb-article-content ul,
+    .kb-article-content ol {
+      margin-bottom: 1rem;
+      padding-left: 2rem;
+    }
+
+    .kb-article-content li {
+      margin-bottom: 0.5rem;
+    }
+
+    .kb-article-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .kb-article-content iframe {
+      max-width: 100%;
+      margin: 1.5rem 0;
+      border-radius: 8px;
+    }
+
+    .kb-article-content a {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+
+    .kb-article-content a:hover {
+      color: #1d4ed8;
+    }
+
+    .kb-article-content blockquote {
+      border-left: 4px solid #2563eb;
+      padding-left: 1rem;
+      margin: 1.5rem 0;
+      color: #64748b;
+      font-style: italic;
+    }
+
+    .kb-article-content code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.875em;
+    }
+
+    .kb-article-content pre {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1.5rem 0;
+    }
+
+    .kb-article-content pre code {
+      background: none;
+      padding: 0;
+      color: inherit;
+    }
+
+    .kb-access-denied {
+      background: #fef3c7;
+      border: 2px solid #fde68a;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      margin: 40px 0;
+    }
+
+    .kb-access-denied-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+
+    .kb-access-denied h2 {
+      color: #92400e;
+      margin-bottom: 12px;
+    }
+
+    .kb-access-denied p {
+      color: #78350f;
+      margin-bottom: 20px;
+    }
+
+    .kb-related-articles {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 2px solid #e2e8f0;
+    }
+
+    .kb-related-articles h3 {
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      color: #1e293b;
+    }
+
+    @media (max-width: 768px) {
+      .kb-article-title {
+        font-size: 2rem;
+      }
+
+      .kb-article-content h2 {
+        font-size: 1.5rem;
+      }
+
+      .kb-article-content h3 {
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  {% section 'header' %}
+
+  <div class="kb-article-container"
+       data-kb-article
+       data-kb-category="{{ kb_category }}"
+       data-kb-tags="{{ kb_tags }}"
+       data-kb-featured="{{ kb_featured }}"
+       data-kb-order="{{ kb_order }}"
+       data-kb-required-tags="{{ kb_required_tags }}"
+       data-kb-author="{{ kb_author }}"
+       data-kb-updated="{{ page.updated_at | date: '%Y-%m-%dT%H:%M:%S%z' }}"
+       data-kb-description="{{ page.content | strip_html | truncate: 150 }}">
+
+    <div class="kb-article-header">
+      <a href="/pages/knowledge-center" class="kb-back-link">
+        ← Back to Knowledge Center
+      </a>
+
+      <h1 class="kb-article-title">{{ page.title }}</h1>
+
+      <div class="kb-article-meta">
+        <span>📅 Updated {{ page.updated_at | date: '%B %d, %Y' }}</span>
+        {% if kb_author != '' %}
+          <span>✍️ {{ kb_author }}</span>
+        {% endif %}
+        {% if kb_category != 'general' %}
+          <span>📁 {{ kb_category | replace: '-', ' ' | capitalize }}</span>
+        {% endif %}
+      </div>
+
+      {% if kb_tags != '' %}
+        <div class="kb-article-tags">
+          {% assign tags_array = kb_tags | split: ',' %}
+          {% for tag in tags_array %}
+            <span class="kb-tag">{{ tag | strip }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    {% if has_access %}
+      <div class="kb-article-content">
+        {{ page_content }}
+      </div>
+    {% else %}
+      <div class="kb-access-denied">
+        <div class="kb-access-denied-icon">🔒</div>
+        <h2>Access Restricted</h2>
+        <p>This article requires special access. Please log in with an authorized account.</p>
+        <p><strong>Required access:</strong> {{ kb_required_tags }}</p>
+        {% unless customer %}
+          <a href="/account/login?return_url={{ page.url | url_encode }}" class="button">Log In</a>
+        {% endunless %}
+      </div>
+    {% endif %}
+  </div>
+
+  {% section 'footer' %}
+</body>
+</html>
