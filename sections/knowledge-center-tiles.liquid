@@ -7,11 +7,11 @@
   3. Paste this code
   4. Add to any page via theme customizer
 
-  Usage:
-  - Add tiles/cards via theme editor
-  - Each tile can link to pages, articles, videos, etc.
-  - Set required customer tags for gated content
-  - Configure categories and colors
+  Features:
+  - Tiles can have rich-text content (expands on click)
+  - Tiles can have links (navigates to URL)
+  - Gated access via customer tags
+  - Search and category filtering
 {% endcomment %}
 
 <div class="knowledge-center" id="kc-{{ section.id }}" data-section-id="{{ section.id }}">
@@ -73,32 +73,105 @@
       {% endif %}
 
       {% if show_tile %}
-        <a
-          href="{{ block.settings.link }}"
-          class="kc-tile"
+        {% assign has_content = false %}
+        {% if block.settings.content != blank %}
+          {% assign has_content = true %}
+        {% endif %}
+
+        {% assign has_link = false %}
+        {% if block.settings.link != blank %}
+          {% assign has_link = true %}
+        {% endif %}
+
+        <div
+          class="kc-tile-wrapper"
           data-category="{{ block.settings.category | handleize }}"
           data-title="{{ block.settings.title | escape }}"
           data-description="{{ block.settings.description | escape }}"
           {{ block.shopify_attributes }}
         >
-          {% if block.settings.image != blank %}
-            <div class="kc-tile-image">
-              {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+          {% if has_content %}
+            {% comment %} Tile with expandable content {% endcomment %}
+            <div class="kc-tile kc-tile-expandable" data-tile-id="tile-{{ block.id }}">
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
+
+                <span class="kc-tile-expand-icon">+</span>
+              </div>
+            </div>
+
+            {% comment %} Expandable content area {% endcomment %}
+            <div class="kc-tile-expanded-content" id="content-{{ block.id }}" style="display: none;">
+              <div class="kc-expanded-inner">
+                {{ block.settings.content }}
+              </div>
+            </div>
+
+          {% elsif has_link %}
+            {% comment %} Tile with link {% endcomment %}
+            <a href="{{ block.settings.link }}" class="kc-tile kc-tile-link">
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
+
+                <span class="kc-tile-link-icon">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </div>
+            </a>
+
+          {% else %}
+            {% comment %} Basic tile (no content, no link) {% endcomment %}
+            <div class="kc-tile">
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
+              </div>
             </div>
           {% endif %}
-
-          <div class="kc-tile-content">
-            {% if block.settings.category != blank %}
-              <span class="kc-tile-category">{{ block.settings.category }}</span>
-            {% endif %}
-
-            <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
-
-            {% if block.settings.description != blank %}
-              <p class="kc-tile-description">{{ block.settings.description }}</p>
-            {% endif %}
-          </div>
-        </a>
+        </div>
       {% endif %}
     {% endfor %}
   </div>
@@ -201,6 +274,11 @@
     gap: {{ section.settings.grid_gap }}px;
   }
 
+  .kc-tile-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
   .kc-tile {
     background: white;
     border: 1px solid {{ section.settings.border_color }};
@@ -212,11 +290,26 @@
     display: flex;
     flex-direction: column;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    flex: 1;
   }
 
   .kc-tile:hover {
     transform: translateY(-4px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .kc-tile-expandable {
+    cursor: pointer;
+    position: relative;
+  }
+
+  .kc-tile-expandable.expanded {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .kc-tile-link {
+    position: relative;
   }
 
   .kc-tile-image {
@@ -237,6 +330,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .kc-tile-category {
@@ -263,6 +357,112 @@
     color: {{ section.settings.text_color }};
     opacity: 0.8;
     line-height: 1.6;
+  }
+
+  .kc-tile-expand-icon {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: {{ section.settings.primary_color }};
+    color: white;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    font-weight: 300;
+    transition: transform 0.3s;
+  }
+
+  .kc-tile-expandable.expanded .kc-tile-expand-icon {
+    transform: rotate(45deg);
+  }
+
+  .kc-tile-link-icon {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: {{ section.settings.primary_color }};
+    color: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+  }
+
+  .kc-tile-link:hover .kc-tile-link-icon {
+    transform: translate(2px, -2px);
+  }
+
+  .kc-tile-expanded-content {
+    background: white;
+    border: 1px solid {{ section.settings.border_color }};
+    border-top: none;
+    border-bottom-left-radius: {{ section.settings.border_radius }}px;
+    border-bottom-right-radius: {{ section.settings.border_radius }}px;
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+  }
+
+  .kc-expanded-inner {
+    padding: 30px;
+    line-height: 1.8;
+    color: {{ section.settings.text_color }};
+  }
+
+  .kc-expanded-inner h2,
+  .kc-expanded-inner h3,
+  .kc-expanded-inner h4 {
+    color: {{ section.settings.heading_color }};
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .kc-expanded-inner h2 {
+    font-size: 1.75rem;
+  }
+
+  .kc-expanded-inner h3 {
+    font-size: 1.5rem;
+  }
+
+  .kc-expanded-inner h4 {
+    font-size: 1.25rem;
+  }
+
+  .kc-expanded-inner p {
+    margin-bottom: 1rem;
+  }
+
+  .kc-expanded-inner ul,
+  .kc-expanded-inner ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+  }
+
+  .kc-expanded-inner li {
+    margin-bottom: 0.5rem;
+  }
+
+  .kc-expanded-inner img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+  }
+
+  .kc-expanded-inner a {
+    color: {{ section.settings.primary_color }};
+    text-decoration: underline;
+  }
+
+  .kc-expanded-inner a:hover {
+    opacity: 0.8;
   }
 
   .kc-empty {
@@ -295,6 +495,10 @@
     .kc-category-btn {
       flex-shrink: 0;
     }
+
+    .kc-expanded-inner {
+      padding: 20px;
+    }
   }
 </style>
 
@@ -305,7 +509,7 @@
   const grid = document.getElementById('kc-grid-' + sectionId);
   const emptyState = document.getElementById('kc-empty-' + sectionId);
   const categoryBtns = document.querySelectorAll('#kc-categories-' + sectionId + ' .kc-category-btn');
-  const tiles = grid.querySelectorAll('.kc-tile');
+  const tileWrappers = grid.querySelectorAll('.kc-tile-wrapper');
 
   let currentCategory = 'all';
   let currentSearch = '';
@@ -328,13 +532,52 @@
     });
   }
 
+  // Expandable tile clicks
+  document.querySelectorAll('.kc-tile-expandable').forEach(tile => {
+    tile.addEventListener('click', function() {
+      const tileId = this.dataset.tileId;
+      const contentId = tileId.replace('tile-', 'content-');
+      const content = document.getElementById(contentId);
+
+      if (!content) return;
+
+      const isExpanded = this.classList.contains('expanded');
+
+      // Close all other expanded tiles
+      document.querySelectorAll('.kc-tile-expandable').forEach(t => {
+        if (t !== this) {
+          t.classList.remove('expanded');
+        }
+      });
+      document.querySelectorAll('.kc-tile-expanded-content').forEach(c => {
+        if (c !== content) {
+          c.style.display = 'none';
+        }
+      });
+
+      // Toggle this tile
+      if (isExpanded) {
+        this.classList.remove('expanded');
+        content.style.display = 'none';
+      } else {
+        this.classList.add('expanded');
+        content.style.display = 'block';
+
+        // Smooth scroll to tile
+        setTimeout(() => {
+          this.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+      }
+    });
+  });
+
   function filterTiles() {
     let visibleCount = 0;
 
-    tiles.forEach(tile => {
-      const category = tile.dataset.category;
-      const title = tile.dataset.title.toLowerCase();
-      const description = tile.dataset.description.toLowerCase();
+    tileWrappers.forEach(wrapper => {
+      const category = wrapper.dataset.category;
+      const title = wrapper.dataset.title.toLowerCase();
+      const description = wrapper.dataset.description.toLowerCase();
 
       const matchesCategory = currentCategory === 'all' || category === currentCategory;
       const matchesSearch = currentSearch === '' ||
@@ -342,10 +585,20 @@
                            description.includes(currentSearch);
 
       if (matchesCategory && matchesSearch) {
-        tile.style.display = 'flex';
+        wrapper.style.display = 'flex';
         visibleCount++;
       } else {
-        tile.style.display = 'none';
+        wrapper.style.display = 'none';
+
+        // Close expanded content if filtered out
+        const expandableTile = wrapper.querySelector('.kc-tile-expandable');
+        if (expandableTile) {
+          expandableTile.classList.remove('expanded');
+        }
+        const expandedContent = wrapper.querySelector('.kc-tile-expanded-content');
+        if (expandedContent) {
+          expandedContent.style.display = 'none';
+        }
       }
     });
 
@@ -529,10 +782,16 @@
           "default": "Short description of this article"
         },
         {
+          "type": "richtext",
+          "id": "content",
+          "label": "Content (Rich Text)",
+          "info": "Add content here to make tile expandable. Leave empty if using Link instead."
+        },
+        {
           "type": "url",
           "id": "link",
-          "label": "Link",
-          "info": "Link to page, article, video, or external URL"
+          "label": "Link (External URL)",
+          "info": "Link to page, article, video, or external URL. Only used if Content is empty."
         },
         {
           "type": "image_picker",
