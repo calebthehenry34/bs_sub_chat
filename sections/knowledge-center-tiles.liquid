@@ -41,18 +41,18 @@
   {% comment %} Category Filters {% endcomment %}
   {% if section.settings.enable_categories %}
     <div class="kc-categories" id="kc-categories-{{ section.id }}">
-      <button class="kc-category-btn active" data-category="all">
-        All
-      </button>
       {% assign categories = section.settings.categories | split: ',' %}
       {% for category in categories %}
         {% assign cat_trimmed = category | strip %}
         {% if cat_trimmed != blank %}
-          <button class="kc-category-btn" data-category="{{ cat_trimmed | handleize }}">
+          <button class="kc-category-btn{% if forloop.first %} active{% endif %}" data-category="{{ cat_trimmed | handleize }}">
             {{ cat_trimmed }}
           </button>
         {% endif %}
       {% endfor %}
+      <button class="kc-category-btn" data-category="all">
+        All
+      </button>
     </div>
   {% endif %}
 
@@ -652,8 +652,13 @@
   const contentBody = document.getElementById('kc-content-body-' + sectionId);
   const tileWrappers = grid.querySelectorAll('.kc-tile-wrapper');
 
-  let currentCategory = 'all';
+  // Set initial category to the first active button
+  const activeBtn = document.querySelector('#kc-categories-' + sectionId + ' .kc-category-btn.active');
+  let currentCategory = activeBtn ? activeBtn.dataset.category : 'all';
   let currentSearch = '';
+
+  // Run initial filter to show only first category
+  filterTiles();
 
   // Category filtering
   categoryBtns.forEach(btn => {
