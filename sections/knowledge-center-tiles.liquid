@@ -85,103 +85,106 @@
 
         {% if has_content %}
           {% comment %} Tile with expandable content {% endcomment %}
-          <div
-            class="kc-tile kc-tile-expandable"
-            data-tile-id="tile-{{ block.id }}"
-            data-category="{{ block.settings.category | handleize }}"
-            data-title="{{ block.settings.title | escape }}"
-            data-description="{{ block.settings.description | escape }}"
-            {{ block.shopify_attributes }}
-          >
-            {% if block.settings.image != blank %}
-              <div class="kc-tile-image">
-                {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+          <div class="kc-tile-wrapper" {{ block.shopify_attributes }}>
+            <div
+              class="kc-tile kc-tile-expandable"
+              data-tile-id="tile-{{ block.id }}"
+              data-category="{{ block.settings.category | handleize }}"
+              data-title="{{ block.settings.title | escape }}"
+              data-description="{{ block.settings.description | escape }}"
+            >
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
+
+                <span class="kc-tile-expand-icon">+</span>
               </div>
-            {% endif %}
-
-            <div class="kc-tile-content">
-              {% if block.settings.category != blank %}
-                <span class="kc-tile-category">{{ block.settings.category }}</span>
-              {% endif %}
-
-              <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
-
-              {% if block.settings.description != blank %}
-                <p class="kc-tile-description">{{ block.settings.description }}</p>
-              {% endif %}
-
-              <span class="kc-tile-expand-icon">+</span>
-            </div>
-            {% comment %} Store content as hidden but SEO-friendly div {% endcomment %}
-            <div class="kc-tile-content-data" id="content-{{ block.id }}" aria-hidden="true">
-              {%- if block.settings.html_embed != blank -%}
-                {{ block.settings.html_embed }}
-              {%- else -%}
-                {{ block.settings.content }}
-              {%- endif -%}
+              {% comment %} Store content as hidden but SEO-friendly div {% endcomment %}
+              <div class="kc-tile-content-data" id="content-{{ block.id }}" aria-hidden="true">
+                {%- if block.settings.html_embed != blank -%}
+                  {{ block.settings.html_embed }}
+                {%- else -%}
+                  {{ block.settings.content }}
+                {%- endif -%}
+              </div>
             </div>
           </div>
 
         {% elsif has_link %}
           {% comment %} Tile with link {% endcomment %}
-          <a
-            href="{{ block.settings.link }}"
-            class="kc-tile kc-tile-link"
-            data-category="{{ block.settings.category | handleize }}"
-            data-title="{{ block.settings.title | escape }}"
-            data-description="{{ block.settings.description | escape }}"
-            {{ block.shopify_attributes }}
-          >
-            {% if block.settings.image != blank %}
-              <div class="kc-tile-image">
-                {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+          <div class="kc-tile-wrapper" {{ block.shopify_attributes }}>
+            <a
+              href="{{ block.settings.link }}"
+              class="kc-tile kc-tile-link"
+              data-category="{{ block.settings.category | handleize }}"
+              data-title="{{ block.settings.title | escape }}"
+              data-description="{{ block.settings.description | escape }}"
+            >
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
+
+                <span class="kc-tile-link-icon">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
               </div>
-            {% endif %}
-
-            <div class="kc-tile-content">
-              {% if block.settings.category != blank %}
-                <span class="kc-tile-category">{{ block.settings.category }}</span>
-              {% endif %}
-
-              <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
-
-              {% if block.settings.description != blank %}
-                <p class="kc-tile-description">{{ block.settings.description }}</p>
-              {% endif %}
-
-              <span class="kc-tile-link-icon">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-            </div>
-          </a>
+            </a>
+          </div>
 
         {% else %}
           {% comment %} Basic tile (no content, no link) {% endcomment %}
-          <div
-            class="kc-tile"
-            data-category="{{ block.settings.category | handleize }}"
-            data-title="{{ block.settings.title | escape }}"
-            data-description="{{ block.settings.description | escape }}"
-            {{ block.shopify_attributes }}
-          >
-            {% if block.settings.image != blank %}
-              <div class="kc-tile-image">
-                {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+          <div class="kc-tile-wrapper" {{ block.shopify_attributes }}>
+            <div
+              class="kc-tile"
+              data-category="{{ block.settings.category | handleize }}"
+              data-title="{{ block.settings.title | escape }}"
+              data-description="{{ block.settings.description | escape }}"
+            >
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
               </div>
-            {% endif %}
-
-            <div class="kc-tile-content">
-              {% if block.settings.category != blank %}
-                <span class="kc-tile-category">{{ block.settings.category }}</span>
-              {% endif %}
-
-              <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
-
-              {% if block.settings.description != blank %}
-                <p class="kc-tile-description">{{ block.settings.description }}</p>
-              {% endif %}
             </div>
           </div>
         {% endif %}
@@ -335,6 +338,11 @@
     grid-template-columns: repeat(auto-fill, minmax({{ section.settings.tile_min_width }}px, 1fr));
     gap: {{ section.settings.grid_gap }}px;
     margin-bottom: 20px;
+  }
+
+  .kc-tile-wrapper {
+    display: flex;
+    flex-direction: column;
   }
 
   .kc-tile {
@@ -642,7 +650,7 @@
   const categoryBtns = document.querySelectorAll('#kc-categories-' + sectionId + ' .kc-category-btn');
   const contentFrame = document.getElementById('kc-content-frame-' + sectionId);
   const contentBody = document.getElementById('kc-content-body-' + sectionId);
-  const allTiles = grid.querySelectorAll('.kc-tile');
+  const tileWrappers = grid.querySelectorAll('.kc-tile-wrapper');
 
   let currentCategory = 'all';
   let currentSearch = '';
@@ -734,7 +742,10 @@
   function filterTiles() {
     let visibleCount = 0;
 
-    allTiles.forEach(tile => {
+    tileWrappers.forEach(wrapper => {
+      const tile = wrapper.querySelector('.kc-tile, .kc-tile-link');
+      if (!tile) return;
+
       const category = tile.dataset.category || '';
       const title = (tile.dataset.title || '').toLowerCase();
       const description = (tile.dataset.description || '').toLowerCase();
@@ -745,10 +756,10 @@
                            description.includes(currentSearch);
 
       if (matchesCategory && matchesSearch) {
-        tile.style.display = 'flex';
+        wrapper.style.display = 'flex';
         visibleCount++;
       } else {
-        tile.style.display = 'none';
+        wrapper.style.display = 'none';
       }
     });
 
