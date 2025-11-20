@@ -74,8 +74,15 @@
 
       {% if show_tile %}
         {% assign has_content = false %}
-        {% if block.settings.content != blank %}
+        {% assign content_to_display = '' %}
+
+        {% comment %} Priority: HTML Embed > Rich Text > Link {% endcomment %}
+        {% if block.settings.html_embed != blank %}
           {% assign has_content = true %}
+          {% assign content_to_display = block.settings.html_embed %}
+        {% elsif block.settings.content != blank %}
+          {% assign has_content = true %}
+          {% assign content_to_display = block.settings.content %}
         {% endif %}
 
         {% assign has_link = false %}
@@ -115,7 +122,7 @@
 
             {% comment %} Store content as hidden data {% endcomment %}
             <div class="kc-tile-content-data" id="content-{{ block.id }}" style="display: none;">
-              {{ block.settings.content }}
+              {{ content_to_display }}
             </div>
           </div>
 
@@ -536,6 +543,20 @@
     opacity: 0.8;
   }
 
+  /* Responsive embeds (iframes, videos) */
+  .kc-content-body iframe {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+  }
+
+  .kc-content-body video {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+  }
+
   .kc-empty {
     text-align: center;
     padding: 60px 20px;
@@ -886,13 +907,19 @@
           "type": "richtext",
           "id": "content",
           "label": "Content (Rich Text)",
-          "info": "Add content here to make tile expandable. Leave empty if using Link instead."
+          "info": "Add content here to make tile expandable. Leave empty if using HTML Embed or Link instead."
+        },
+        {
+          "type": "html",
+          "id": "html_embed",
+          "label": "HTML Embed",
+          "info": "Paste HTML code (iframe, video embed, etc.). Takes priority over Rich Text. Leave empty if using Rich Text or Link."
         },
         {
           "type": "url",
           "id": "link",
           "label": "Link (External URL)",
-          "info": "Link to page, article, video, or external URL. Only used if Content is empty."
+          "info": "Link to page, article, video, or external URL. Only used if Content and HTML Embed are empty."
         },
         {
           "type": "image_picker",
