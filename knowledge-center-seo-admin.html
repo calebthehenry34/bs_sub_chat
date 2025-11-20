@@ -18,14 +18,14 @@
     }
 
     .admin-container {
-      max-width: 1400px;
+      max-width: 1000px;
       margin: 0 auto;
       padding: 20px;
     }
 
     .header {
       background: white;
-      padding: 20px;
+      padding: 30px;
       border-radius: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
       margin-bottom: 20px;
@@ -41,44 +41,11 @@
       color: #64748b;
     }
 
-    .tabs {
-      display: flex;
-      gap: 0;
-      margin-bottom: 20px;
+    .content-box {
       background: white;
+      padding: 30px;
       border-radius: 8px;
-      overflow: hidden;
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .tab-btn {
-      flex: 1;
-      padding: 16px;
-      border: none;
-      background: white;
-      cursor: pointer;
-      font-weight: 500;
-      color: #64748b;
-      transition: all 0.2s;
-      border-bottom: 3px solid transparent;
-    }
-
-    .tab-btn:hover {
-      background: #f8fafc;
-    }
-
-    .tab-btn.active {
-      color: #2563eb;
-      border-bottom-color: #2563eb;
-      background: #eff6ff;
-    }
-
-    .tab-content {
-      display: none;
-    }
-
-    .tab-content.active {
-      display: block;
     }
 
     .btn {
@@ -116,18 +83,6 @@
 
     .btn-secondary:hover {
       background: #475569;
-    }
-
-    .btn-danger {
-      background: #dc2626;
-      color: white;
-    }
-
-    .content-box {
-      background: white;
-      padding: 30px;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
 
     .form-group {
@@ -272,75 +227,59 @@
       font-family: 'Courier New', monospace;
       font-size: 0.875em;
     }
-
-    .category-list {
-      list-style: none;
-    }
-
-    .category-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      margin-bottom: 8px;
-    }
-
-    .category-item input {
-      flex: 1;
-      padding: 6px;
-      border: 1px solid #e2e8f0;
-      border-radius: 4px;
-    }
-
-    .category-icon {
-      font-size: 1.5rem;
-    }
   </style>
 </head>
 <body>
   <div class="admin-container">
     <div class="header">
-      <h1>📚 Knowledge Center Admin - SEO Optimized</h1>
-      <p>Create SEO-friendly articles as Shopify Pages with full metadata support</p>
+      <h1>📚 Knowledge Center Admin</h1>
+      <p>Create SEO-friendly articles as Shopify Pages</p>
     </div>
 
     <div id="alert-container"></div>
 
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('create')">Create Article</button>
-      <button class="tab-btn" onclick="switchTab('categories')">Manage Categories</button>
-      <button class="tab-btn" onclick="switchTab('instructions')">Instructions</button>
+    <div class="instruction-box">
+      <h3>📌 How This Works</h3>
+      <ol>
+        <li>Fill in the article details below</li>
+        <li>Click <strong>Generate Shopify Page Content</strong></li>
+        <li>Copy the generated content</li>
+        <li>In Shopify: <strong>Pages → Add page</strong> → Paste content → Set template to <code>page.kb-article</code></li>
+        <li>Article appears automatically in your knowledge center!</li>
+      </ol>
     </div>
 
-    <!-- Create Article Tab -->
-    <div id="tab-create" class="tab-content active">
-      <div class="content-box">
-        <h2>Create Knowledge Base Article</h2>
-        <p style="color: #64748b; margin-bottom: 20px;">Fill in the details below to generate a Shopify page with proper SEO metadata.</p>
+    <div class="content-box">
+      <h2>Create Article</h2>
 
+      <div class="form-group">
+        <label>Article Title *</label>
+        <input type="text" id="article-title" placeholder="e.g., How to Track Your Order">
+        <small>This will be the page title and H1 heading</small>
+      </div>
+
+      <div class="form-row">
         <div class="form-group">
-          <label>Article Title *</label>
-          <input type="text" id="article-title" placeholder="e.g., How to Track Your Order">
-          <small>This will be the page title and H1 heading</small>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>Category *</label>
-            <select id="article-category"></select>
-          </div>
-
-          <div class="form-group">
-            <label>Author</label>
-            <input type="text" id="article-author" value="Admin">
-          </div>
+          <label>Category *</label>
+          <select id="article-category">
+            <option value="getting-started">🚀 Getting Started</option>
+            <option value="tutorials">📚 Tutorials</option>
+            <option value="faq">❓ FAQ</option>
+            <option value="troubleshooting">🔧 Troubleshooting</option>
+            <option value="advanced">⚡ Advanced</option>
+            <option value="affiliates">🎯 Affiliates</option>
+          </select>
         </div>
 
         <div class="form-group">
-          <label>Content (HTML) *</label>
-          <textarea id="article-content" placeholder="Write your article content here using HTML..."><h2>Introduction</h2>
+          <label>Author</label>
+          <input type="text" id="article-author" value="Admin">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Content (HTML) *</label>
+        <textarea id="article-content" placeholder="Write your article content here using HTML..."><h2>Introduction</h2>
 <p>Start writing your article here...</p>
 
 <h3>Step 1: ...</h3>
@@ -348,269 +287,107 @@
 
 <h3>Step 2: ...</h3>
 <p>More instructions...</p></textarea>
-          <small>Use HTML formatting: &lt;h2&gt;, &lt;h3&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;img&gt;, &lt;iframe&gt;, etc.</small>
+        <small>Use HTML: &lt;h2&gt;, &lt;h3&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;ol&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;img&gt;, &lt;iframe&gt;</small>
+      </div>
+
+      <div class="form-group">
+        <label>Tags (for search & organization)</label>
+        <div class="tags-input-container" id="tags-container">
+          <input type="text" class="tag-input" id="tag-input" placeholder="Add tag and press Enter..." onkeypress="handleTagInput(event)">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="article-featured">
+            Featured Article
+          </label>
+          <small>Featured articles appear first in the list</small>
         </div>
 
         <div class="form-group">
-          <label>Tags (for search & organization)</label>
-          <div class="tags-input-container" id="tags-container">
-            <input type="text" class="tag-input" id="tag-input" placeholder="Add tag and press Enter..." onkeypress="handleTagInput(event)">
-          </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="article-featured">
-              Featured Article
-            </label>
-            <small>Featured articles appear first in the list</small>
-          </div>
-
-          <div class="form-group">
-            <label>Display Order</label>
-            <input type="number" id="article-order" value="999" min="0" max="9999">
-            <small>Lower numbers appear first (0-9999)</small>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Required Customer Tags (for gated content)</label>
-          <input type="text" id="article-required-tags" placeholder="e.g., affiliates, premium">
-          <small>Comma-separated. Leave empty for public access. Example: <code>affiliates</code> or <code>vip, premium</code></small>
-        </div>
-
-        <div style="display: flex; gap: 12px; margin-top: 30px;">
-          <button class="btn btn-primary" onclick="generatePageContent()">✨ Generate Shopify Page Content</button>
-          <button class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
-        </div>
-
-        <div id="output-section" style="display: none;">
-          <h3 style="margin-top: 40px; margin-bottom: 16px;">📋 Generated Content</h3>
-          <div class="alert alert-info">
-            Copy the content below and follow the instructions to create the page in Shopify.
-          </div>
-
-          <div style="margin-bottom: 12px; display: flex; gap: 12px;">
-            <button class="btn btn-success" onclick="copyOutput()">📋 Copy to Clipboard</button>
-            <button class="btn btn-secondary" onclick="downloadOutput()">💾 Download as .txt</button>
-          </div>
-
-          <div class="output-box" id="output-content"></div>
-
-          <div class="instruction-box" style="margin-top: 20px;">
-            <h3>📌 Next Steps:</h3>
-            <ol>
-              <li>Copy the generated content above</li>
-              <li>In Shopify Admin: <strong>Online Store → Pages → Add page</strong></li>
-              <li>Set <strong>Title</strong> to: <span id="generated-title"></span></li>
-              <li>Set <strong>Handle</strong> (URL) to: <code id="generated-handle"></code></li>
-              <li>Paste the generated content into the <strong>Content</strong> field</li>
-              <li>Under <strong>Theme template</strong>, select: <code>page.kb-article</code></li>
-              <li>Set <strong>Search engine listing</strong> description (first 155 characters of content)</li>
-              <li>Click <strong>Save</strong></li>
-            </ol>
-          </div>
+          <label>Display Order</label>
+          <input type="number" id="article-order" value="999" min="0" max="9999">
+          <small>Lower numbers appear first (0-9999)</small>
         </div>
       </div>
-    </div>
 
-    <!-- Manage Categories Tab -->
-    <div id="tab-categories" class="tab-content">
-      <div class="content-box">
-        <h2>Manage Categories</h2>
-        <p style="color: #64748b; margin-bottom: 20px;">Customize your knowledge center categories.</p>
-
-        <ul class="category-list" id="category-list"></ul>
-
-        <button class="btn btn-primary" onclick="addCategory()" style="margin-top: 16px;">+ Add Category</button>
-
-        <div style="margin-top: 40px;">
-          <h3 style="margin-bottom: 16px;">Export Categories for Shopify</h3>
-          <p style="color: #64748b; margin-bottom: 12px;">Copy this JSON and paste it into your Shopify section settings under "Custom Categories (JSON)"</p>
-          <button class="btn btn-success" onclick="exportCategories()">📤 Generate Categories JSON</button>
-          <div id="categories-output" style="display: none;">
-            <div style="margin-top: 12px; margin-bottom: 12px;">
-              <button class="btn btn-secondary" onclick="copyCategoriesJSON()">📋 Copy JSON</button>
-            </div>
-            <div class="output-box" id="categories-json"></div>
-          </div>
-        </div>
+      <div class="form-group">
+        <label>Required Customer Tags (for gated content)</label>
+        <input type="text" id="article-required-tags" placeholder="e.g., affiliates, premium">
+        <small>⚠️ <strong>Gated Access:</strong> Only customers with these tags will see this article. Leave empty for public access.</small>
       </div>
-    </div>
 
-    <!-- Instructions Tab -->
-    <div id="tab-instructions" class="tab-content">
-      <div class="content-box">
-        <h2>Setup Instructions</h2>
+      <div style="display: flex; gap: 12px; margin-top: 30px;">
+        <button class="btn btn-primary" onclick="generatePageContent()">✨ Generate Shopify Page Content</button>
+        <button class="btn btn-secondary" onclick="clearForm()">Clear Form</button>
+      </div>
 
-        <div class="instruction-box">
-          <h3>Step 1: Upload Files to Shopify</h3>
-          <ol>
-            <li>Go to <strong>Online Store → Themes → Edit code</strong></li>
-            <li>In <strong>Assets</strong> folder: Upload <code>knowledge-center-seo.js</code></li>
-            <li>In <strong>Templates</strong> folder: Add new template → Page → Name it <code>page.kb-article</code> → Paste template code</li>
-            <li>In <strong>Sections</strong> folder: Add new section → Name it <code>knowledge-center-seo</code> → Paste section code</li>
-          </ol>
+      <div id="output-section" style="display: none;">
+        <h3 style="margin-top: 40px; margin-bottom: 16px;">📋 Generated Content</h3>
+        <div class="alert alert-info">
+          Copy the content below and follow the instructions to create the page in Shopify.
         </div>
 
-        <div class="instruction-box">
-          <h3>Step 2: Create Knowledge Center Hub Page</h3>
+        <div style="margin-bottom: 12px; display: flex; gap: 12px;">
+          <button class="btn btn-success" onclick="copyOutput()">📋 Copy to Clipboard</button>
+          <button class="btn btn-secondary" onclick="downloadOutput()">💾 Download as .txt</button>
+        </div>
+
+        <div class="output-box" id="output-content"></div>
+
+        <div class="instruction-box" style="margin-top: 20px;">
+          <h3>📌 Next Steps:</h3>
           <ol>
+            <li>Copy the generated content above</li>
             <li>In Shopify Admin: <strong>Online Store → Pages → Add page</strong></li>
-            <li>Set <strong>Title</strong> to: <code>Knowledge Center</code></li>
-            <li>Set <strong>Handle</strong> to: <code>knowledge-center</code> (important!)</li>
-            <li>Leave content empty (or add intro text)</li>
-            <li>In <strong>Theme Customizer</strong>, add the <code>Knowledge Center (SEO)</code> section</li>
-            <li>Save page</li>
+            <li>Set <strong>Title</strong> to: <span id="generated-title"></span></li>
+            <li>Set <strong>Handle</strong> (URL) to: <code id="generated-handle"></code></li>
+            <li>Paste the generated content into the <strong>Content</strong> field</li>
+            <li>Under <strong>Theme template</strong>, select: <code>page.kb-article</code> ⚠️ <strong>IMPORTANT!</strong></li>
+            <li>Set <strong>Search engine listing</strong> description (first 155 characters of content)</li>
+            <li>Click <strong>Save</strong></li>
           </ol>
-        </div>
-
-        <div class="instruction-box">
-          <h3>Step 3: Create Your First Article</h3>
-          <ol>
-            <li>Go to <strong>Create Article</strong> tab</li>
-            <li>Fill in article details</li>
-            <li>Click <strong>Generate Shopify Page Content</strong></li>
-            <li>Follow the instructions to create the page in Shopify</li>
-            <li>Make sure to set the template to <code>page.kb-article</code></li>
-          </ol>
-        </div>
-
-        <div class="instruction-box">
-          <h3>Step 4: Set Up Gated Content (Optional)</h3>
-          <ol>
-            <li>In Shopify Admin: <strong>Customers</strong></li>
-            <li>Select a customer</li>
-            <li>Add tags like: <code>affiliates</code>, <code>vip</code>, <code>premium</code></li>
-            <li>When creating articles, add matching tags to <strong>Required Customer Tags</strong></li>
-            <li>Only customers with those tags will see the articles</li>
-          </ol>
-        </div>
-
-        <div class="instruction-box">
-          <h3>SEO Benefits</h3>
-          <ul style="list-style: disc; margin-left: 20px; line-height: 1.8;">
-            <li>✅ Individual URLs for each article (e.g., <code>/pages/kb-how-to-track-orders</code>)</li>
-            <li>✅ Proper HTML title, meta description, and canonical tags</li>
-            <li>✅ Open Graph and Twitter Card tags for social sharing</li>
-            <li>✅ Schema.org Article structured data for rich snippets</li>
-            <li>✅ Automatic inclusion in Shopify sitemap</li>
-            <li>✅ Google indexes perfectly (no JavaScript required)</li>
-            <li>✅ Fast page loads (no API calls)</li>
-          </ul>
         </div>
       </div>
+    </div>
+
+    <div class="content-box" style="margin-top: 20px;">
+      <h2>💡 Quick Tips</h2>
+
+      <h3 style="margin-top: 20px; margin-bottom: 10px;">Gated Access Examples:</h3>
+      <ul style="margin-left: 20px; line-height: 1.8;">
+        <li><strong>Affiliates Only:</strong> Set "Required Customer Tags" to <code>affiliates</code></li>
+        <li><strong>VIP Only:</strong> Set to <code>vip</code></li>
+        <li><strong>Premium Members:</strong> Set to <code>premium</code></li>
+        <li><strong>Multiple Tags Required:</strong> Set to <code>affiliates, verified</code> (customer needs both)</li>
+        <li><strong>Public Access:</strong> Leave empty (everyone can see)</li>
+      </ul>
+
+      <h3 style="margin-top: 20px; margin-bottom: 10px;">HTML Formatting Examples:</h3>
+      <div style="background: #f8fafc; padding: 15px; border-radius: 6px; font-family: monospace; font-size: 0.875rem;">
+        &lt;h2&gt;Section Heading&lt;/h2&gt;<br>
+        &lt;p&gt;Paragraph with &lt;strong&gt;bold&lt;/strong&gt; and &lt;em&gt;italic&lt;/em&gt;&lt;/p&gt;<br>
+        &lt;ul&gt;&lt;li&gt;Bullet point&lt;/li&gt;&lt;/ul&gt;<br>
+        &lt;img src="URL" alt="Description"&gt;<br>
+        &lt;iframe src="https://youtube.com/embed/ID"&gt;&lt;/iframe&gt;
+      </div>
+
+      <h3 style="margin-top: 20px; margin-bottom: 10px;">Categories:</h3>
+      <ul style="margin-left: 20px; line-height: 1.8;">
+        <li>🚀 <strong>Getting Started:</strong> New user guides</li>
+        <li>📚 <strong>Tutorials:</strong> Step-by-step instructions</li>
+        <li>❓ <strong>FAQ:</strong> Frequently asked questions</li>
+        <li>🔧 <strong>Troubleshooting:</strong> Problem solving</li>
+        <li>⚡ <strong>Advanced:</strong> Power user content</li>
+        <li>🎯 <strong>Affiliates:</strong> Partner resources (typically gated)</li>
+      </ul>
     </div>
   </div>
 
   <script>
     let currentTags = [];
-    let categories = [
-      { id: 'getting-started', name: 'Getting Started', icon: '🚀', description: 'New to our platform?' },
-      { id: 'tutorials', name: 'Tutorials', icon: '📚', description: 'Step-by-step guides' },
-      { id: 'faq', name: 'FAQ', icon: '❓', description: 'Frequently asked questions' },
-      { id: 'troubleshooting', name: 'Troubleshooting', icon: '🔧', description: 'Fix common issues' },
-      { id: 'advanced', name: 'Advanced', icon: '⚡', description: 'For power users' },
-      { id: 'affiliates', name: 'Affiliates', icon: '🎯', description: 'Partner resources' }
-    ];
-
-    // Initialize
-    document.addEventListener('DOMContentLoaded', () => {
-      loadCategories();
-      renderCategories();
-      renderCategoryList();
-    });
-
-    // Tab switching
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-
-      event.target.classList.add('active');
-      document.getElementById(`tab-${tabName}`).classList.add('active');
-    }
-
-    // Load categories
-    function loadCategories() {
-      const saved = localStorage.getItem('kc-categories');
-      if (saved) {
-        try {
-          categories = JSON.parse(saved);
-        } catch (error) {
-          console.error('Error loading categories:', error);
-        }
-      }
-    }
-
-    // Save categories
-    function saveCategories() {
-      localStorage.setItem('kc-categories', JSON.stringify(categories));
-    }
-
-    // Render category dropdown
-    function renderCategories() {
-      const select = document.getElementById('article-category');
-      select.innerHTML = categories.map(cat =>
-        `<option value="${cat.id}">${cat.icon} ${cat.name}</option>`
-      ).join('');
-    }
-
-    // Render category list
-    function renderCategoryList() {
-      const list = document.getElementById('category-list');
-      list.innerHTML = categories.map((cat, index) => `
-        <li class="category-item">
-          <input type="text" value="${cat.icon}" style="width: 60px;" onchange="updateCategory(${index}, 'icon', this.value)">
-          <input type="text" value="${cat.id}" placeholder="ID" onchange="updateCategory(${index}, 'id', this.value)">
-          <input type="text" value="${cat.name}" placeholder="Name" onchange="updateCategory(${index}, 'name', this.value)">
-          <input type="text" value="${cat.description}" placeholder="Description" onchange="updateCategory(${index}, 'description', this.value)">
-          <button class="btn btn-danger" onclick="removeCategory(${index})">Delete</button>
-        </li>
-      `).join('');
-    }
-
-    function addCategory() {
-      categories.push({
-        id: 'new-category',
-        name: 'New Category',
-        icon: '📌',
-        description: 'Description'
-      });
-      saveCategories();
-      renderCategories();
-      renderCategoryList();
-      showAlert('Category added! Update the details.', 'success');
-    }
-
-    function updateCategory(index, field, value) {
-      categories[index][field] = value;
-      saveCategories();
-      renderCategories();
-    }
-
-    function removeCategory(index) {
-      if (confirm('Delete this category?')) {
-        categories.splice(index, 1);
-        saveCategories();
-        renderCategories();
-        renderCategoryList();
-        showAlert('Category deleted', 'success');
-      }
-    }
-
-    function exportCategories() {
-      const json = JSON.stringify(categories, null, 2);
-      document.getElementById('categories-json').textContent = json;
-      document.getElementById('categories-output').style.display = 'block';
-    }
-
-    function copyCategoriesJSON() {
-      const json = document.getElementById('categories-json').textContent;
-      navigator.clipboard.writeText(json).then(() => {
-        showAlert('Categories JSON copied!', 'success');
-      });
-    }
 
     // Tag management
     function handleTagInput(event) {
