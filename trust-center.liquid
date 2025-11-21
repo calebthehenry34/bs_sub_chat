@@ -43,8 +43,11 @@
 
           {%- for cat in cat_list -%}
             {%- if cat != blank -%}
-              <div class="tc-nav-group" data-group="{{ cat | escape }}">
-                <h3 class="tc-nav-heading">{{ cat }}</h3>
+              <div class="tc-nav-group" data-group="{{ cat | escape }}" data-expanded="true">
+                <button class="tc-nav-heading" type="button" aria-expanded="true">
+                  <span>{{ cat }}</span>
+                  <svg class="tc-toggle-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.25 7.5l4.5 4.5 4.5-4.5"/></svg>
+                </button>
                 <ul class="tc-nav-list">
                   {%- for block in section.blocks -%}
                     {%- assign cat_of_block = block.settings.category -%}
@@ -336,10 +339,15 @@
 
 /* Desktop nav list */
 .tc-nav{ position:sticky; top:16px; max-height:calc(100vh - 160px); overflow:auto; padding-right:6px; }
-.tc-nav-group{ padding:10px 0; border-top:1px solid #f1f5f9; }
-.tc-nav-group:first-child{ border-top:none; }
-.tc-nav-heading{ font-size:.78rem; color:#475569; text-transform:uppercase; letter-spacing:.08em; margin:0 0 .35rem; }
-.tc-nav-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
+.tc-nav-group{ padding:14px 0; border-top:1px solid #e5e7eb; }
+.tc-nav-group:first-child{ border-top:none; padding-top:0; }
+.tc-nav-heading{ display:flex; align-items:center; justify-content:space-between; width:100%; font-size:.72rem; color:#64748b; text-transform:uppercase; letter-spacing:.1em; font-weight:600; margin:0 0 .5rem; background:none; border:none; padding:.3rem .35rem; border-radius:6px; cursor:pointer; transition: background .15s; }
+.tc-nav-heading:hover{ background:#f1f5f9; }
+.tc-toggle-icon{ width:14px; height:14px; color:#94a3b8; transition: transform .2s ease; }
+.tc-nav-group[data-expanded="true"] .tc-toggle-icon{ transform: rotate(0deg); }
+.tc-nav-group[data-expanded="false"] .tc-toggle-icon{ transform: rotate(-90deg); }
+.tc-nav-list{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; max-height:1000px; overflow:hidden; transition: max-height .3s ease, opacity .2s ease; opacity:1; }
+.tc-nav-group[data-expanded="false"] .tc-nav-list{ max-height:0; opacity:0; }
 .tc-nav-link{ display:flex; align-items:center; gap:.35rem; padding:.45rem .5rem; border-radius:8px; text-decoration:none; color:#111; border:1px solid transparent; }
 .tc-nav-link:hover{ background:#f8fafc; }
 .tc-nav-link.is-active{ border-color:#111; background:#f9fafb; }
@@ -480,12 +488,31 @@
     var popoverNavMount = scope.querySelector('#tc-popover-nav-' + rootId);
     var openBtns = scope.querySelectorAll('[data-tc-open="true"]');
 
+    // Category toggle (accordion)
+    function wireToggles(container){
+      if(!container) return;
+      var groups = container.querySelectorAll('.tc-nav-group');
+      groups.forEach(function(group){
+        var heading = group.querySelector('.tc-nav-heading');
+        if(!heading) return;
+        heading.addEventListener('click', function(){
+          var isExpanded = group.getAttribute('data-expanded') === 'true';
+          group.setAttribute('data-expanded', isExpanded ? 'false' : 'true');
+          heading.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+        });
+      });
+    }
+
     // Build drawer nav clone
     function buildDrawerNav(){
       if(!nav || !popoverNavMount) return;
       popoverNavMount.innerHTML = nav.outerHTML; // fresh clone
       var clone = popoverNavMount.querySelector('.tc-nav');
-      if(clone){ clone.id = 'tc-nav-clone-' + rootId; wire(clone); }
+      if(clone){
+        clone.id = 'tc-nav-clone-' + rootId;
+        wire(clone);
+        wireToggles(clone);
+      }
     }
     buildDrawerNav();
 
@@ -612,6 +639,9 @@
         var v = this.value; t = setTimeout(function(){ filterNav(v); }, 120);
       });
     }
+
+    // Wire desktop nav toggles
+    wireToggles(nav);
 
     // Initial activation (after drawer clone exists)
     activateFromHash();
