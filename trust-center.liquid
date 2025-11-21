@@ -43,8 +43,10 @@
 
           {%- for cat in cat_list -%}
             {%- if cat != blank -%}
-              <div class="tc-nav-group" data-group="{{ cat | escape }}" data-expanded="true">
-                <button class="tc-nav-heading" type="button" aria-expanded="true">
+              {%- assign is_home = false -%}
+              {%- if cat == 'Home' -%}{%- assign is_home = true -%}{%- endif -%}
+              <div class="tc-nav-group" data-group="{{ cat | escape }}" data-expanded="{% if is_home %}true{% else %}false{% endif %}">
+                <button class="tc-nav-heading" type="button" aria-expanded="{% if is_home %}true{% else %}false{% endif %}">
                   <span>{{ cat }}</span>
                   <svg class="tc-toggle-icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5.25 7.5l4.5 4.5 4.5-4.5"/></svg>
                 </button>
