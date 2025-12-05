@@ -1,282 +1,565 @@
 /**
- * Digital Asset Management (DAM) Service
- *
- * Handles file storage, folder management, and Shopify Files API integration
- * for the DAM component.
- *
- * Features:
- * - Virtual folder structure (stored in JSON)
- * - File upload to Shopify CDN via Files API
- * - File metadata management
- * - Search functionality
+ * Digital Asset Management (DAM) Library
+ * Handles file/folder operations with Shopify Files API integration
+ * Access restricted to users with 'admin' or 'affiliate' tags
  */
 
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 
-class DAMService {
-  constructor() {
+class DAMManager {
+  constructor(config = {}) {
+    this.storagePath = config.storagePath || process.env.DAM_STORAGE_PATH || '/tmp/dam-data';
+    this.metadataFile = path.join(this.storagePath, 'metadata.json');
+    this.shopifyConfig = {
+      shopDomain: config.shopDomain || process.env.SHOPIFY_SHOP_DOMAIN,
+      accessToken: config.accessToken || process.env.SHOPIFY_ACCESS_TOKEN,
+      apiVersion: '2024-01'
+    };
+    this.maxFileSize = config.maxFileSize || parseInt(process.env.MAX_FILE_SIZE) || 52428800; // 50MB
+    this.allowedMimeTypes = config.allowedMimeTypes || [
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+      'video/mp4', 'video/webm', 'video/quicktime',
+      'application/pdf',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/zip', 'application/x-zip-compressed',
+      'text/plain', 'text/csv'
+    ];
     this.initialized = false;
-    this.dataPath = process.env.DAM_DATA_PATH || '/tmp/dam-data';
-    this.foldersFile = 'folders.json';
-    this.filesFile = 'files.json';
-
-    // Shopify configuration
-    this.shopDomain = process.env.SHOPIFY_STORE_DOMAIN;
-    this.accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
-    this.apiVersion = process.env.SHOPIFY_API_VERSION || '2024-01';
-
-    // In-memory cache
-    this.folders = [];
-    this.files = [];
   }
 
   /**
-   * Initialize the DAM service
+   * Initialize storage directory and metadata
    */
   async init() {
     if (this.initialized) return;
 
     try {
-      // Ensure data directory exists
-      await fs.mkdir(this.dataPath, { recursive: true });
+      await fs.mkdir(this.storagePath, { recursive: true });
 
-      // Load existing data
-      await this.loadData();
-
-      // Create root folder if it doesn't exist
-      if (!this.folders.find(f => f.path === '/')) {
-        this.folders.push({
-          id: this.generateId(),
-          name: 'Root',
-          path: '/',
-          parentPath: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdBy: 'system'
+      // Initialize metadata file if doesn't exist
+      try {
+        await fs.access(this.metadataFile);
+      } catch {
+        await this.saveMetadata({
+          folders: {
+            root: {
+              id: 'root',
+              name: 'My Files',
+              parentId: null,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              createdBy: 'system'
+            }
+          },
+          files: {},
+          tags: [],
+          version: 1
         });
-        await this.saveData();
       }
 
       this.initialized = true;
     } catch (error) {
-      console.error('DAM Service initialization error:', error);
-      // Continue with empty data on error
-      this.folders = [{
-        id: this.generateId(),
-        name: 'Root',
-        path: '/',
-        parentPath: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: 'system'
-      }];
-      this.files = [];
-      this.initialized = true;
+      console.error('DAM initialization error:', error);
+      throw error;
     }
   }
 
   /**
-   * Load data from storage
+   * Load metadata from file
    */
-  async loadData() {
+  async loadMetadata() {
+    await this.init();
     try {
-      const foldersPath = path.join(this.dataPath, this.foldersFile);
-      const filesPath = path.join(this.dataPath, this.filesFile);
-
-      try {
-        const foldersData = await fs.readFile(foldersPath, 'utf8');
-        this.folders = JSON.parse(foldersData);
-      } catch (e) {
-        this.folders = [];
-      }
-
-      try {
-        const filesData = await fs.readFile(filesPath, 'utf8');
-        this.files = JSON.parse(filesData);
-      } catch (e) {
-        this.files = [];
-      }
+      const data = await fs.readFile(this.metadataFile, 'utf8');
+      return JSON.parse(data);
     } catch (error) {
-      console.error('Load data error:', error);
-      this.folders = [];
-      this.files = [];
+      console.error('Error loading DAM metadata:', error);
+      return { folders: {}, files: {}, tags: [], version: 1 };
     }
   }
 
   /**
-   * Save data to storage
+   * Save metadata to file
    */
-  async saveData() {
-    try {
-      const foldersPath = path.join(this.dataPath, this.foldersFile);
-      const filesPath = path.join(this.dataPath, this.filesFile);
-
-      await fs.writeFile(foldersPath, JSON.stringify(this.folders, null, 2));
-      await fs.writeFile(filesPath, JSON.stringify(this.files, null, 2));
-    } catch (error) {
-      console.error('Save data error:', error);
-    }
+  async saveMetadata(metadata) {
+    await fs.writeFile(this.metadataFile, JSON.stringify(metadata, null, 2), 'utf8');
   }
 
   /**
    * Generate unique ID
    */
-  generateId() {
-    return 'dam_' + crypto.randomBytes(8).toString('hex');
+  generateId(prefix = 'dam') {
+    return `${prefix}_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
   }
 
   /**
-   * Normalize path
+   * Check if user has access to DAM
+   * @param {Array} userTags - User's tags
+   * @returns {boolean}
    */
-  normalizePath(inputPath) {
-    let normalized = inputPath || '/';
-
-    // Ensure starts with /
-    if (!normalized.startsWith('/')) {
-      normalized = '/' + normalized;
-    }
-
-    // Ensure ends with / (except for root)
-    if (normalized !== '/' && !normalized.endsWith('/')) {
-      normalized = normalized + '/';
-    }
-
-    // Remove double slashes
-    normalized = normalized.replace(/\/+/g, '/');
-
-    return normalized;
+  hasAccess(userTags = []) {
+    const allowedTags = ['admin', 'affiliate', 'affiliates'];
+    return userTags.some(tag => allowedTags.includes(tag.toLowerCase()));
   }
 
   /**
-   * List folder contents
+   * Check if user is admin
+   * @param {Array} userTags - User's tags
+   * @returns {boolean}
    */
-  async listFolder(folderPath) {
-    const normalizedPath = this.normalizePath(folderPath);
-
-    // Get subfolders
-    const subfolders = this.folders.filter(f =>
-      f.parentPath === normalizedPath
-    ).map(f => ({
-      ...f,
-      itemCount: this.countFolderItems(f.path)
-    }));
-
-    // Get files in this folder
-    const folderFiles = this.files.filter(f =>
-      f.folderPath === normalizedPath
-    );
-
-    return {
-      path: normalizedPath,
-      folders: subfolders,
-      files: folderFiles
-    };
+  isAdmin(userTags = []) {
+    return userTags.some(tag => tag.toLowerCase() === 'admin');
   }
 
   /**
-   * Count items in a folder
+   * Get file type category
+   * @param {string} mimeType - MIME type
+   * @returns {string}
    */
-  countFolderItems(folderPath) {
-    const subfolders = this.folders.filter(f => f.parentPath === folderPath).length;
-    const files = this.files.filter(f => f.folderPath === folderPath).length;
-    return subfolders + files;
+  getFileCategory(mimeType) {
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType === 'application/pdf') return 'pdf';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'document';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'spreadsheet';
+    if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'archive';
+    return 'file';
   }
+
+  /**
+   * Get human readable file size
+   * @param {number} bytes - File size in bytes
+   * @returns {string}
+   */
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+
+  // ==================== FOLDER OPERATIONS ====================
 
   /**
    * Create a new folder
+   * @param {Object} params - Folder parameters
+   * @returns {Object} Created folder
    */
-  async createFolder(name, parentPath, createdBy) {
-    const normalizedParent = this.normalizePath(parentPath);
-    const folderPath = normalizedParent + name + '/';
-
-    // Check if folder already exists
-    if (this.folders.find(f => f.path === folderPath)) {
-      throw new Error('Folder already exists');
+  async createFolder({ name, parentId = 'root', userEmail, userTags = [] }) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
     }
 
-    // Verify parent folder exists
-    if (normalizedParent !== '/' && !this.folders.find(f => f.path === normalizedParent)) {
+    const metadata = await this.loadMetadata();
+
+    // Verify parent exists
+    if (!metadata.folders[parentId]) {
       throw new Error('Parent folder not found');
     }
 
+    // Check for duplicate name in parent
+    const existingFolder = Object.values(metadata.folders).find(
+      f => f.parentId === parentId && f.name.toLowerCase() === name.toLowerCase()
+    );
+    if (existingFolder) {
+      throw new Error('A folder with this name already exists');
+    }
+
+    const folderId = this.generateId('folder');
     const folder = {
-      id: this.generateId(),
-      name: name,
-      path: folderPath,
-      parentPath: normalizedParent,
+      id: folderId,
+      name: name.trim(),
+      parentId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: createdBy
+      createdBy: userEmail || 'unknown',
+      color: null, // Optional folder color
+      description: null
     };
 
-    this.folders.push(folder);
-    await this.saveData();
+    metadata.folders[folderId] = folder;
+    await this.saveMetadata(metadata);
 
     return folder;
   }
 
   /**
-   * Upload a file
+   * Get folder by ID
+   * @param {string} folderId - Folder ID
+   * @returns {Object} Folder data
    */
-  async uploadFile(file, folderPath, uploadedBy) {
-    const normalizedPath = this.normalizePath(folderPath);
+  async getFolder(folderId) {
+    const metadata = await this.loadMetadata();
+    return metadata.folders[folderId] || null;
+  }
 
-    // Verify folder exists
-    if (normalizedPath !== '/' && !this.folders.find(f => f.path === normalizedPath)) {
+  /**
+   * Get folder contents (subfolders and files)
+   * @param {string} folderId - Folder ID
+   * @param {Object} options - Query options
+   * @returns {Object} Folder contents
+   */
+  async getFolderContents(folderId = 'root', { userTags = [], sortBy = 'name', sortOrder = 'asc', search = '' } = {}) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    const metadata = await this.loadMetadata();
+    const folder = metadata.folders[folderId];
+
+    if (!folder) {
       throw new Error('Folder not found');
     }
 
-    // Generate unique filename if needed
-    let filename = file.name;
-    let counter = 1;
-    while (this.files.find(f => f.folderPath === normalizedPath && f.name === filename)) {
-      const ext = path.extname(file.name);
-      const base = path.basename(file.name, ext);
-      filename = `${base} (${counter})${ext}`;
-      counter++;
+    // Get subfolders
+    let subfolders = Object.values(metadata.folders).filter(f => f.parentId === folderId);
+
+    // Get files in folder
+    let files = Object.values(metadata.files).filter(f => f.folderId === folderId);
+
+    // Apply search filter
+    if (search) {
+      const searchLower = search.toLowerCase();
+      subfolders = subfolders.filter(f => f.name.toLowerCase().includes(searchLower));
+      files = files.filter(f =>
+        f.name.toLowerCase().includes(searchLower) ||
+        (f.tags && f.tags.some(t => t.toLowerCase().includes(searchLower)))
+      );
     }
 
-    // Upload to Shopify Files API if configured
-    let shopifyFile = null;
-    if (this.shopDomain && this.accessToken) {
-      shopifyFile = await this.uploadToShopify(file);
+    // Sort folders
+    subfolders.sort((a, b) => {
+      const aVal = a[sortBy] || a.name;
+      const bVal = b[sortBy] || b.name;
+      const comparison = String(aVal).localeCompare(String(bVal));
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    // Sort files
+    files.sort((a, b) => {
+      let aVal, bVal;
+      if (sortBy === 'size') {
+        aVal = a.size || 0;
+        bVal = b.size || 0;
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      aVal = a[sortBy] || a.name;
+      bVal = b[sortBy] || b.name;
+      const comparison = String(aVal).localeCompare(String(bVal));
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    // Build breadcrumb path
+    const breadcrumbs = await this.getBreadcrumbs(folderId);
+
+    return {
+      folder,
+      subfolders,
+      files,
+      breadcrumbs,
+      totalFolders: subfolders.length,
+      totalFiles: files.length
+    };
+  }
+
+  /**
+   * Get breadcrumb path for a folder
+   * @param {string} folderId - Folder ID
+   * @returns {Array} Breadcrumb path
+   */
+  async getBreadcrumbs(folderId) {
+    const metadata = await this.loadMetadata();
+    const breadcrumbs = [];
+    let currentId = folderId;
+
+    while (currentId) {
+      const folder = metadata.folders[currentId];
+      if (!folder) break;
+      breadcrumbs.unshift({ id: folder.id, name: folder.name });
+      currentId = folder.parentId;
     }
 
-    // Create file record
-    const fileRecord = {
-      id: this.generateId(),
-      name: filename,
-      originalName: file.name,
-      type: file.type,
-      size: file.size,
-      folderPath: normalizedPath,
-      url: shopifyFile?.url || this.createDataUrl(file),
-      thumbnailUrl: shopifyFile?.thumbnailUrl || (file.type.startsWith('image/') ? (shopifyFile?.url || this.createDataUrl(file)) : null),
-      shopifyFileId: shopifyFile?.id || null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      uploadedBy: uploadedBy
+    return breadcrumbs;
+  }
+
+  /**
+   * Rename a folder
+   * @param {string} folderId - Folder ID
+   * @param {string} newName - New folder name
+   * @param {Array} userTags - User tags
+   * @returns {Object} Updated folder
+   */
+  async renameFolder(folderId, newName, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    if (folderId === 'root') {
+      throw new Error('Cannot rename root folder');
+    }
+
+    const metadata = await this.loadMetadata();
+    const folder = metadata.folders[folderId];
+
+    if (!folder) {
+      throw new Error('Folder not found');
+    }
+
+    // Check for duplicate name in parent
+    const existingFolder = Object.values(metadata.folders).find(
+      f => f.id !== folderId && f.parentId === folder.parentId && f.name.toLowerCase() === newName.toLowerCase()
+    );
+    if (existingFolder) {
+      throw new Error('A folder with this name already exists');
+    }
+
+    folder.name = newName.trim();
+    folder.updatedAt = new Date().toISOString();
+
+    await this.saveMetadata(metadata);
+    return folder;
+  }
+
+  /**
+   * Move a folder to new parent
+   * @param {string} folderId - Folder ID
+   * @param {string} newParentId - New parent folder ID
+   * @param {Array} userTags - User tags
+   * @returns {Object} Updated folder
+   */
+  async moveFolder(folderId, newParentId, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    if (folderId === 'root') {
+      throw new Error('Cannot move root folder');
+    }
+
+    const metadata = await this.loadMetadata();
+    const folder = metadata.folders[folderId];
+    const newParent = metadata.folders[newParentId];
+
+    if (!folder) {
+      throw new Error('Folder not found');
+    }
+
+    if (!newParent) {
+      throw new Error('Destination folder not found');
+    }
+
+    // Prevent moving folder into itself or its descendants
+    const descendants = await this.getFolderDescendants(folderId);
+    if (descendants.includes(newParentId)) {
+      throw new Error('Cannot move folder into its own subfolder');
+    }
+
+    folder.parentId = newParentId;
+    folder.updatedAt = new Date().toISOString();
+
+    await this.saveMetadata(metadata);
+    return folder;
+  }
+
+  /**
+   * Get all descendant folder IDs
+   * @param {string} folderId - Folder ID
+   * @returns {Array} Descendant folder IDs
+   */
+  async getFolderDescendants(folderId) {
+    const metadata = await this.loadMetadata();
+    const descendants = [];
+
+    const findDescendants = (parentId) => {
+      const children = Object.values(metadata.folders).filter(f => f.parentId === parentId);
+      for (const child of children) {
+        descendants.push(child.id);
+        findDescendants(child.id);
+      }
     };
 
-    this.files.push(fileRecord);
-    await this.saveData();
+    findDescendants(folderId);
+    return descendants;
+  }
 
-    return fileRecord;
+  /**
+   * Delete a folder and all its contents
+   * @param {string} folderId - Folder ID
+   * @param {Array} userTags - User tags
+   * @returns {Object} Deletion result
+   */
+  async deleteFolder(folderId, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    if (folderId === 'root') {
+      throw new Error('Cannot delete root folder');
+    }
+
+    const metadata = await this.loadMetadata();
+    const folder = metadata.folders[folderId];
+
+    if (!folder) {
+      throw new Error('Folder not found');
+    }
+
+    // Get all descendants
+    const descendants = await this.getFolderDescendants(folderId);
+    const folderIds = [folderId, ...descendants];
+
+    // Collect all files in these folders
+    const filesToDelete = Object.values(metadata.files).filter(f => folderIds.includes(f.folderId));
+
+    // Delete files from Shopify
+    for (const file of filesToDelete) {
+      try {
+        await this.deleteFromShopify(file.shopifyFileId);
+      } catch (error) {
+        console.error(`Failed to delete Shopify file ${file.shopifyFileId}:`, error);
+      }
+      delete metadata.files[file.id];
+    }
+
+    // Delete folders
+    for (const id of folderIds) {
+      delete metadata.folders[id];
+    }
+
+    await this.saveMetadata(metadata);
+
+    return {
+      deletedFolders: folderIds.length,
+      deletedFiles: filesToDelete.length
+    };
+  }
+
+  /**
+   * Update folder metadata (color, description)
+   * @param {string} folderId - Folder ID
+   * @param {Object} updates - Updates to apply
+   * @param {Array} userTags - User tags
+   * @returns {Object} Updated folder
+   */
+  async updateFolder(folderId, updates, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    const metadata = await this.loadMetadata();
+    const folder = metadata.folders[folderId];
+
+    if (!folder) {
+      throw new Error('Folder not found');
+    }
+
+    const allowedUpdates = ['color', 'description'];
+    for (const key of allowedUpdates) {
+      if (updates[key] !== undefined) {
+        folder[key] = updates[key];
+      }
+    }
+    folder.updatedAt = new Date().toISOString();
+
+    await this.saveMetadata(metadata);
+    return folder;
+  }
+
+  // ==================== FILE OPERATIONS ====================
+
+  /**
+   * Upload file to Shopify and track in DAM
+   * @param {Object} params - Upload parameters
+   * @returns {Object} Uploaded file metadata
+   */
+  async uploadFile({ fileData, fileName, mimeType, folderId = 'root', userEmail, userTags = [], description = '', fileTags = [] }) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    // Validate MIME type
+    if (!this.allowedMimeTypes.includes(mimeType)) {
+      throw new Error(`File type not allowed: ${mimeType}`);
+    }
+
+    // Get file size
+    const fileSize = Buffer.isBuffer(fileData) ? fileData.length : fileData.byteLength;
+
+    // Validate file size
+    if (fileSize > this.maxFileSize) {
+      throw new Error(`File too large. Maximum size: ${this.formatFileSize(this.maxFileSize)}`);
+    }
+
+    const metadata = await this.loadMetadata();
+
+    // Verify folder exists
+    if (!metadata.folders[folderId]) {
+      throw new Error('Destination folder not found');
+    }
+
+    // Upload to Shopify
+    const shopifyResult = await this.uploadToShopify(fileData, fileName, mimeType);
+
+    const fileId = this.generateId('file');
+    const file = {
+      id: fileId,
+      name: fileName,
+      originalName: fileName,
+      mimeType,
+      size: fileSize,
+      sizeFormatted: this.formatFileSize(fileSize),
+      category: this.getFileCategory(mimeType),
+      folderId,
+      shopifyFileId: shopifyResult.id,
+      shopifyUrl: shopifyResult.url,
+      previewUrl: shopifyResult.preview || shopifyResult.url,
+      description,
+      tags: fileTags,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      createdBy: userEmail || 'unknown',
+      downloads: 0,
+      lastDownloaded: null
+    };
+
+    metadata.files[fileId] = file;
+    await this.saveMetadata(metadata);
+
+    return file;
   }
 
   /**
    * Upload file to Shopify Files API
+   * @param {Buffer} fileData - File buffer
+   * @param {string} fileName - File name
+   * @param {string} mimeType - MIME type
+   * @returns {Object} Shopify file data
    */
-  async uploadToShopify(file) {
-    if (!this.shopDomain || !this.accessToken) {
-      return null;
+  async uploadToShopify(fileData, fileName, mimeType) {
+    if (!this.shopifyConfig.shopDomain || !this.shopifyConfig.accessToken) {
+      // Return mock data if Shopify not configured
+      console.warn('Shopify not configured, using local storage fallback');
+      const fileId = this.generateId('shopify');
+      const localPath = path.join(this.storagePath, 'files', fileId);
+
+      await fs.mkdir(path.join(this.storagePath, 'files'), { recursive: true });
+      await fs.writeFile(localPath, fileData);
+
+      return {
+        id: fileId,
+        url: `/api/dam?action=serve&fileId=${fileId}`,
+        preview: `/api/dam?action=serve&fileId=${fileId}`
+      };
     }
 
     try {
-      // Step 1: Create staged upload
-      const stageResponse = await this.graphqlRequest(`
+      // Step 1: Create staged upload target
+      const stagedUploadQuery = `
         mutation stagedUploadsCreate($input: [StagedUploadInput!]!) {
           stagedUploadsCreate(input: $input) {
             stagedTargets {
@@ -293,68 +576,76 @@ class DAMService {
             }
           }
         }
-      `, {
+      `;
+
+      const stagedResponse = await this.shopifyGraphQL(stagedUploadQuery, {
         input: [{
-          filename: file.name,
-          mimeType: file.type,
-          httpMethod: 'POST',
-          resource: this.getShopifyFileType(file.type)
+          filename: fileName,
+          mimeType: mimeType,
+          resource: this.getShopifyResourceType(mimeType),
+          fileSize: fileData.length.toString()
         }]
       });
 
-      const stagedTarget = stageResponse?.data?.stagedUploadsCreate?.stagedTargets?.[0];
-      if (!stagedTarget) {
-        console.error('Failed to create staged upload');
-        return null;
+      if (stagedResponse.data?.stagedUploadsCreate?.userErrors?.length > 0) {
+        throw new Error(stagedResponse.data.stagedUploadsCreate.userErrors[0].message);
+      }
+
+      const target = stagedResponse.data?.stagedUploadsCreate?.stagedTargets?.[0];
+      if (!target) {
+        throw new Error('Failed to create staged upload');
       }
 
       // Step 2: Upload to staged URL
-      const formData = new URLSearchParams();
-      for (const param of stagedTarget.parameters) {
-        formData.append(param.name, param.value);
+      const FormData = require('form-data');
+      const form = new FormData();
+
+      // Add all parameters first
+      for (const param of target.parameters) {
+        form.append(param.name, param.value);
       }
 
-      // Create form boundary manually for binary upload
-      const boundary = '----FormBoundary' + crypto.randomBytes(16).toString('hex');
-      let body = '';
+      // Add file last
+      form.append('file', fileData, { filename: fileName, contentType: mimeType });
 
-      // Add parameters
-      for (const param of stagedTarget.parameters) {
-        body += `--${boundary}\r\n`;
-        body += `Content-Disposition: form-data; name="${param.name}"\r\n\r\n`;
-        body += `${param.value}\r\n`;
-      }
+      const https = require('https');
+      const http = require('http');
+      const urlModule = require('url');
 
-      // Add file
-      body += `--${boundary}\r\n`;
-      body += `Content-Disposition: form-data; name="file"; filename="${file.name}"\r\n`;
-      body += `Content-Type: ${file.type}\r\n\r\n`;
+      await new Promise((resolve, reject) => {
+        const parsedUrl = urlModule.parse(target.url);
+        const protocol = parsedUrl.protocol === 'https:' ? https : http;
 
-      const bodyBuffer = Buffer.concat([
-        Buffer.from(body, 'utf8'),
-        file.data,
-        Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8')
-      ]);
+        const req = protocol.request({
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port,
+          path: parsedUrl.path,
+          method: 'POST',
+          headers: form.getHeaders()
+        }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              resolve(data);
+            } else {
+              reject(new Error(`Upload failed: ${res.statusCode} ${data}`));
+            }
+          });
+        });
 
-      const uploadResponse = await fetch(stagedTarget.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
-          'Content-Length': bodyBuffer.length.toString()
-        },
-        body: bodyBuffer
+        req.on('error', reject);
+        form.pipe(req);
       });
 
-      if (!uploadResponse.ok) {
-        console.error('Upload to staged URL failed:', await uploadResponse.text());
-        return null;
-      }
-
       // Step 3: Create file in Shopify
-      const createResponse = await this.graphqlRequest(`
+      const createFileQuery = `
         mutation fileCreate($files: [FileCreateInput!]!) {
           fileCreate(files: $files) {
             files {
+              id
+              alt
+              createdAt
               ... on MediaImage {
                 id
                 image {
@@ -378,295 +669,129 @@ class DAMService {
             }
           }
         }
-      `, {
+      `;
+
+      const createResponse = await this.shopifyGraphQL(createFileQuery, {
         files: [{
-          originalSource: stagedTarget.resourceUrl,
-          contentType: this.getShopifyFileType(file.type)
+          originalSource: target.resourceUrl,
+          alt: fileName,
+          contentType: this.getShopifyContentType(mimeType)
         }]
       });
 
-      const createdFile = createResponse?.data?.fileCreate?.files?.[0];
-      if (!createdFile) {
-        console.error('Failed to create file in Shopify');
-        return null;
+      if (createResponse.data?.fileCreate?.userErrors?.length > 0) {
+        throw new Error(createResponse.data.fileCreate.userErrors[0].message);
+      }
+
+      const file = createResponse.data?.fileCreate?.files?.[0];
+      if (!file) {
+        throw new Error('Failed to create file in Shopify');
       }
 
       // Extract URL based on file type
-      let url = null;
-      if (createdFile.image?.url) {
-        url = createdFile.image.url;
-      } else if (createdFile.sources?.[0]?.url) {
-        url = createdFile.sources[0].url;
-      } else if (createdFile.url) {
-        url = createdFile.url;
+      let fileUrl = '';
+      if (file.image?.url) {
+        fileUrl = file.image.url;
+      } else if (file.sources?.[0]?.url) {
+        fileUrl = file.sources[0].url;
+      } else if (file.url) {
+        fileUrl = file.url;
       }
 
       return {
-        id: createdFile.id,
-        url: url,
-        thumbnailUrl: url
+        id: file.id,
+        url: fileUrl,
+        preview: fileUrl
       };
     } catch (error) {
       console.error('Shopify upload error:', error);
-      return null;
+      throw new Error(`Failed to upload to Shopify: ${error.message}`);
     }
   }
 
   /**
-   * Make GraphQL request to Shopify
+   * Get Shopify resource type from MIME type
    */
-  async graphqlRequest(query, variables = {}) {
-    try {
-      const response = await fetch(`https://${this.shopDomain}/admin/api/${this.apiVersion}/graphql.json`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': this.accessToken
-        },
-        body: JSON.stringify({ query, variables })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Shopify API error: ${response.status}`);
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error('GraphQL request error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get Shopify file type from MIME type
-   */
-  getShopifyFileType(mimeType) {
+  getShopifyResourceType(mimeType) {
     if (mimeType.startsWith('image/')) return 'IMAGE';
     if (mimeType.startsWith('video/')) return 'VIDEO';
     return 'FILE';
   }
 
   /**
-   * Create data URL for local storage fallback
+   * Get Shopify content type from MIME type
    */
-  createDataUrl(file) {
-    // For serverless environments, we can't persist file data
-    // This creates a temporary data URL
-    if (file.data) {
-      return `data:${file.type};base64,${file.data.toString('base64')}`;
-    }
-    return null;
+  getShopifyContentType(mimeType) {
+    if (mimeType.startsWith('image/')) return 'IMAGE';
+    if (mimeType.startsWith('video/')) return 'VIDEO';
+    return 'FILE';
   }
 
   /**
-   * Rename an item (file or folder)
+   * Execute Shopify GraphQL query
    */
-  async renameItem(id, newName, isFolder, renamedBy) {
-    if (isFolder) {
-      const folderIndex = this.folders.findIndex(f => f.id === id);
-      if (folderIndex === -1) {
-        throw new Error('Folder not found');
-      }
+  async shopifyGraphQL(query, variables = {}) {
+    const https = require('https');
+    const url = `https://${this.shopifyConfig.shopDomain}/admin/api/${this.shopifyConfig.apiVersion}/graphql.json`;
 
-      const folder = this.folders[folderIndex];
-      const oldPath = folder.path;
-      const newPath = folder.parentPath + newName + '/';
+    return new Promise((resolve, reject) => {
+      const postData = JSON.stringify({ query, variables });
 
-      // Check if new path already exists
-      if (this.folders.find(f => f.path === newPath && f.id !== id)) {
-        throw new Error('A folder with this name already exists');
-      }
-
-      // Update folder
-      folder.name = newName;
-      folder.path = newPath;
-      folder.updatedAt = new Date().toISOString();
-
-      // Update all nested folders
-      for (const nested of this.folders) {
-        if (nested.path.startsWith(oldPath) && nested.id !== id) {
-          nested.path = nested.path.replace(oldPath, newPath);
-          if (nested.parentPath.startsWith(oldPath)) {
-            nested.parentPath = nested.parentPath.replace(oldPath, newPath);
+      const req = https.request(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': this.shopifyConfig.accessToken,
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(new Error('Invalid JSON response from Shopify'));
           }
-        }
-      }
+        });
+      });
 
-      // Update files in nested folders
-      for (const file of this.files) {
-        if (file.folderPath.startsWith(oldPath)) {
-          file.folderPath = file.folderPath.replace(oldPath, newPath);
-        }
-      }
-
-      await this.saveData();
-      return folder;
-    } else {
-      const fileIndex = this.files.findIndex(f => f.id === id);
-      if (fileIndex === -1) {
-        throw new Error('File not found');
-      }
-
-      const file = this.files[fileIndex];
-
-      // Check if name already exists in folder
-      if (this.files.find(f => f.folderPath === file.folderPath && f.name === newName && f.id !== id)) {
-        throw new Error('A file with this name already exists');
-      }
-
-      file.name = newName;
-      file.updatedAt = new Date().toISOString();
-
-      await this.saveData();
-      return file;
-    }
-  }
-
-  /**
-   * Move items to a new location
-   */
-  async moveItems(items, destination, movedBy) {
-    const normalizedDest = this.normalizePath(destination);
-
-    // Verify destination exists
-    if (normalizedDest !== '/' && !this.folders.find(f => f.path === normalizedDest)) {
-      throw new Error('Destination folder not found');
-    }
-
-    const results = [];
-
-    for (const item of items) {
-      if (item.isFolder) {
-        const folder = this.folders.find(f => f.id === item.id);
-        if (!folder) continue;
-
-        // Prevent moving folder into itself
-        if (normalizedDest.startsWith(folder.path)) {
-          throw new Error('Cannot move folder into itself');
-        }
-
-        const oldPath = folder.path;
-        const newPath = normalizedDest + folder.name + '/';
-
-        // Check for conflicts
-        if (this.folders.find(f => f.path === newPath && f.id !== folder.id)) {
-          throw new Error(`Folder "${folder.name}" already exists at destination`);
-        }
-
-        // Update folder
-        folder.parentPath = normalizedDest;
-        folder.path = newPath;
-        folder.updatedAt = new Date().toISOString();
-
-        // Update nested items
-        for (const nested of this.folders) {
-          if (nested.path.startsWith(oldPath) && nested.id !== folder.id) {
-            nested.path = nested.path.replace(oldPath, newPath);
-            nested.parentPath = nested.parentPath.replace(oldPath, newPath);
-          }
-        }
-
-        for (const file of this.files) {
-          if (file.folderPath.startsWith(oldPath)) {
-            file.folderPath = file.folderPath.replace(oldPath, newPath);
-          }
-        }
-
-        results.push(folder);
-      } else {
-        const file = this.files.find(f => f.id === item.id);
-        if (!file) continue;
-
-        // Check for conflicts
-        if (this.files.find(f => f.folderPath === normalizedDest && f.name === file.name && f.id !== file.id)) {
-          throw new Error(`File "${file.name}" already exists at destination`);
-        }
-
-        file.folderPath = normalizedDest;
-        file.updatedAt = new Date().toISOString();
-
-        results.push(file);
-      }
-    }
-
-    await this.saveData();
-    return { moved: results.length, items: results };
-  }
-
-  /**
-   * Delete items
-   */
-  async deleteItems(items, deletedBy) {
-    const deleted = [];
-
-    for (const item of items) {
-      if (item.isFolder) {
-        const folder = this.folders.find(f => f.id === item.id);
-        if (!folder || folder.path === '/') continue;
-
-        // Delete all nested folders
-        this.folders = this.folders.filter(f =>
-          !f.path.startsWith(folder.path)
-        );
-
-        // Delete all files in nested folders
-        const deletedFiles = this.files.filter(f =>
-          f.folderPath.startsWith(folder.path)
-        );
-
-        // Delete files from Shopify
-        for (const file of deletedFiles) {
-          if (file.shopifyFileId) {
-            await this.deleteFromShopify(file.shopifyFileId);
-          }
-        }
-
-        this.files = this.files.filter(f =>
-          !f.folderPath.startsWith(folder.path)
-        );
-
-        deleted.push({ type: 'folder', ...folder });
-      } else {
-        const fileIndex = this.files.findIndex(f => f.id === item.id);
-        if (fileIndex === -1) continue;
-
-        const file = this.files[fileIndex];
-
-        // Delete from Shopify
-        if (file.shopifyFileId) {
-          await this.deleteFromShopify(file.shopifyFileId);
-        }
-
-        this.files.splice(fileIndex, 1);
-        deleted.push({ type: 'file', ...file });
-      }
-    }
-
-    await this.saveData();
-    return { deleted: deleted.length, items: deleted };
+      req.on('error', reject);
+      req.write(postData);
+      req.end();
+    });
   }
 
   /**
    * Delete file from Shopify
    */
-  async deleteFromShopify(fileId) {
-    if (!this.shopDomain || !this.accessToken) {
+  async deleteFromShopify(shopifyFileId) {
+    if (!this.shopifyConfig.shopDomain || !this.shopifyConfig.accessToken) {
+      // Local storage fallback - delete local file
+      try {
+        const localPath = path.join(this.storagePath, 'files', shopifyFileId);
+        await fs.unlink(localPath);
+      } catch (error) {
+        console.warn('Local file deletion failed:', error);
+      }
       return;
     }
 
-    try {
-      await this.graphqlRequest(`
-        mutation fileDelete($fileIds: [ID!]!) {
-          fileDelete(fileIds: $fileIds) {
-            deletedFileIds
-            userErrors {
-              field
-              message
-            }
+    const deleteQuery = `
+      mutation fileDelete($input: FileDeleteInput!) {
+        fileDelete(input: $input) {
+          deletedFileIds
+          userErrors {
+            field
+            message
           }
         }
-      `, {
-        fileIds: [fileId]
+      }
+    `;
+
+    try {
+      await this.shopifyGraphQL(deleteQuery, {
+        input: { fileIds: [shopifyFileId] }
       });
     } catch (error) {
       console.error('Shopify delete error:', error);
@@ -674,249 +799,331 @@ class DAMService {
   }
 
   /**
-   * Paste items (copy or cut)
+   * Get file by ID
+   * @param {string} fileId - File ID
+   * @param {Array} userTags - User tags
+   * @returns {Object} File metadata
    */
-  async pasteItems(items, action, destination, pastedBy) {
-    const normalizedDest = this.normalizePath(destination);
+  async getFile(fileId, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
 
-    // Verify destination exists
-    if (normalizedDest !== '/' && !this.folders.find(f => f.path === normalizedDest)) {
+    const metadata = await this.loadMetadata();
+    const file = metadata.files[fileId];
+
+    if (!file) {
+      throw new Error('File not found');
+    }
+
+    return file;
+  }
+
+  /**
+   * Rename a file
+   * @param {string} fileId - File ID
+   * @param {string} newName - New file name
+   * @param {Array} userTags - User tags
+   * @returns {Object} Updated file
+   */
+  async renameFile(fileId, newName, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    const metadata = await this.loadMetadata();
+    const file = metadata.files[fileId];
+
+    if (!file) {
+      throw new Error('File not found');
+    }
+
+    file.name = newName.trim();
+    file.updatedAt = new Date().toISOString();
+
+    await this.saveMetadata(metadata);
+    return file;
+  }
+
+  /**
+   * Move file to different folder
+   * @param {string} fileId - File ID
+   * @param {string} newFolderId - Destination folder ID
+   * @param {Array} userTags - User tags
+   * @returns {Object} Updated file
+   */
+  async moveFile(fileId, newFolderId, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    const metadata = await this.loadMetadata();
+    const file = metadata.files[fileId];
+
+    if (!file) {
+      throw new Error('File not found');
+    }
+
+    if (!metadata.folders[newFolderId]) {
       throw new Error('Destination folder not found');
     }
 
-    const results = [];
+    file.folderId = newFolderId;
+    file.updatedAt = new Date().toISOString();
 
-    for (const item of items) {
-      if (item.isFolder) {
-        const sourceFolder = this.folders.find(f => f.id === item.id);
-        if (!sourceFolder) continue;
-
-        if (action === 'copy') {
-          // Deep copy folder and contents
-          const copied = await this.deepCopyFolder(sourceFolder, normalizedDest, pastedBy);
-          results.push(...copied);
-        } else {
-          // Move
-          const moved = await this.moveItems([item], destination, pastedBy);
-          results.push(...(moved.items || []));
-        }
-      } else {
-        const sourceFile = this.files.find(f => f.id === item.id);
-        if (!sourceFile) continue;
-
-        if (action === 'copy') {
-          // Copy file
-          const newFile = {
-            ...sourceFile,
-            id: this.generateId(),
-            name: this.getUniqueName(sourceFile.name, normalizedDest, false),
-            folderPath: normalizedDest,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            uploadedBy: pastedBy
-          };
-          this.files.push(newFile);
-          results.push(newFile);
-        } else {
-          // Move
-          const moved = await this.moveItems([item], destination, pastedBy);
-          results.push(...(moved.items || []));
-        }
-      }
-    }
-
-    await this.saveData();
-    return { pasted: results.length, items: results };
+    await this.saveMetadata(metadata);
+    return file;
   }
 
   /**
-   * Deep copy a folder and its contents
+   * Update file metadata
+   * @param {string} fileId - File ID
+   * @param {Object} updates - Updates to apply
+   * @param {Array} userTags - User tags
+   * @returns {Object} Updated file
    */
-  async deepCopyFolder(sourceFolder, destinationPath, copiedBy) {
-    const results = [];
-    const pathMapping = {};
-
-    // Create new folder at destination
-    const newFolderName = this.getUniqueName(sourceFolder.name, destinationPath, true);
-    const newFolder = {
-      ...sourceFolder,
-      id: this.generateId(),
-      name: newFolderName,
-      path: destinationPath + newFolderName + '/',
-      parentPath: destinationPath,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdBy: copiedBy
-    };
-
-    this.folders.push(newFolder);
-    results.push(newFolder);
-    pathMapping[sourceFolder.path] = newFolder.path;
-
-    // Copy nested folders
-    const nestedFolders = this.folders.filter(f =>
-      f.path.startsWith(sourceFolder.path) && f.id !== sourceFolder.id
-    ).sort((a, b) => a.path.length - b.path.length);
-
-    for (const nested of nestedFolders) {
-      const parentMapping = Object.entries(pathMapping)
-        .find(([old]) => nested.parentPath === old);
-
-      const newParentPath = parentMapping ? parentMapping[1] : newFolder.path;
-      const newNestedFolder = {
-        ...nested,
-        id: this.generateId(),
-        path: newParentPath + nested.name + '/',
-        parentPath: newParentPath,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        createdBy: copiedBy
-      };
-
-      this.folders.push(newNestedFolder);
-      results.push(newNestedFolder);
-      pathMapping[nested.path] = newNestedFolder.path;
+  async updateFile(fileId, updates, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
     }
 
-    // Copy files
-    const nestedFiles = this.files.filter(f =>
-      f.folderPath.startsWith(sourceFolder.path)
-    );
+    const metadata = await this.loadMetadata();
+    const file = metadata.files[fileId];
 
-    for (const file of nestedFiles) {
-      const newFolderPath = pathMapping[file.folderPath] || newFolder.path;
-      const newFile = {
-        ...file,
-        id: this.generateId(),
-        folderPath: newFolderPath,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        uploadedBy: copiedBy
-      };
-
-      this.files.push(newFile);
-      results.push(newFile);
+    if (!file) {
+      throw new Error('File not found');
     }
 
-    return results;
+    const allowedUpdates = ['description', 'tags'];
+    for (const key of allowedUpdates) {
+      if (updates[key] !== undefined) {
+        file[key] = updates[key];
+      }
+    }
+    file.updatedAt = new Date().toISOString();
+
+    await this.saveMetadata(metadata);
+    return file;
   }
 
   /**
-   * Get unique name for copy
+   * Delete a file
+   * @param {string} fileId - File ID
+   * @param {Array} userTags - User tags
+   * @returns {Object} Deletion result
    */
-  getUniqueName(name, folderPath, isFolder) {
-    const collection = isFolder ? this.folders : this.files;
-    const existing = collection.filter(item =>
-      isFolder ? item.parentPath === folderPath : item.folderPath === folderPath
-    );
-
-    let newName = name;
-    let counter = 1;
-
-    while (existing.find(item => item.name === newName)) {
-      if (isFolder) {
-        newName = `${name} (${counter})`;
-      } else {
-        const ext = path.extname(name);
-        const base = path.basename(name, ext);
-        newName = `${base} (${counter})${ext}`;
-      }
-      counter++;
+  async deleteFile(fileId, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
     }
 
-    return newName;
+    const metadata = await this.loadMetadata();
+    const file = metadata.files[fileId];
+
+    if (!file) {
+      throw new Error('File not found');
+    }
+
+    // Delete from Shopify
+    await this.deleteFromShopify(file.shopifyFileId);
+
+    delete metadata.files[fileId];
+    await this.saveMetadata(metadata);
+
+    return { success: true, deletedFile: file };
   }
+
+  /**
+   * Record file download
+   * @param {string} fileId - File ID
+   * @returns {Object} Updated file
+   */
+  async recordDownload(fileId) {
+    const metadata = await this.loadMetadata();
+    const file = metadata.files[fileId];
+
+    if (file) {
+      file.downloads = (file.downloads || 0) + 1;
+      file.lastDownloaded = new Date().toISOString();
+      await this.saveMetadata(metadata);
+    }
+
+    return file;
+  }
+
+  // ==================== SEARCH & FILTERING ====================
 
   /**
    * Search files and folders
+   * @param {string} query - Search query
+   * @param {Object} options - Search options
+   * @returns {Object} Search results
    */
-  async search(query) {
-    const lowerQuery = query.toLowerCase();
+  async search(query, { userTags = [], fileTypes = [], folderId = null, limit = 50 } = {}) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
 
-    const matchingFolders = this.folders.filter(f =>
-      f.path !== '/' && f.name.toLowerCase().includes(lowerQuery)
-    ).map(f => ({
-      ...f,
-      itemCount: this.countFolderItems(f.path)
-    }));
+    const metadata = await this.loadMetadata();
+    const queryLower = query.toLowerCase();
 
-    const matchingFiles = this.files.filter(f =>
-      f.name.toLowerCase().includes(lowerQuery)
+    // Search folders
+    let folders = Object.values(metadata.folders).filter(f =>
+      f.id !== 'root' && f.name.toLowerCase().includes(queryLower)
     );
+
+    // Search files
+    let files = Object.values(metadata.files).filter(f => {
+      const matchesQuery =
+        f.name.toLowerCase().includes(queryLower) ||
+        (f.description && f.description.toLowerCase().includes(queryLower)) ||
+        (f.tags && f.tags.some(t => t.toLowerCase().includes(queryLower)));
+
+      const matchesType = fileTypes.length === 0 || fileTypes.includes(f.category);
+      const matchesFolder = !folderId || f.folderId === folderId;
+
+      return matchesQuery && matchesType && matchesFolder;
+    });
+
+    // Sort by relevance (exact matches first)
+    const sortByRelevance = (items, nameField = 'name') => {
+      return items.sort((a, b) => {
+        const aExact = a[nameField].toLowerCase() === queryLower;
+        const bExact = b[nameField].toLowerCase() === queryLower;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        const aStarts = a[nameField].toLowerCase().startsWith(queryLower);
+        const bStarts = b[nameField].toLowerCase().startsWith(queryLower);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return a[nameField].localeCompare(b[nameField]);
+      });
+    };
+
+    folders = sortByRelevance(folders).slice(0, limit);
+    files = sortByRelevance(files).slice(0, limit);
 
     return {
       query,
-      folders: matchingFolders,
-      files: matchingFiles,
-      totalResults: matchingFolders.length + matchingFiles.length
+      folders,
+      files,
+      totalFolders: folders.length,
+      totalFiles: files.length
     };
   }
 
   /**
-   * Get single file by ID
+   * Get all files of specific type(s)
+   * @param {Array} categories - File categories to filter
+   * @param {Array} userTags - User tags
+   * @returns {Array} Matching files
    */
-  async getFile(id) {
-    return this.files.find(f => f.id === id) || null;
+  async getFilesByCategory(categories, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    const metadata = await this.loadMetadata();
+    return Object.values(metadata.files).filter(f => categories.includes(f.category));
   }
 
   /**
-   * Get single folder by ID
+   * Get recently modified files
+   * @param {number} limit - Number of files to return
+   * @param {Array} userTags - User tags
+   * @returns {Array} Recent files
    */
-  async getFolder(id) {
-    return this.folders.find(f => f.id === id) || null;
+  async getRecentFiles(limit = 20, userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    const metadata = await this.loadMetadata();
+    return Object.values(metadata.files)
+      .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+      .slice(0, limit);
   }
 
-  /**
-   * Get all files (for admin purposes)
-   */
-  async getAllFiles() {
-    return this.files;
-  }
+  // ==================== STATISTICS ====================
 
   /**
-   * Get all folders (for admin purposes)
+   * Get DAM statistics
+   * @param {Array} userTags - User tags
+   * @returns {Object} Statistics
    */
-  async getAllFolders() {
-    return this.folders;
-  }
+  async getStatistics(userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
 
-  /**
-   * Get storage statistics
-   */
-  async getStats() {
-    const totalFiles = this.files.length;
-    const totalFolders = this.folders.length - 1; // Exclude root
-    const totalSize = this.files.reduce((acc, f) => acc + (f.size || 0), 0);
+    const metadata = await this.loadMetadata();
+    const files = Object.values(metadata.files);
+    const folders = Object.values(metadata.folders);
 
-    const filesByType = {};
-    for (const file of this.files) {
-      const category = this.getFileCategory(file.type);
-      filesByType[category] = (filesByType[category] || 0) + 1;
+    const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
+    const categoryCounts = {};
+
+    for (const file of files) {
+      const cat = file.category || 'file';
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
     }
 
     return {
-      totalFiles,
-      totalFolders,
+      totalFiles: files.length,
+      totalFolders: folders.length - 1, // Exclude root
       totalSize,
-      filesByType
+      totalSizeFormatted: this.formatFileSize(totalSize),
+      categoryCounts,
+      totalDownloads: files.reduce((sum, f) => sum + (f.downloads || 0), 0),
+      recentActivity: files
+        .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+        .slice(0, 5)
+        .map(f => ({ id: f.id, name: f.name, action: 'modified', date: f.updatedAt }))
     };
   }
 
   /**
-   * Get file category from MIME type
+   * Get folder tree structure
+   * @param {Array} userTags - User tags
+   * @returns {Object} Folder tree
    */
-  getFileCategory(mimeType) {
-    if (!mimeType) return 'other';
-    if (mimeType.startsWith('image/')) return 'images';
-    if (mimeType.startsWith('video/')) return 'videos';
-    if (mimeType.startsWith('audio/')) return 'audio';
-    if (mimeType === 'application/pdf') return 'documents';
-    if (mimeType.includes('word') || mimeType.includes('document')) return 'documents';
-    if (mimeType.includes('sheet') || mimeType.includes('excel')) return 'spreadsheets';
-    if (mimeType.includes('zip') || mimeType.includes('rar')) return 'archives';
-    return 'other';
+  async getFolderTree(userTags = []) {
+    if (!this.hasAccess(userTags)) {
+      throw new Error('Access denied: Requires admin or affiliate access');
+    }
+
+    const metadata = await this.loadMetadata();
+
+    const buildTree = (parentId) => {
+      const children = Object.values(metadata.folders)
+        .filter(f => f.parentId === parentId)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(folder => ({
+          ...folder,
+          fileCount: Object.values(metadata.files).filter(f => f.folderId === folder.id).length,
+          children: buildTree(folder.id)
+        }));
+      return children;
+    };
+
+    const root = metadata.folders['root'];
+    return {
+      ...root,
+      fileCount: Object.values(metadata.files).filter(f => f.folderId === 'root').length,
+      children: buildTree('root')
+    };
+  }
+
+  /**
+   * Serve local file (fallback when Shopify not configured)
+   * @param {string} shopifyFileId - Local file ID
+   * @returns {Object} File data and content type
+   */
+  async serveLocalFile(shopifyFileId) {
+    const localPath = path.join(this.storagePath, 'files', shopifyFileId);
+    const fileData = await fs.readFile(localPath);
+    return { data: fileData };
   }
 }
 
-// Export singleton instance
-module.exports = new DAMService();
+module.exports = DAMManager;
