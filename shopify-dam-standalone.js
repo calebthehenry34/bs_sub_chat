@@ -1,14 +1,13 @@
 /**
- * Shopify Digital Asset Management (DAM) Component - Standalone Version
+ * Shopify DAM - Premium Digital Asset Manager
  *
- * Runs entirely within Shopify - NO external backend required!
+ * Features:
+ * - Direct file upload (drag & drop + file picker)
+ * - Admin-only upload/delete permissions
+ * - Affiliate read-only access
+ * - High-end responsive UI
  *
- * Storage: localStorage (browser-based) or Shopify metafields (persistent)
- * Files: Referenced by URL from Shopify Admin → Settings → Files
- *
- * Access restricted to users with 'admin' or 'affiliate' tags.
- *
- * @version 2.0.0 - Standalone Edition
+ * @version 3.0.0
  */
 
 class ShopifyDAM {
@@ -16,102 +15,75 @@ class ShopifyDAM {
     this.config = {
       containerId: config.containerId || 'shopify-dam-container',
       userEmail: config.userEmail || '',
-      userTags: config.userTags || [],
-      allowedTags: config.allowedTags || ['admin', 'affiliate'],
-      storageKey: config.storageKey || 'shopify_dam_data',
-      maxFileSize: config.maxFileSize || 20 * 1024 * 1024,
+      userTags: (config.userTags || []).map(t => t.toLowerCase()),
+      isAdmin: config.isAdmin || false,
+      isDesignMode: config.isDesignMode || false,
+      storageKey: config.storageKey || 'shopify_dam_data_v3',
+      maxFileSize: config.maxFileSize || 50 * 1024 * 1024, // 50MB
       theme: {
-        primaryColor: config.theme?.primaryColor || '#2563eb',
-        secondaryColor: config.theme?.secondaryColor || '#64748b',
-        backgroundColor: config.theme?.backgroundColor || '#f8fafc',
-        cardBackground: config.theme?.cardBackground || '#ffffff',
-        textColor: config.theme?.textColor || '#1e293b',
-        borderColor: config.theme?.borderColor || '#e2e8f0',
-        borderRadius: config.theme?.borderRadius || '8px',
-        fontFamily: config.theme?.fontFamily || '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        successColor: config.theme?.successColor || '#22c55e',
-        errorColor: config.theme?.errorColor || '#ef4444',
-        warningColor: config.theme?.warningColor || '#f59e0b'
+        primaryColor: config.theme?.primaryColor || '#0066FF',
+        accentColor: config.theme?.accentColor || '#00D4AA',
+        dangerColor: config.theme?.dangerColor || '#FF3B5C',
+        backgroundColor: config.theme?.backgroundColor || '#F7F8FA',
+        surfaceColor: config.theme?.surfaceColor || '#FFFFFF',
+        textPrimary: config.theme?.textPrimary || '#1A1D26',
+        textSecondary: config.theme?.textSecondary || '#6B7280',
+        textMuted: config.theme?.textMuted || '#9CA3AF',
+        borderColor: config.theme?.borderColor || '#E5E7EB',
+        shadowColor: config.theme?.shadowColor || 'rgba(0,0,0,0.08)'
       }
     };
 
+    // Check if user is admin
+    this.isAdmin = this.config.isAdmin || this.config.userTags.includes('admin');
+
     this.state = {
-      loading: true,
-      initialized: false,
-      hasAccess: false,
       currentPath: '/',
-      folders: [],
-      files: [],
-      selectedItems: [],
-      viewMode: localStorage.getItem('dam_view_mode') || 'grid',
+      selectedItems: new Set(),
+      viewMode: localStorage.getItem('dam_view') || 'grid',
       sortBy: 'name',
       sortOrder: 'asc',
       searchQuery: '',
-      clipboard: null,
-      contextMenu: null,
-      modal: null
+      isDragging: false
     };
 
     this.container = null;
     this.data = { folders: [], files: [] };
   }
 
-  /**
-   * Initialize the DAM component
-   */
   async init() {
     this.container = document.getElementById(this.config.containerId);
-    if (!this.container) {
-      console.error('ShopifyDAM: Container not found');
-      return;
-    }
+    if (!this.container) return console.error('DAM: Container not found');
 
     // Check access
-    this.state.hasAccess = this.checkAccess();
-    if (!this.state.hasAccess) {
-      this.renderAccessDenied();
+    const hasAccess = this.config.userTags.includes('admin') || this.config.userTags.includes('affiliate');
+    if (!hasAccess && !this.config.isDesignMode) {
+      this.container.innerHTML = this.renderAccessDenied();
       return;
     }
 
     this.injectStyles();
-    this.renderLoading();
-
-    // Load data from localStorage
     this.loadData();
 
-    // Ensure root folder exists
+    // Ensure root exists
     if (!this.data.folders.find(f => f.path === '/')) {
-      this.data.folders.push({
-        id: this.generateId(),
-        name: 'Root',
-        path: '/',
-        parentPath: null,
-        createdAt: new Date().toISOString()
-      });
+      this.data.folders.push({ id: this.uid(), name: 'Root', path: '/', parentPath: null, createdAt: Date.now() });
       this.saveData();
     }
 
-    this.setupEventListeners();
-    this.state.initialized = true;
-    this.state.loading = false;
     this.render();
+    this.bindGlobalEvents();
   }
 
-  checkAccess() {
-    if (!this.config.userTags || this.config.userTags.length === 0) return false;
-    return this.config.allowedTags.some(tag =>
-      this.config.userTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())
-    );
-  }
+  // ═══════════════════════════════════════════════════════════
+  // DATA
+  // ═══════════════════════════════════════════════════════════
 
   loadData() {
     try {
-      const stored = localStorage.getItem(this.config.storageKey);
-      if (stored) {
-        this.data = JSON.parse(stored);
-      }
+      const d = localStorage.getItem(this.config.storageKey);
+      if (d) this.data = JSON.parse(d);
     } catch (e) {
-      console.error('Failed to load DAM data:', e);
       this.data = { folders: [], files: [] };
     }
   }
@@ -120,20 +92,19 @@ class ShopifyDAM {
     try {
       localStorage.setItem(this.config.storageKey, JSON.stringify(this.data));
     } catch (e) {
-      console.error('Failed to save DAM data:', e);
-      this.showToast('error', 'Failed to save changes');
+      this.toast('Storage full - please delete some files', 'error');
     }
   }
 
-  generateId() {
-    return 'dam_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+  uid() {
+    return 'f' + Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
   normalizePath(p) {
-    let normalized = p || '/';
-    if (!normalized.startsWith('/')) normalized = '/' + normalized;
-    if (normalized !== '/' && !normalized.endsWith('/')) normalized += '/';
-    return normalized.replace(/\/+/g, '/');
+    let n = (p || '/').replace(/\/+/g, '/');
+    if (!n.startsWith('/')) n = '/' + n;
+    if (n !== '/' && !n.endsWith('/')) n += '/';
+    return n;
   }
 
   getCurrentItems() {
@@ -141,122 +112,142 @@ class ShopifyDAM {
     let folders = this.data.folders.filter(f => f.parentPath === path);
     let files = this.data.files.filter(f => f.folderPath === path);
 
-    // Apply search
     if (this.state.searchQuery) {
       const q = this.state.searchQuery.toLowerCase();
       folders = folders.filter(f => f.name.toLowerCase().includes(q));
       files = files.filter(f => f.name.toLowerCase().includes(q));
     }
 
-    // Apply sort
-    const sortFn = (a, b) => {
-      let cmp = 0;
-      switch (this.state.sortBy) {
-        case 'name': cmp = a.name.localeCompare(b.name); break;
-        case 'date': cmp = new Date(a.createdAt) - new Date(b.createdAt); break;
-        case 'size': cmp = (a.size || 0) - (b.size || 0); break;
-      }
-      return this.state.sortOrder === 'asc' ? cmp : -cmp;
+    const sort = (a, b) => {
+      let c = 0;
+      if (this.state.sortBy === 'name') c = a.name.localeCompare(b.name);
+      else if (this.state.sortBy === 'date') c = (a.createdAt || 0) - (b.createdAt || 0);
+      else if (this.state.sortBy === 'size') c = (a.size || 0) - (b.size || 0);
+      return this.state.sortOrder === 'asc' ? c : -c;
     };
 
-    folders.sort(sortFn);
-    files.sort(sortFn);
-
-    return { folders, files };
+    return { folders: folders.sort(sort), files: files.sort(sort) };
   }
 
-  // ============ CRUD Operations ============
+  // ═══════════════════════════════════════════════════════════
+  // CRUD OPERATIONS
+  // ═══════════════════════════════════════════════════════════
 
   createFolder(name) {
     const parentPath = this.normalizePath(this.state.currentPath);
-    const folderPath = parentPath + name + '/';
+    const path = parentPath + name + '/';
 
-    if (this.data.folders.find(f => f.path === folderPath)) {
-      this.showToast('error', 'Folder already exists');
+    if (this.data.folders.find(f => f.path === path)) {
+      this.toast('Folder already exists', 'error');
       return false;
     }
 
     this.data.folders.push({
-      id: this.generateId(),
+      id: this.uid(),
       name,
-      path: folderPath,
+      path,
       parentPath,
-      createdAt: new Date().toISOString()
+      createdAt: Date.now()
     });
 
     this.saveData();
-    this.showToast('success', `Folder "${name}" created`);
+    this.toast('Folder created');
     this.render();
     return true;
   }
 
-  addFile(name, url, type, size) {
-    const folderPath = this.normalizePath(this.state.currentPath);
-
-    // Check for duplicates
-    let finalName = name;
-    let counter = 1;
-    while (this.data.files.find(f => f.folderPath === folderPath && f.name === finalName)) {
-      const ext = name.includes('.') ? '.' + name.split('.').pop() : '';
-      const base = name.replace(ext, '');
-      finalName = `${base} (${counter})${ext}`;
-      counter++;
+  async uploadFiles(fileList) {
+    if (!this.isAdmin) {
+      this.toast('Only admins can upload files', 'error');
+      return;
     }
 
-    this.data.files.push({
-      id: this.generateId(),
-      name: finalName,
-      url,
-      type: type || this.guessFileType(name, url),
-      size: size || 0,
-      folderPath,
-      createdAt: new Date().toISOString()
-    });
+    const files = Array.from(fileList);
+    const folderPath = this.normalizePath(this.state.currentPath);
+    let uploaded = 0;
 
-    this.saveData();
-    this.showToast('success', `File "${finalName}" added`);
-    this.render();
-    return true;
+    for (const file of files) {
+      if (file.size > this.config.maxFileSize) {
+        this.toast(`${file.name} is too large (max 50MB)`, 'error');
+        continue;
+      }
+
+      try {
+        const dataUrl = await this.readFileAsDataURL(file);
+
+        let name = file.name;
+        let counter = 1;
+        while (this.data.files.find(f => f.folderPath === folderPath && f.name === name)) {
+          const ext = file.name.includes('.') ? '.' + file.name.split('.').pop() : '';
+          const base = file.name.replace(ext, '');
+          name = `${base} (${counter})${ext}`;
+          counter++;
+        }
+
+        this.data.files.push({
+          id: this.uid(),
+          name,
+          url: dataUrl,
+          type: file.type || this.guessType(file.name),
+          size: file.size,
+          folderPath,
+          createdAt: Date.now()
+        });
+        uploaded++;
+      } catch (e) {
+        this.toast(`Failed to upload ${file.name}`, 'error');
+      }
+    }
+
+    if (uploaded > 0) {
+      this.saveData();
+      this.toast(`${uploaded} file${uploaded > 1 ? 's' : ''} uploaded`);
+      this.render();
+    }
   }
 
-  guessFileType(name, url) {
-    const ext = (name || url || '').split('.').pop().toLowerCase();
-    const typeMap = {
-      'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
-      'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml',
-      'mp4': 'video/mp4', 'webm': 'video/webm', 'mov': 'video/quicktime',
-      'pdf': 'application/pdf', 'doc': 'application/msword',
-      'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'xls': 'application/vnd.ms-excel', 'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'zip': 'application/zip', 'rar': 'application/x-rar-compressed'
+  readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  guessType(name) {
+    const ext = (name || '').split('.').pop().toLowerCase();
+    const map = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+      webp: 'image/webp', svg: 'image/svg+xml', mp4: 'video/mp4', webm: 'video/webm',
+      mov: 'video/quicktime', pdf: 'application/pdf', zip: 'application/zip'
     };
-    return typeMap[ext] || 'application/octet-stream';
+    return map[ext] || 'application/octet-stream';
   }
 
   renameItem(id, newName, isFolder) {
     if (isFolder) {
       const folder = this.data.folders.find(f => f.id === id);
-      if (!folder) return false;
+      if (!folder) return;
 
       const oldPath = folder.path;
       const newPath = folder.parentPath + newName + '/';
 
       if (this.data.folders.find(f => f.path === newPath && f.id !== id)) {
-        this.showToast('error', 'A folder with this name already exists');
-        return false;
+        this.toast('Name already exists', 'error');
+        return;
       }
 
       folder.name = newName;
       folder.path = newPath;
 
-      // Update nested items
+      // Update children
       this.data.folders.forEach(f => {
         if (f.path.startsWith(oldPath) && f.id !== id) {
           f.path = f.path.replace(oldPath, newPath);
           f.parentPath = f.parentPath.replace(oldPath, newPath);
         }
       });
-
       this.data.files.forEach(f => {
         if (f.folderPath.startsWith(oldPath)) {
           f.folderPath = f.folderPath.replace(oldPath, newPath);
@@ -264,74 +255,65 @@ class ShopifyDAM {
       });
     } else {
       const file = this.data.files.find(f => f.id === id);
-      if (!file) return false;
+      if (!file) return;
 
       if (this.data.files.find(f => f.folderPath === file.folderPath && f.name === newName && f.id !== id)) {
-        this.showToast('error', 'A file with this name already exists');
-        return false;
+        this.toast('Name already exists', 'error');
+        return;
       }
-
       file.name = newName;
     }
 
     this.saveData();
-    this.showToast('success', 'Renamed successfully');
+    this.toast('Renamed');
     this.render();
-    return true;
   }
 
-  deleteItems(items) {
-    items.forEach(item => {
-      if (item.isFolder) {
-        const folder = this.data.folders.find(f => f.id === item.id);
+  deleteSelected() {
+    if (!this.isAdmin) {
+      this.toast('Only admins can delete', 'error');
+      return;
+    }
+
+    this.state.selectedItems.forEach(key => {
+      const [type, id] = key.split(':');
+      if (type === 'folder') {
+        const folder = this.data.folders.find(f => f.id === id);
         if (folder && folder.path !== '/') {
-          // Delete folder and all nested content
           this.data.folders = this.data.folders.filter(f => !f.path.startsWith(folder.path));
           this.data.files = this.data.files.filter(f => !f.folderPath.startsWith(folder.path));
         }
       } else {
-        this.data.files = this.data.files.filter(f => f.id !== item.id);
+        this.data.files = this.data.files.filter(f => f.id !== id);
       }
     });
 
+    const count = this.state.selectedItems.size;
+    this.state.selectedItems.clear();
     this.saveData();
-    this.state.selectedItems = [];
-    this.showToast('success', `${items.length} item(s) deleted`);
+    this.toast(`${count} item${count > 1 ? 's' : ''} deleted`);
     this.render();
   }
 
-  moveItems(items, destination) {
-    const destPath = this.normalizePath(destination);
+  moveSelected(destPath) {
+    const dest = this.normalizePath(destPath);
 
-    // Verify destination exists
-    if (destPath !== '/' && !this.data.folders.find(f => f.path === destPath)) {
-      this.showToast('error', 'Destination folder not found');
-      return false;
-    }
-
-    items.forEach(item => {
-      if (item.isFolder) {
-        const folder = this.data.folders.find(f => f.id === item.id);
-        if (folder) {
-          if (destPath.startsWith(folder.path)) {
-            this.showToast('error', 'Cannot move folder into itself');
-            return;
-          }
-
+    this.state.selectedItems.forEach(key => {
+      const [type, id] = key.split(':');
+      if (type === 'folder') {
+        const folder = this.data.folders.find(f => f.id === id);
+        if (folder && !dest.startsWith(folder.path)) {
           const oldPath = folder.path;
-          const newPath = destPath + folder.name + '/';
-
-          folder.parentPath = destPath;
+          const newPath = dest + folder.name + '/';
+          folder.parentPath = dest;
           folder.path = newPath;
 
-          // Update nested
           this.data.folders.forEach(f => {
-            if (f.path.startsWith(oldPath) && f.id !== folder.id) {
+            if (f.path.startsWith(oldPath) && f.id !== id) {
               f.path = f.path.replace(oldPath, newPath);
               f.parentPath = f.parentPath.replace(oldPath, newPath);
             }
           });
-
           this.data.files.forEach(f => {
             if (f.folderPath.startsWith(oldPath)) {
               f.folderPath = f.folderPath.replace(oldPath, newPath);
@@ -339,131 +321,86 @@ class ShopifyDAM {
           });
         }
       } else {
-        const file = this.data.files.find(f => f.id === item.id);
-        if (file) {
-          file.folderPath = destPath;
-        }
+        const file = this.data.files.find(f => f.id === id);
+        if (file) file.folderPath = dest;
       }
     });
 
+    this.state.selectedItems.clear();
     this.saveData();
-    this.state.selectedItems = [];
-    this.showToast('success', 'Items moved');
+    this.toast('Moved');
     this.render();
-    return true;
   }
 
-  // ============ Navigation ============
+  // ═══════════════════════════════════════════════════════════
+  // NAVIGATION
+  // ═══════════════════════════════════════════════════════════
 
-  navigateTo(path) {
+  navigate(path) {
     this.state.currentPath = this.normalizePath(path);
-    this.state.selectedItems = [];
+    this.state.selectedItems.clear();
     this.state.searchQuery = '';
     this.render();
   }
 
-  // ============ Selection ============
-
-  toggleSelection(id, isFolder) {
-    const idx = this.state.selectedItems.findIndex(s => s.id === id && s.isFolder === isFolder);
-    if (idx >= 0) {
-      this.state.selectedItems.splice(idx, 1);
-    } else {
-      this.state.selectedItems.push({ id, isFolder });
-    }
-    this.render();
-  }
-
-  selectAll() {
-    const { folders, files } = this.getCurrentItems();
-    this.state.selectedItems = [
-      ...folders.map(f => ({ id: f.id, isFolder: true })),
-      ...files.map(f => ({ id: f.id, isFolder: false }))
-    ];
-    this.render();
-  }
-
-  deselectAll() {
-    this.state.selectedItems = [];
-    this.render();
-  }
-
-  // ============ Event Listeners ============
-
-  setupEventListeners() {
-    document.addEventListener('click', (e) => {
-      if (this.state.contextMenu && !e.target.closest('.dam-context-menu')) {
-        this.closeContextMenu();
-      }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (!this.state.initialized || !this.state.hasAccess) return;
-      if (e.target.matches('input, textarea')) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-        e.preventDefault();
-        this.selectAll();
-      }
-      if (e.key === 'Escape') {
-        this.deselectAll();
-        this.closeContextMenu();
-        this.closeModal();
-      }
-      if (e.key === 'Delete' && this.state.selectedItems.length > 0) {
-        this.confirmDelete();
-      }
-    });
-  }
-
-  // ============ Rendering ============
+  // ═══════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════
 
   render() {
-    const hasSelection = this.state.selectedItems.length > 0;
+    const { folders, files } = this.getCurrentItems();
+    const hasItems = folders.length > 0 || files.length > 0;
+    const hasSelection = this.state.selectedItems.size > 0;
 
     this.container.innerHTML = `
-      <div class="dam-container">
+      <div class="dam ${this.state.isDragging ? 'dam--dragging' : ''}">
         ${this.renderHeader()}
         ${hasSelection ? this.renderSelectionBar() : ''}
         ${this.renderToolbar()}
-        ${this.renderContent()}
+        <div class="dam__body">
+          ${hasItems ? this.renderItems(folders, files) : this.renderEmpty()}
+        </div>
+        ${this.isAdmin ? this.renderDropZone() : ''}
       </div>
     `;
 
-    this.attachEventHandlers();
+    this.bindEvents();
   }
 
   renderHeader() {
     return `
-      <div class="dam-header">
-        <h1 class="dam-title">
-          ${this.icons.folder}
-          Digital Asset Manager
-        </h1>
-        <div class="dam-header-actions">
-          <div class="dam-search-wrapper">
-            <span class="dam-search-icon">${this.icons.search}</span>
-            <input type="text" class="dam-search-input" placeholder="Search..." value="${this.escapeHtml(this.state.searchQuery)}" id="dam-search">
-            ${this.state.searchQuery ? `<button class="dam-search-clear" id="dam-search-clear">${this.icons.x}</button>` : ''}
+      <header class="dam__header">
+        <div class="dam__brand">
+          <div class="dam__logo">${this.icons.layers}</div>
+          <div class="dam__brand-text">
+            <h1 class="dam__title">Asset Manager</h1>
+            <span class="dam__badge ${this.isAdmin ? 'dam__badge--admin' : 'dam__badge--viewer'}">${this.isAdmin ? 'Admin' : 'Viewer'}</span>
           </div>
-          <button class="dam-btn dam-btn-primary" id="dam-add-file-btn">
-            ${this.icons.plus}
-            Add File
-          </button>
         </div>
-      </div>
+        <div class="dam__search">
+          <span class="dam__search-icon">${this.icons.search}</span>
+          <input type="text" class="dam__search-input" placeholder="Search files and folders..." value="${this.esc(this.state.searchQuery)}" id="damSearch">
+          ${this.state.searchQuery ? `<button class="dam__search-clear" id="damSearchClear">${this.icons.x}</button>` : ''}
+        </div>
+        <div class="dam__header-actions">
+          ${this.isAdmin ? `<button class="dam__btn dam__btn--primary" id="damUploadBtn">${this.icons.upload}<span>Upload</span></button>` : ''}
+        </div>
+      </header>
     `;
   }
 
   renderSelectionBar() {
-    const count = this.state.selectedItems.length;
+    const count = this.state.selectedItems.size;
     return `
-      <div class="dam-selection-bar">
-        <span class="dam-selection-info">${count} item${count > 1 ? 's' : ''} selected</span>
-        <div class="dam-selection-actions">
-          <button class="dam-btn" id="dam-move-selected">${this.icons.move} Move</button>
-          <button class="dam-btn" id="dam-delete-selected">${this.icons.trash} Delete</button>
-          <button class="dam-btn" id="dam-clear-selection">${this.icons.x} Clear</button>
+      <div class="dam__selection-bar">
+        <div class="dam__selection-info">
+          <span class="dam__selection-count">${count}</span>
+          <span>item${count > 1 ? 's' : ''} selected</span>
+        </div>
+        <div class="dam__selection-actions">
+          <button class="dam__btn dam__btn--ghost" id="damMoveBtn">${this.icons.move}<span>Move</span></button>
+          ${this.isAdmin ? `<button class="dam__btn dam__btn--danger" id="damDeleteBtn">${this.icons.trash}<span>Delete</span></button>` : ''}
+          <button class="dam__btn dam__btn--ghost" id="damClearSelection">${this.icons.x}</button>
         </div>
       </div>
     `;
@@ -471,15 +408,15 @@ class ShopifyDAM {
 
   renderToolbar() {
     return `
-      <div class="dam-toolbar">
-        <div class="dam-toolbar-left">
+      <div class="dam__toolbar">
+        <nav class="dam__breadcrumbs" aria-label="Breadcrumb">
           ${this.renderBreadcrumbs()}
-        </div>
-        <div class="dam-toolbar-right">
-          <button class="dam-btn dam-btn-secondary" id="dam-new-folder">${this.icons.folderPlus} New Folder</button>
-          <div class="dam-view-toggle">
-            <button data-view="grid" class="${this.state.viewMode === 'grid' ? 'active' : ''}" title="Grid">${this.icons.grid}</button>
-            <button data-view="list" class="${this.state.viewMode === 'list' ? 'active' : ''}" title="List">${this.icons.list}</button>
+        </nav>
+        <div class="dam__toolbar-actions">
+          <button class="dam__btn dam__btn--secondary dam__btn--sm" id="damNewFolder">${this.icons.folderPlus}<span>New Folder</span></button>
+          <div class="dam__view-toggle">
+            <button class="dam__view-btn ${this.state.viewMode === 'grid' ? 'active' : ''}" data-view="grid" title="Grid view">${this.icons.grid}</button>
+            <button class="dam__view-btn ${this.state.viewMode === 'list' ? 'active' : ''}" data-view="list" title="List view">${this.icons.list}</button>
           </div>
         </div>
       </div>
@@ -487,288 +424,418 @@ class ShopifyDAM {
   }
 
   renderBreadcrumbs() {
-    const parts = this.state.currentPath.split('/').filter(p => p);
+    const parts = this.state.currentPath.split('/').filter(Boolean);
     let path = '/';
-    const crumbs = [`<span class="dam-breadcrumb${parts.length === 0 ? ' active' : ''}" data-path="/">${this.icons.home}</span>`];
+
+    let html = `<button class="dam__crumb ${parts.length === 0 ? 'dam__crumb--active' : ''}" data-path="/">${this.icons.home}<span>Home</span></button>`;
 
     parts.forEach((part, i) => {
       path += part + '/';
       const isLast = i === parts.length - 1;
-      crumbs.push(`<span class="dam-breadcrumb-sep">/</span>`);
-      crumbs.push(`<span class="dam-breadcrumb${isLast ? ' active' : ''}" data-path="${this.escapeHtml(path)}">${this.escapeHtml(part)}</span>`);
+      html += `<span class="dam__crumb-sep">${this.icons.chevronRight}</span>`;
+      html += `<button class="dam__crumb ${isLast ? 'dam__crumb--active' : ''}" data-path="${this.esc(path)}">${this.esc(part)}</button>`;
     });
 
-    return `<div class="dam-breadcrumbs">${crumbs.join('')}</div>`;
+    return html;
   }
 
-  renderContent() {
-    const { folders, files } = this.getCurrentItems();
-
-    if (folders.length === 0 && files.length === 0) {
+  renderItems(folders, files) {
+    if (this.state.viewMode === 'grid') {
       return `
-        <div class="dam-content" id="dam-content">
-          <div class="dam-empty">
-            ${this.state.searchQuery ? this.icons.search : this.icons.folderOpen}
-            <h3 class="dam-empty-title">${this.state.searchQuery ? 'No results found' : 'This folder is empty'}</h3>
-            <p class="dam-empty-text">${this.state.searchQuery ? 'Try a different search term' : 'Create a folder or add files to get started'}</p>
-            ${!this.state.searchQuery ? `
-              <div class="dam-empty-actions">
-                <button class="dam-btn dam-btn-secondary" id="dam-new-folder-empty">${this.icons.folderPlus} New Folder</button>
-                <button class="dam-btn dam-btn-primary" id="dam-add-file-empty">${this.icons.plus} Add File</button>
-              </div>
-            ` : ''}
-          </div>
+        <div class="dam__grid">
+          ${folders.map(f => this.renderGridItem(f, true)).join('')}
+          ${files.map(f => this.renderGridItem(f, false)).join('')}
         </div>
       `;
     }
-
     return `
-      <div class="dam-content" id="dam-content">
-        ${this.state.viewMode === 'grid' ? this.renderGrid(folders, files) : this.renderList(folders, files)}
+      <div class="dam__list">
+        <div class="dam__list-header">
+          <div class="dam__list-col dam__list-col--check"></div>
+          <div class="dam__list-col dam__list-col--icon"></div>
+          <div class="dam__list-col dam__list-col--name" data-sort="name">Name ${this.state.sortBy === 'name' ? (this.state.sortOrder === 'asc' ? '↑' : '↓') : ''}</div>
+          <div class="dam__list-col dam__list-col--size" data-sort="size">Size</div>
+          <div class="dam__list-col dam__list-col--date" data-sort="date">Modified</div>
+          <div class="dam__list-col dam__list-col--actions"></div>
+        </div>
+        ${folders.map(f => this.renderListItem(f, true)).join('')}
+        ${files.map(f => this.renderListItem(f, false)).join('')}
       </div>
     `;
   }
 
-  renderGrid(folders, files) {
-    const renderItem = (item, isFolder) => {
-      const isSelected = this.state.selectedItems.some(s => s.id === item.id && s.isFolder === isFolder);
-      return `
-        <div class="dam-item${isSelected ? ' selected' : ''}" data-id="${item.id}" data-type="${isFolder ? 'folder' : 'file'}">
-          <div class="dam-item-checkbox">${isSelected ? this.icons.check : ''}</div>
-          <div class="dam-item-preview">
-            ${isFolder
-              ? `<span class="dam-item-icon dam-folder-icon">${this.icons.folder}</span>`
-              : this.renderFilePreview(item)}
-          </div>
-          <div class="dam-item-info">
-            <div class="dam-item-name" title="${this.escapeHtml(item.name)}">${this.escapeHtml(item.name)}</div>
-            <div class="dam-item-meta">${isFolder ? this.countItems(item.path) + ' items' : this.formatSize(item.size)}</div>
-          </div>
-        </div>
-      `;
-    };
-
-    return `<div class="dam-grid">${folders.map(f => renderItem(f, true)).join('')}${files.map(f => renderItem(f, false)).join('')}</div>`;
-  }
-
-  renderList(folders, files) {
-    const renderItem = (item, isFolder) => {
-      const isSelected = this.state.selectedItems.some(s => s.id === item.id && s.isFolder === isFolder);
-      return `
-        <div class="dam-item${isSelected ? ' selected' : ''}" data-id="${item.id}" data-type="${isFolder ? 'folder' : 'file'}">
-          <div class="dam-item-preview">
-            ${isFolder
-              ? `<span class="dam-item-icon dam-folder-icon">${this.icons.folder}</span>`
-              : `<span class="dam-item-icon">${this.getFileIcon(item.type)}</span>`}
-          </div>
-          <div class="dam-item-name">${this.escapeHtml(item.name)}</div>
-          <div class="dam-item-meta">${isFolder ? '-' : this.formatSize(item.size)}</div>
-          <div class="dam-item-meta">${isFolder ? 'Folder' : this.getTypeLabel(item.type)}</div>
-          <div class="dam-item-meta">${this.formatDate(item.createdAt)}</div>
-        </div>
-      `;
-    };
+  renderGridItem(item, isFolder) {
+    const key = `${isFolder ? 'folder' : 'file'}:${item.id}`;
+    const selected = this.state.selectedItems.has(key);
 
     return `
-      <div class="dam-list">
-        <div class="dam-list-header">
-          <span></span>
-          <span data-sort="name">Name</span>
-          <span data-sort="size">Size</span>
-          <span>Type</span>
-          <span data-sort="date">Date</span>
+      <div class="dam__card ${selected ? 'dam__card--selected' : ''}" data-key="${key}" data-id="${item.id}" data-folder="${isFolder}">
+        <div class="dam__card-check">
+          <div class="dam__checkbox ${selected ? 'dam__checkbox--checked' : ''}">${selected ? this.icons.check : ''}</div>
         </div>
-        ${folders.map(f => renderItem(f, true)).join('')}
-        ${files.map(f => renderItem(f, false)).join('')}
+        <div class="dam__card-preview">
+          ${isFolder
+            ? `<div class="dam__card-icon dam__card-icon--folder">${this.icons.folder}</div>`
+            : this.renderPreviewThumb(item)}
+        </div>
+        <div class="dam__card-info">
+          <div class="dam__card-name" title="${this.esc(item.name)}">${this.esc(item.name)}</div>
+          <div class="dam__card-meta">${isFolder ? this.countChildren(item.path) + ' items' : this.formatSize(item.size)}</div>
+        </div>
+        <button class="dam__card-menu" data-menu="${key}">${this.icons.moreV}</button>
       </div>
     `;
   }
 
-  renderFilePreview(file) {
-    if (file.type && file.type.startsWith('image/') && file.url) {
-      return `<img src="${file.url}" alt="${this.escapeHtml(file.name)}" loading="lazy">`;
+  renderListItem(item, isFolder) {
+    const key = `${isFolder ? 'folder' : 'file'}:${item.id}`;
+    const selected = this.state.selectedItems.has(key);
+
+    return `
+      <div class="dam__list-row ${selected ? 'dam__list-row--selected' : ''}" data-key="${key}" data-id="${item.id}" data-folder="${isFolder}">
+        <div class="dam__list-col dam__list-col--check">
+          <div class="dam__checkbox ${selected ? 'dam__checkbox--checked' : ''}">${selected ? this.icons.check : ''}</div>
+        </div>
+        <div class="dam__list-col dam__list-col--icon">
+          ${isFolder ? `<span class="dam__icon dam__icon--folder">${this.icons.folder}</span>` : `<span class="dam__icon">${this.getFileIcon(item.type)}</span>`}
+        </div>
+        <div class="dam__list-col dam__list-col--name">${this.esc(item.name)}</div>
+        <div class="dam__list-col dam__list-col--size">${isFolder ? '—' : this.formatSize(item.size)}</div>
+        <div class="dam__list-col dam__list-col--date">${this.formatDate(item.createdAt)}</div>
+        <div class="dam__list-col dam__list-col--actions">
+          <button class="dam__icon-btn" data-menu="${key}">${this.icons.moreH}</button>
+        </div>
+      </div>
+    `;
+  }
+
+  renderPreviewThumb(file) {
+    if (file.type?.startsWith('image/') && file.url) {
+      return `<img class="dam__card-img" src="${file.url}" alt="" loading="lazy">`;
     }
-    return `<span class="dam-item-icon">${this.getFileIcon(file.type)}</span>`;
+    if (file.type?.startsWith('video/')) {
+      return `<div class="dam__card-icon">${this.icons.video}</div>`;
+    }
+    return `<div class="dam__card-icon">${this.getFileIcon(file.type)}</div>`;
   }
 
-  countItems(folderPath) {
-    const subfolders = this.data.folders.filter(f => f.parentPath === folderPath).length;
-    const files = this.data.files.filter(f => f.folderPath === folderPath).length;
-    return subfolders + files;
+  renderEmpty() {
+    if (this.state.searchQuery) {
+      return `
+        <div class="dam__empty">
+          <div class="dam__empty-icon">${this.icons.search}</div>
+          <h3 class="dam__empty-title">No results found</h3>
+          <p class="dam__empty-text">Try a different search term</p>
+        </div>
+      `;
+    }
+    return `
+      <div class="dam__empty">
+        <div class="dam__empty-icon">${this.icons.folder}</div>
+        <h3 class="dam__empty-title">This folder is empty</h3>
+        <p class="dam__empty-text">${this.isAdmin ? 'Drop files here or click upload to get started' : 'No files have been added yet'}</p>
+        ${this.isAdmin ? `
+          <div class="dam__empty-actions">
+            <button class="dam__btn dam__btn--secondary" id="damNewFolderEmpty">${this.icons.folderPlus} New Folder</button>
+            <button class="dam__btn dam__btn--primary" id="damUploadEmpty">${this.icons.upload} Upload Files</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
   }
 
-  // ============ Event Handlers ============
+  renderDropZone() {
+    return `
+      <div class="dam__dropzone" id="damDropzone">
+        <div class="dam__dropzone-content">
+          <div class="dam__dropzone-icon">${this.icons.upload}</div>
+          <div class="dam__dropzone-text">Drop files to upload</div>
+        </div>
+      </div>
+      <input type="file" id="damFileInput" multiple hidden>
+    `;
+  }
 
-  attachEventHandlers() {
+  renderAccessDenied() {
+    return `
+      <div class="dam dam--denied">
+        <div class="dam__denied">
+          <div class="dam__denied-icon">${this.icons.lock}</div>
+          <h2>Access Restricted</h2>
+          <p>This area is only available to administrators and affiliates.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // EVENTS
+  // ═══════════════════════════════════════════════════════════
+
+  bindGlobalEvents() {
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea')) return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+        e.preventDefault();
+        this.selectAll();
+      }
+      if (e.key === 'Escape') {
+        this.state.selectedItems.clear();
+        this.closeAllModals();
+        this.render();
+      }
+      if (e.key === 'Delete' && this.state.selectedItems.size > 0 && this.isAdmin) {
+        this.confirmDelete();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.dam__context-menu')) {
+        document.querySelectorAll('.dam__context-menu').forEach(m => m.remove());
+      }
+    });
+  }
+
+  bindEvents() {
     // Search
-    const searchInput = document.getElementById('dam-search');
-    if (searchInput) {
-      searchInput.addEventListener('input', this.debounce((e) => {
+    const search = document.getElementById('damSearch');
+    if (search) {
+      search.addEventListener('input', this.debounce(e => {
         this.state.searchQuery = e.target.value;
         this.render();
       }, 200));
     }
-
-    document.getElementById('dam-search-clear')?.addEventListener('click', () => {
+    document.getElementById('damSearchClear')?.addEventListener('click', () => {
       this.state.searchQuery = '';
       this.render();
     });
 
-    // Add file button
-    document.getElementById('dam-add-file-btn')?.addEventListener('click', () => this.showAddFileModal());
-    document.getElementById('dam-add-file-empty')?.addEventListener('click', () => this.showAddFileModal());
+    // Upload buttons
+    document.getElementById('damUploadBtn')?.addEventListener('click', () => this.triggerUpload());
+    document.getElementById('damUploadEmpty')?.addEventListener('click', () => this.triggerUpload());
 
-    // New folder button
-    document.getElementById('dam-new-folder')?.addEventListener('click', () => this.showNewFolderModal());
-    document.getElementById('dam-new-folder-empty')?.addEventListener('click', () => this.showNewFolderModal());
+    // New folder
+    document.getElementById('damNewFolder')?.addEventListener('click', () => this.showNewFolderModal());
+    document.getElementById('damNewFolderEmpty')?.addEventListener('click', () => this.showNewFolderModal());
 
     // View toggle
-    this.container.querySelectorAll('.dam-view-toggle button').forEach(btn => {
+    this.container.querySelectorAll('.dam__view-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         this.state.viewMode = btn.dataset.view;
-        localStorage.setItem('dam_view_mode', this.state.viewMode);
+        localStorage.setItem('dam_view', this.state.viewMode);
         this.render();
       });
     });
 
     // Breadcrumbs
-    this.container.querySelectorAll('.dam-breadcrumb').forEach(crumb => {
-      crumb.addEventListener('click', () => {
-        if (!crumb.classList.contains('active')) {
-          this.navigateTo(crumb.dataset.path);
-        }
-      });
+    this.container.querySelectorAll('.dam__crumb').forEach(btn => {
+      btn.addEventListener('click', () => this.navigate(btn.dataset.path));
     });
 
     // Items
-    this.container.querySelectorAll('.dam-item').forEach(item => {
-      item.addEventListener('click', (e) => this.handleItemClick(e, item));
-      item.addEventListener('dblclick', () => this.handleItemDblClick(item));
-      item.addEventListener('contextmenu', (e) => this.handleItemContextMenu(e, item));
+    this.container.querySelectorAll('[data-key]').forEach(el => {
+      el.addEventListener('click', e => this.handleItemClick(e, el));
+      el.addEventListener('dblclick', () => this.handleItemDblClick(el));
     });
 
-    // Selection actions
-    document.getElementById('dam-move-selected')?.addEventListener('click', () => this.showMoveModal());
-    document.getElementById('dam-delete-selected')?.addEventListener('click', () => this.confirmDelete());
-    document.getElementById('dam-clear-selection')?.addEventListener('click', () => this.deselectAll());
+    // Context menus
+    this.container.querySelectorAll('[data-menu]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        this.showContextMenu(e, btn.dataset.menu);
+      });
+    });
+
+    // Selection bar
+    document.getElementById('damMoveBtn')?.addEventListener('click', () => this.showMoveModal());
+    document.getElementById('damDeleteBtn')?.addEventListener('click', () => this.confirmDelete());
+    document.getElementById('damClearSelection')?.addEventListener('click', () => {
+      this.state.selectedItems.clear();
+      this.render();
+    });
 
     // Sort headers
-    this.container.querySelectorAll('.dam-list-header span[data-sort]').forEach(header => {
-      header.addEventListener('click', () => {
-        if (this.state.sortBy === header.dataset.sort) {
+    this.container.querySelectorAll('[data-sort]').forEach(el => {
+      el.addEventListener('click', () => {
+        if (this.state.sortBy === el.dataset.sort) {
           this.state.sortOrder = this.state.sortOrder === 'asc' ? 'desc' : 'asc';
         } else {
-          this.state.sortBy = header.dataset.sort;
+          this.state.sortBy = el.dataset.sort;
           this.state.sortOrder = 'asc';
         }
         this.render();
       });
     });
+
+    // File input
+    const fileInput = document.getElementById('damFileInput');
+    if (fileInput) {
+      fileInput.addEventListener('change', e => {
+        if (e.target.files.length) this.uploadFiles(e.target.files);
+        e.target.value = '';
+      });
+    }
+
+    // Drag and drop
+    if (this.isAdmin) {
+      const body = this.container.querySelector('.dam__body');
+      if (body) {
+        body.addEventListener('dragover', e => {
+          e.preventDefault();
+          this.state.isDragging = true;
+          this.container.querySelector('.dam')?.classList.add('dam--dragging');
+        });
+        body.addEventListener('dragleave', e => {
+          if (!body.contains(e.relatedTarget)) {
+            this.state.isDragging = false;
+            this.container.querySelector('.dam')?.classList.remove('dam--dragging');
+          }
+        });
+        body.addEventListener('drop', e => {
+          e.preventDefault();
+          this.state.isDragging = false;
+          this.container.querySelector('.dam')?.classList.remove('dam--dragging');
+          if (e.dataTransfer.files.length) this.uploadFiles(e.dataTransfer.files);
+        });
+      }
+    }
   }
 
-  handleItemClick(e, item) {
-    const id = item.dataset.id;
-    const isFolder = item.dataset.type === 'folder';
-
-    if (e.ctrlKey || e.metaKey || e.target.closest('.dam-item-checkbox')) {
-      this.toggleSelection(id, isFolder);
-    } else {
-      this.state.selectedItems = [{ id, isFolder }];
+  handleItemClick(e, el) {
+    const key = el.dataset.key;
+    if (e.ctrlKey || e.metaKey || e.target.closest('.dam__checkbox, .dam__card-check, .dam__list-col--check')) {
+      if (this.state.selectedItems.has(key)) {
+        this.state.selectedItems.delete(key);
+      } else {
+        this.state.selectedItems.add(key);
+      }
+      this.render();
+    } else if (!e.target.closest('[data-menu]')) {
+      this.state.selectedItems.clear();
+      this.state.selectedItems.add(key);
       this.render();
     }
   }
 
-  handleItemDblClick(item) {
-    const id = item.dataset.id;
-    const isFolder = item.dataset.type === 'folder';
+  handleItemDblClick(el) {
+    const isFolder = el.dataset.folder === 'true';
+    const id = el.dataset.id;
 
     if (isFolder) {
       const folder = this.data.folders.find(f => f.id === id);
-      if (folder) this.navigateTo(folder.path);
+      if (folder) this.navigate(folder.path);
     } else {
       const file = this.data.files.find(f => f.id === id);
       if (file) this.showPreview(file);
     }
   }
 
-  handleItemContextMenu(e, item) {
-    e.preventDefault();
-    const id = item.dataset.id;
-    const isFolder = item.dataset.type === 'folder';
-
-    if (!this.state.selectedItems.some(s => s.id === id)) {
-      this.state.selectedItems = [{ id, isFolder }];
-      this.render();
-    }
-
-    this.showContextMenu(e.clientX, e.clientY, isFolder);
+  triggerUpload() {
+    document.getElementById('damFileInput')?.click();
   }
 
-  // ============ Modals ============
+  selectAll() {
+    const { folders, files } = this.getCurrentItems();
+    folders.forEach(f => this.state.selectedItems.add(`folder:${f.id}`));
+    files.forEach(f => this.state.selectedItems.add(`file:${f.id}`));
+    this.render();
+  }
 
-  showAddFileModal() {
-    this.showModal({
-      title: 'Add File',
-      content: `
-        <p class="dam-modal-hint">Add a file from Shopify. Go to <strong>Settings → Files</strong> in your Shopify admin, upload your file, then copy the URL here.</p>
-        <div class="dam-form-group">
-          <label class="dam-label">File Name</label>
-          <input type="text" class="dam-input" id="dam-file-name" placeholder="my-image.jpg">
-        </div>
-        <div class="dam-form-group">
-          <label class="dam-label">File URL</label>
-          <input type="text" class="dam-input" id="dam-file-url" placeholder="https://cdn.shopify.com/s/files/...">
-        </div>
-        <div class="dam-form-row">
-          <div class="dam-form-group">
-            <label class="dam-label">Type (optional)</label>
-            <select class="dam-input" id="dam-file-type">
-              <option value="">Auto-detect</option>
-              <option value="image/jpeg">Image (JPEG)</option>
-              <option value="image/png">Image (PNG)</option>
-              <option value="image/gif">Image (GIF)</option>
-              <option value="image/webp">Image (WebP)</option>
-              <option value="video/mp4">Video (MP4)</option>
-              <option value="application/pdf">PDF</option>
-              <option value="application/zip">Archive (ZIP)</option>
-            </select>
-          </div>
-          <div class="dam-form-group">
-            <label class="dam-label">Size (bytes, optional)</label>
-            <input type="number" class="dam-input" id="dam-file-size" placeholder="0">
-          </div>
-        </div>
-      `,
-      actions: [
-        { label: 'Cancel', type: 'secondary', action: 'close' },
-        { label: 'Add File', type: 'primary', action: 'add' }
-      ],
-      onAction: (action) => {
-        if (action === 'add') {
-          const name = document.getElementById('dam-file-name').value.trim();
-          const url = document.getElementById('dam-file-url').value.trim();
-          const type = document.getElementById('dam-file-type').value;
-          const size = parseInt(document.getElementById('dam-file-size').value) || 0;
+  // ═══════════════════════════════════════════════════════════
+  // MODALS
+  // ═══════════════════════════════════════════════════════════
 
-          if (!name || !url) {
-            this.showToast('error', 'Name and URL are required');
-            return false;
-          }
+  showContextMenu(e, key) {
+    document.querySelectorAll('.dam__context-menu').forEach(m => m.remove());
 
-          return this.addFile(name, url, type, size);
-        }
-        return true;
-      }
+    const [type, id] = key.split(':');
+    const isFolder = type === 'folder';
+    const item = isFolder
+      ? this.data.folders.find(f => f.id === id)
+      : this.data.files.find(f => f.id === id);
+    if (!item) return;
+
+    const menu = document.createElement('div');
+    menu.className = 'dam__context-menu';
+
+    const actions = isFolder ? [
+      { icon: 'folderOpen', label: 'Open', action: 'open' },
+      { icon: 'edit', label: 'Rename', action: 'rename' },
+      ...(this.isAdmin ? [{ icon: 'trash', label: 'Delete', action: 'delete', danger: true }] : [])
+    ] : [
+      { icon: 'eye', label: 'Preview', action: 'preview' },
+      { icon: 'download', label: 'Download', action: 'download' },
+      { icon: 'link', label: 'Copy URL', action: 'copy' },
+      { icon: 'edit', label: 'Rename', action: 'rename' },
+      ...(this.isAdmin ? [{ icon: 'trash', label: 'Delete', action: 'delete', danger: true }] : [])
+    ];
+
+    menu.innerHTML = actions.map(a => `
+      <button class="dam__context-item ${a.danger ? 'dam__context-item--danger' : ''}" data-action="${a.action}">
+        ${this.icons[a.icon]} ${a.label}
+      </button>
+    `).join('');
+
+    document.body.appendChild(menu);
+
+    // Position
+    const rect = e.target.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 4}px`;
+    menu.style.left = `${rect.left}px`;
+
+    // Adjust if off screen
+    const menuRect = menu.getBoundingClientRect();
+    if (menuRect.right > window.innerWidth) menu.style.left = `${window.innerWidth - menuRect.width - 8}px`;
+    if (menuRect.bottom > window.innerHeight) menu.style.top = `${rect.top - menuRect.height - 4}px`;
+
+    // Actions
+    menu.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        menu.remove();
+        this.handleContextAction(btn.dataset.action, item, isFolder);
+      });
     });
+  }
+
+  handleContextAction(action, item, isFolder) {
+    switch (action) {
+      case 'open':
+        this.navigate(item.path);
+        break;
+      case 'preview':
+        this.showPreview(item);
+        break;
+      case 'download':
+        this.downloadFile(item);
+        break;
+      case 'copy':
+        navigator.clipboard.writeText(item.url).then(() => this.toast('URL copied'));
+        break;
+      case 'rename':
+        this.showRenameModal(item, isFolder);
+        break;
+      case 'delete':
+        this.state.selectedItems.clear();
+        this.state.selectedItems.add(`${isFolder ? 'folder' : 'file'}:${item.id}`);
+        this.confirmDelete();
+        break;
+    }
+  }
+
+  downloadFile(file) {
+    const a = document.createElement('a');
+    a.href = file.url;
+    a.download = file.name;
+    a.click();
   }
 
   showNewFolderModal() {
     this.showModal({
       title: 'New Folder',
       content: `
-        <div class="dam-form-group">
-          <label class="dam-label">Folder Name</label>
-          <input type="text" class="dam-input" id="dam-folder-name" placeholder="My Folder" autofocus>
+        <div class="dam__form-group">
+          <label class="dam__label">Folder name</label>
+          <input type="text" class="dam__input" id="damFolderName" placeholder="My Folder" autofocus>
         </div>
       `,
       actions: [
@@ -777,9 +844,9 @@ class ShopifyDAM {
       ],
       onAction: (action) => {
         if (action === 'create') {
-          const name = document.getElementById('dam-folder-name').value.trim();
+          const name = document.getElementById('damFolderName')?.value.trim();
           if (!name) {
-            this.showToast('error', 'Please enter a folder name');
+            this.toast('Enter a folder name', 'error');
             return false;
           }
           return this.createFolder(name);
@@ -787,17 +854,16 @@ class ShopifyDAM {
         return true;
       }
     });
-
-    setTimeout(() => document.getElementById('dam-folder-name')?.focus(), 100);
+    setTimeout(() => document.getElementById('damFolderName')?.focus(), 100);
   }
 
   showRenameModal(item, isFolder) {
     this.showModal({
       title: `Rename ${isFolder ? 'Folder' : 'File'}`,
       content: `
-        <div class="dam-form-group">
-          <label class="dam-label">New Name</label>
-          <input type="text" class="dam-input" id="dam-rename-input" value="${this.escapeHtml(item.name)}">
+        <div class="dam__form-group">
+          <label class="dam__label">New name</label>
+          <input type="text" class="dam__input" id="damRenameInput" value="${this.esc(item.name)}">
         </div>
       `,
       actions: [
@@ -806,41 +872,36 @@ class ShopifyDAM {
       ],
       onAction: (action) => {
         if (action === 'rename') {
-          const newName = document.getElementById('dam-rename-input').value.trim();
-          if (!newName) {
-            this.showToast('error', 'Please enter a name');
+          const name = document.getElementById('damRenameInput')?.value.trim();
+          if (!name) {
+            this.toast('Enter a name', 'error');
             return false;
           }
-          return this.renameItem(item.id, newName, isFolder);
+          this.renameItem(item.id, name, isFolder);
         }
         return true;
       }
     });
-
     setTimeout(() => {
-      const input = document.getElementById('dam-rename-input');
+      const input = document.getElementById('damRenameInput');
       if (input) {
         input.focus();
         const dot = item.name.lastIndexOf('.');
-        input.setSelectionRange(0, dot > 0 ? dot : item.name.length);
+        input.setSelectionRange(0, dot > 0 && !isFolder ? dot : item.name.length);
       }
     }, 100);
   }
 
   showMoveModal() {
-    const folderOptions = this.data.folders
-      .filter(f => f.path !== '/')
-      .map(f => `<option value="${this.escapeHtml(f.path)}">${this.escapeHtml(f.path)}</option>`)
-      .join('');
-
+    const folders = this.data.folders.filter(f => f.path !== '/');
     this.showModal({
       title: 'Move Items',
       content: `
-        <div class="dam-form-group">
-          <label class="dam-label">Destination Folder</label>
-          <select class="dam-input" id="dam-move-dest">
+        <div class="dam__form-group">
+          <label class="dam__label">Destination</label>
+          <select class="dam__input" id="damMoveDest">
             <option value="/">/ (Root)</option>
-            ${folderOptions}
+            ${folders.map(f => `<option value="${this.esc(f.path)}">${this.esc(f.path)}</option>`).join('')}
           </select>
         </div>
       `,
@@ -850,8 +911,8 @@ class ShopifyDAM {
       ],
       onAction: (action) => {
         if (action === 'move') {
-          const dest = document.getElementById('dam-move-dest').value;
-          return this.moveItems([...this.state.selectedItems], dest);
+          const dest = document.getElementById('damMoveDest')?.value;
+          this.moveSelected(dest);
         }
         return true;
       }
@@ -859,21 +920,19 @@ class ShopifyDAM {
   }
 
   confirmDelete() {
-    const count = this.state.selectedItems.length;
+    const count = this.state.selectedItems.size;
     this.showModal({
       title: 'Delete Items',
       content: `
         <p>Are you sure you want to delete ${count} item${count > 1 ? 's' : ''}?</p>
-        <p class="dam-modal-warning">This action cannot be undone.</p>
+        <p class="dam__modal-warning">This action cannot be undone.</p>
       `,
       actions: [
         { label: 'Cancel', type: 'secondary', action: 'close' },
         { label: 'Delete', type: 'danger', action: 'delete' }
       ],
       onAction: (action) => {
-        if (action === 'delete') {
-          this.deleteItems([...this.state.selectedItems]);
-        }
+        if (action === 'delete') this.deleteSelected();
         return true;
       }
     });
@@ -883,16 +942,16 @@ class ShopifyDAM {
     let content = '';
 
     if (file.type?.startsWith('image/')) {
-      content = `<img src="${file.url}" alt="${this.escapeHtml(file.name)}" style="max-width:100%;max-height:60vh;">`;
+      content = `<img src="${file.url}" alt="${this.esc(file.name)}" class="dam__preview-img">`;
     } else if (file.type?.startsWith('video/')) {
-      content = `<video src="${file.url}" controls autoplay style="max-width:100%;max-height:60vh;"></video>`;
+      content = `<video src="${file.url}" controls autoplay class="dam__preview-video"></video>`;
     } else if (file.type === 'application/pdf') {
-      content = `<iframe src="${file.url}" style="width:100%;height:60vh;border:none;"></iframe>`;
+      content = `<iframe src="${file.url}" class="dam__preview-pdf"></iframe>`;
     } else {
       content = `
-        <div style="text-align:center;padding:40px;">
+        <div class="dam__preview-fallback">
           ${this.getFileIcon(file.type)}
-          <p style="margin-top:16px;color:#64748b;">Preview not available</p>
+          <p>Preview not available</p>
         </div>
       `;
     }
@@ -900,407 +959,1034 @@ class ShopifyDAM {
     this.showModal({
       title: file.name,
       content: `
-        <div class="dam-preview-content">${content}</div>
-        <div class="dam-preview-info">
-          <span>${this.formatSize(file.size)} • ${this.getTypeLabel(file.type)}</span>
-          <div class="dam-preview-actions">
-            <a href="${file.url}" target="_blank" class="dam-btn dam-btn-secondary">${this.icons.externalLink} Open</a>
-            <a href="${file.url}" download="${file.name}" class="dam-btn dam-btn-primary">${this.icons.download} Download</a>
+        <div class="dam__preview">${content}</div>
+        <div class="dam__preview-bar">
+          <span>${this.formatSize(file.size)}</span>
+          <div class="dam__preview-actions">
+            <button class="dam__btn dam__btn--secondary dam__btn--sm" id="damPreviewDownload">${this.icons.download} Download</button>
           </div>
         </div>
       `,
       actions: [],
-      large: true
+      large: true,
+      onMount: () => {
+        document.getElementById('damPreviewDownload')?.addEventListener('click', () => this.downloadFile(file));
+      }
     });
   }
 
-  showContextMenu(x, y, isFolder) {
-    this.closeContextMenu();
-
-    const menu = document.createElement('div');
-    menu.className = 'dam-context-menu';
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-
-    const items = isFolder ? [
-      { label: 'Open', icon: this.icons.folderOpen, action: 'open' },
-      { type: 'sep' },
-      { label: 'Rename', icon: this.icons.edit, action: 'rename' },
-      { label: 'Move', icon: this.icons.move, action: 'move' },
-      { type: 'sep' },
-      { label: 'Delete', icon: this.icons.trash, action: 'delete', danger: true }
-    ] : [
-      { label: 'Preview', icon: this.icons.eye, action: 'preview' },
-      { label: 'Open in new tab', icon: this.icons.externalLink, action: 'open-new' },
-      { label: 'Copy URL', icon: this.icons.link, action: 'copy-url' },
-      { type: 'sep' },
-      { label: 'Rename', icon: this.icons.edit, action: 'rename' },
-      { label: 'Move', icon: this.icons.move, action: 'move' },
-      { type: 'sep' },
-      { label: 'Delete', icon: this.icons.trash, action: 'delete', danger: true }
-    ];
-
-    menu.innerHTML = items.map(item => {
-      if (item.type === 'sep') return '<div class="dam-context-sep"></div>';
-      return `<div class="dam-context-item${item.danger ? ' danger' : ''}" data-action="${item.action}">
-        <span class="dam-context-icon">${item.icon}</span>${item.label}
-      </div>`;
-    }).join('');
-
-    document.body.appendChild(menu);
-    this.state.contextMenu = menu;
-
-    // Adjust position
-    const rect = menu.getBoundingClientRect();
-    if (rect.right > window.innerWidth) menu.style.left = `${x - rect.width}px`;
-    if (rect.bottom > window.innerHeight) menu.style.top = `${y - rect.height}px`;
-
-    menu.querySelectorAll('.dam-context-item').forEach(item => {
-      item.addEventListener('click', () => {
-        this.handleContextAction(item.dataset.action);
-        this.closeContextMenu();
-      });
-    });
-  }
-
-  handleContextAction(action) {
-    const selected = this.state.selectedItems[0];
-    if (!selected) return;
-
-    const item = selected.isFolder
-      ? this.data.folders.find(f => f.id === selected.id)
-      : this.data.files.find(f => f.id === selected.id);
-
-    if (!item) return;
-
-    switch (action) {
-      case 'open':
-        if (selected.isFolder) this.navigateTo(item.path);
-        break;
-      case 'preview':
-        this.showPreview(item);
-        break;
-      case 'open-new':
-        window.open(item.url, '_blank');
-        break;
-      case 'copy-url':
-        navigator.clipboard.writeText(item.url).then(() => this.showToast('success', 'URL copied'));
-        break;
-      case 'rename':
-        this.showRenameModal(item, selected.isFolder);
-        break;
-      case 'move':
-        this.showMoveModal();
-        break;
-      case 'delete':
-        this.confirmDelete();
-        break;
-    }
-  }
-
-  closeContextMenu() {
-    if (this.state.contextMenu) {
-      this.state.contextMenu.remove();
-      this.state.contextMenu = null;
-    }
-  }
-
-  showModal({ title, content, actions, onAction, large }) {
-    this.closeModal();
+  showModal({ title, content, actions, onAction, large, onMount }) {
+    this.closeAllModals();
 
     const modal = document.createElement('div');
-    modal.className = 'dam-modal-overlay';
-    modal.id = 'dam-modal';
+    modal.className = 'dam__modal-overlay';
+    modal.id = 'damModal';
     modal.innerHTML = `
-      <div class="dam-modal${large ? ' dam-modal-large' : ''}">
-        <div class="dam-modal-header">
+      <div class="dam__modal ${large ? 'dam__modal--large' : ''}">
+        <div class="dam__modal-header">
           <h3>${title}</h3>
-          <button class="dam-modal-close" data-action="close">${this.icons.x}</button>
+          <button class="dam__modal-close" data-action="close">${this.icons.x}</button>
         </div>
-        <div class="dam-modal-body">${content}</div>
+        <div class="dam__modal-body">${content}</div>
         ${actions.length ? `
-          <div class="dam-modal-footer">
-            ${actions.map(a => `<button class="dam-btn dam-btn-${a.type}" data-action="${a.action}">${a.label}</button>`).join('')}
+          <div class="dam__modal-footer">
+            ${actions.map(a => `<button class="dam__btn dam__btn--${a.type}" data-action="${a.action}">${a.label}</button>`).join('')}
           </div>
         ` : ''}
       </div>
     `;
 
     document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden';
 
     modal.querySelectorAll('[data-action]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const action = btn.dataset.action;
-        if (action === 'close') {
-          this.closeModal();
+        if (btn.dataset.action === 'close') {
+          this.closeAllModals();
         } else if (onAction) {
-          const shouldClose = await onAction(action);
-          if (shouldClose) this.closeModal();
+          const shouldClose = await onAction(btn.dataset.action);
+          if (shouldClose) this.closeAllModals();
         }
       });
     });
 
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) this.closeModal();
+    modal.addEventListener('click', e => {
+      if (e.target === modal) this.closeAllModals();
     });
 
-    modal.querySelector('input')?.addEventListener('keydown', async (e) => {
+    // Enter to submit
+    modal.querySelector('input')?.addEventListener('keydown', async e => {
       if (e.key === 'Enter' && onAction) {
         const primary = actions.find(a => a.type === 'primary' || a.type === 'danger');
         if (primary) {
           const shouldClose = await onAction(primary.action);
-          if (shouldClose) this.closeModal();
+          if (shouldClose) this.closeAllModals();
         }
       }
     });
+
+    if (onMount) onMount();
   }
 
-  closeModal() {
-    document.getElementById('dam-modal')?.remove();
+  closeAllModals() {
+    document.getElementById('damModal')?.remove();
+    document.body.style.overflow = '';
   }
 
-  showToast(type, message) {
-    let container = document.querySelector('.dam-toast-container');
+  toast(message, type = 'success') {
+    let container = document.querySelector('.dam__toasts');
     if (!container) {
       container = document.createElement('div');
-      container.className = 'dam-toast-container';
+      container.className = 'dam__toasts';
       document.body.appendChild(container);
     }
 
     const toast = document.createElement('div');
-    toast.className = `dam-toast dam-toast-${type}`;
-    toast.innerHTML = `<span class="dam-toast-icon">${type === 'success' ? this.icons.check : this.icons.x}</span><span>${this.escapeHtml(message)}</span>`;
+    toast.className = `dam__toast dam__toast--${type}`;
+    toast.innerHTML = `
+      <span class="dam__toast-icon">${type === 'success' ? this.icons.check : this.icons.alertCircle}</span>
+      <span>${this.esc(message)}</span>
+    `;
     container.appendChild(toast);
 
     setTimeout(() => {
-      toast.remove();
-      if (container.children.length === 0) container.remove();
+      toast.classList.add('dam__toast--exit');
+      setTimeout(() => toast.remove(), 300);
     }, 3000);
   }
 
-  renderLoading() {
-    this.container.innerHTML = `
-      <div class="dam-container">
-        <div class="dam-loading"><div class="dam-spinner"></div><p>Loading...</p></div>
-      </div>
-    `;
-  }
+  // ═══════════════════════════════════════════════════════════
+  // HELPERS
+  // ═══════════════════════════════════════════════════════════
 
-  renderAccessDenied() {
-    this.container.innerHTML = `
-      <div class="dam-access-denied">
-        ${this.icons.lock}
-        <h2>Access Restricted</h2>
-        <p>The Digital Asset Manager is only available to administrators and affiliate partners.</p>
-      </div>
-    `;
+  countChildren(path) {
+    return this.data.folders.filter(f => f.parentPath === path).length +
+           this.data.files.filter(f => f.folderPath === path).length;
   }
-
-  // ============ Helpers ============
 
   formatSize(bytes) {
-    if (!bytes) return '-';
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+    if (!bytes) return '—';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
+    return `${bytes.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
   }
 
-  formatDate(date) {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString();
+  formatDate(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    const now = new Date();
+    const diff = now - d;
+
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
+
+    return d.toLocaleDateString();
   }
 
   getFileIcon(type) {
     if (!type) return this.icons.file;
     if (type.startsWith('image/')) return this.icons.image;
     if (type.startsWith('video/')) return this.icons.video;
-    if (type === 'application/pdf') return this.icons.pdf;
+    if (type === 'application/pdf') return this.icons.fileText;
     if (type.includes('zip') || type.includes('rar')) return this.icons.archive;
     return this.icons.file;
   }
 
-  getTypeLabel(type) {
-    if (!type) return 'File';
-    if (type.startsWith('image/')) return 'Image';
-    if (type.startsWith('video/')) return 'Video';
-    if (type === 'application/pdf') return 'PDF';
-    if (type.includes('zip')) return 'Archive';
-    return 'File';
-  }
-
-  escapeHtml(str) {
+  esc(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   debounce(fn, delay) {
-    let timer;
-    return (...args) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn.apply(this, args), delay);
-    };
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
   }
 
-  // ============ Styles ============
-
-  injectStyles() {
-    if (document.getElementById('dam-styles')) return;
-
-    const style = document.createElement('style');
-    style.id = 'dam-styles';
-    style.textContent = `
-      .dam-container { font-family: ${this.config.theme.fontFamily}; background: ${this.config.theme.backgroundColor}; color: ${this.config.theme.textColor}; min-height: 500px; border-radius: ${this.config.theme.borderRadius}; overflow: hidden; }
-      .dam-header { background: ${this.config.theme.cardBackground}; border-bottom: 1px solid ${this.config.theme.borderColor}; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-      .dam-title { font-size: 20px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 10px; }
-      .dam-title svg { width: 24px; height: 24px; color: ${this.config.theme.primaryColor}; }
-      .dam-header-actions { display: flex; align-items: center; gap: 12px; }
-      .dam-search-wrapper { position: relative; }
-      .dam-search-input { padding: 8px 12px 8px 36px; border: 1px solid ${this.config.theme.borderColor}; border-radius: 6px; font-size: 14px; outline: none; width: 200px; }
-      .dam-search-input:focus { border-color: ${this.config.theme.primaryColor}; box-shadow: 0 0 0 3px ${this.config.theme.primaryColor}20; }
-      .dam-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: ${this.config.theme.secondaryColor}; }
-      .dam-search-icon svg { width: 18px; height: 18px; }
-      .dam-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: ${this.config.theme.secondaryColor}; cursor: pointer; padding: 2px; }
-      .dam-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; text-decoration: none; }
-      .dam-btn svg { width: 18px; height: 18px; }
-      .dam-btn-primary { background: ${this.config.theme.primaryColor}; color: white; }
-      .dam-btn-primary:hover { background: ${this.config.theme.primaryColor}dd; }
-      .dam-btn-secondary { background: ${this.config.theme.cardBackground}; border-color: ${this.config.theme.borderColor}; color: ${this.config.theme.textColor}; }
-      .dam-btn-secondary:hover { background: ${this.config.theme.backgroundColor}; }
-      .dam-btn-danger { background: ${this.config.theme.errorColor}; color: white; }
-      .dam-btn-danger:hover { background: ${this.config.theme.errorColor}dd; }
-      .dam-selection-bar { background: ${this.config.theme.primaryColor}; color: white; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; }
-      .dam-selection-info { font-size: 14px; font-weight: 500; }
-      .dam-selection-actions { display: flex; gap: 8px; }
-      .dam-selection-actions .dam-btn { background: rgba(255,255,255,0.2); color: white; }
-      .dam-selection-actions .dam-btn:hover { background: rgba(255,255,255,0.3); }
-      .dam-toolbar { background: ${this.config.theme.cardBackground}; border-bottom: 1px solid ${this.config.theme.borderColor}; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-      .dam-toolbar-left, .dam-toolbar-right { display: flex; align-items: center; gap: 8px; }
-      .dam-breadcrumbs { display: flex; align-items: center; gap: 4px; font-size: 14px; flex-wrap: wrap; }
-      .dam-breadcrumb { color: ${this.config.theme.secondaryColor}; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
-      .dam-breadcrumb:hover { background: ${this.config.theme.backgroundColor}; color: ${this.config.theme.primaryColor}; }
-      .dam-breadcrumb.active { color: ${this.config.theme.textColor}; font-weight: 500; cursor: default; }
-      .dam-breadcrumb.active:hover { background: transparent; color: ${this.config.theme.textColor}; }
-      .dam-breadcrumb svg { width: 16px; height: 16px; }
-      .dam-breadcrumb-sep { color: ${this.config.theme.secondaryColor}; }
-      .dam-view-toggle { display: flex; border: 1px solid ${this.config.theme.borderColor}; border-radius: 6px; overflow: hidden; }
-      .dam-view-toggle button { background: ${this.config.theme.cardBackground}; border: none; padding: 6px 10px; cursor: pointer; color: ${this.config.theme.secondaryColor}; }
-      .dam-view-toggle button:not(:last-child) { border-right: 1px solid ${this.config.theme.borderColor}; }
-      .dam-view-toggle button:hover { background: ${this.config.theme.backgroundColor}; }
-      .dam-view-toggle button.active { background: ${this.config.theme.primaryColor}; color: white; }
-      .dam-view-toggle svg { width: 18px; height: 18px; }
-      .dam-content { padding: 20px; min-height: 300px; }
-      .dam-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
-      .dam-item { background: ${this.config.theme.cardBackground}; border: 2px solid transparent; border-radius: 8px; cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden; }
-      .dam-item:hover { border-color: ${this.config.theme.borderColor}; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-      .dam-item.selected { border-color: ${this.config.theme.primaryColor}; background: ${this.config.theme.primaryColor}08; }
-      .dam-item-checkbox { position: absolute; top: 8px; left: 8px; width: 20px; height: 20px; border: 2px solid white; border-radius: 4px; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; color: white; z-index: 1; }
-      .dam-item-checkbox svg { width: 14px; height: 14px; }
-      .dam-item:hover .dam-item-checkbox, .dam-item.selected .dam-item-checkbox { opacity: 1; }
-      .dam-item.selected .dam-item-checkbox { background: ${this.config.theme.primaryColor}; border-color: ${this.config.theme.primaryColor}; }
-      .dam-item-preview { height: 100px; display: flex; align-items: center; justify-content: center; background: ${this.config.theme.backgroundColor}; overflow: hidden; }
-      .dam-item-preview img { width: 100%; height: 100%; object-fit: cover; }
-      .dam-item-icon { color: ${this.config.theme.secondaryColor}; }
-      .dam-item-icon svg { width: 40px; height: 40px; }
-      .dam-folder-icon { color: ${this.config.theme.primaryColor}; }
-      .dam-item-info { padding: 10px 12px; }
-      .dam-item-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .dam-item-meta { font-size: 11px; color: ${this.config.theme.secondaryColor}; margin-top: 4px; }
-      .dam-list { display: flex; flex-direction: column; gap: 2px; }
-      .dam-list-header { display: grid; grid-template-columns: 40px 1fr 100px 100px 100px; gap: 12px; padding: 8px 12px; font-size: 12px; font-weight: 600; color: ${this.config.theme.secondaryColor}; text-transform: uppercase; border-bottom: 1px solid ${this.config.theme.borderColor}; }
-      .dam-list-header span[data-sort] { cursor: pointer; }
-      .dam-list-header span[data-sort]:hover { color: ${this.config.theme.textColor}; }
-      .dam-list .dam-item { display: grid; grid-template-columns: 40px 1fr 100px 100px 100px; gap: 12px; align-items: center; padding: 8px 12px; border-radius: 6px; }
-      .dam-list .dam-item-preview { width: 40px; height: 40px; border-radius: 4px; }
-      .dam-list .dam-item-preview .dam-item-icon svg { width: 24px; height: 24px; }
-      .dam-list .dam-item-name { font-size: 14px; }
-      .dam-list .dam-item-meta { margin-top: 0; font-size: 13px; }
-      .dam-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
-      .dam-empty svg { width: 48px; height: 48px; color: ${this.config.theme.secondaryColor}; margin-bottom: 16px; }
-      .dam-empty-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-      .dam-empty-text { color: ${this.config.theme.secondaryColor}; margin-bottom: 20px; }
-      .dam-empty-actions { display: flex; gap: 12px; }
-      .dam-context-menu { position: fixed; background: ${this.config.theme.cardBackground}; border: 1px solid ${this.config.theme.borderColor}; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 180px; padding: 6px; z-index: 1000; }
-      .dam-context-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-size: 14px; cursor: pointer; border-radius: 4px; }
-      .dam-context-item:hover { background: ${this.config.theme.backgroundColor}; }
-      .dam-context-item.danger { color: ${this.config.theme.errorColor}; }
-      .dam-context-item.danger:hover { background: ${this.config.theme.errorColor}10; }
-      .dam-context-icon svg { width: 16px; height: 16px; }
-      .dam-context-sep { height: 1px; background: ${this.config.theme.borderColor}; margin: 6px 0; }
-      .dam-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
-      .dam-modal { background: ${this.config.theme.cardBackground}; border-radius: 12px; max-width: 480px; width: 100%; max-height: 90vh; overflow: auto; }
-      .dam-modal-large { max-width: 800px; }
-      .dam-modal-header { padding: 16px 20px; border-bottom: 1px solid ${this.config.theme.borderColor}; display: flex; align-items: center; justify-content: space-between; }
-      .dam-modal-header h3 { font-size: 18px; font-weight: 600; margin: 0; }
-      .dam-modal-close { background: none; border: none; color: ${this.config.theme.secondaryColor}; cursor: pointer; padding: 4px; }
-      .dam-modal-close:hover { color: ${this.config.theme.textColor}; }
-      .dam-modal-close svg { width: 20px; height: 20px; }
-      .dam-modal-body { padding: 20px; }
-      .dam-modal-footer { padding: 16px 20px; border-top: 1px solid ${this.config.theme.borderColor}; display: flex; justify-content: flex-end; gap: 12px; }
-      .dam-modal-hint { font-size: 13px; color: ${this.config.theme.secondaryColor}; margin-bottom: 16px; line-height: 1.5; }
-      .dam-modal-warning { color: ${this.config.theme.errorColor}; font-size: 13px; margin-top: 12px; }
-      .dam-form-group { margin-bottom: 16px; }
-      .dam-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-      .dam-label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 6px; }
-      .dam-input { width: 100%; padding: 10px 14px; border: 1px solid ${this.config.theme.borderColor}; border-radius: 6px; font-size: 14px; outline: none; }
-      .dam-input:focus { border-color: ${this.config.theme.primaryColor}; box-shadow: 0 0 0 3px ${this.config.theme.primaryColor}20; }
-      .dam-preview-content { display: flex; align-items: center; justify-content: center; padding: 20px; background: #111; min-height: 200px; }
-      .dam-preview-info { padding: 12px 20px; background: #222; color: #ccc; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-      .dam-preview-actions { display: flex; gap: 8px; }
-      .dam-preview-actions .dam-btn { font-size: 13px; padding: 6px 12px; }
-      .dam-toast-container { position: fixed; top: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
-      .dam-toast { background: ${this.config.theme.cardBackground}; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); padding: 12px 16px; display: flex; align-items: center; gap: 10px; animation: damToast 0.3s ease; }
-      @keyframes damToast { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
-      .dam-toast-icon svg { width: 20px; height: 20px; }
-      .dam-toast-success .dam-toast-icon { color: ${this.config.theme.successColor}; }
-      .dam-toast-error .dam-toast-icon { color: ${this.config.theme.errorColor}; }
-      .dam-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; }
-      .dam-spinner { width: 40px; height: 40px; border: 3px solid ${this.config.theme.borderColor}; border-top-color: ${this.config.theme.primaryColor}; border-radius: 50%; animation: damSpin 0.8s linear infinite; margin-bottom: 16px; }
-      @keyframes damSpin { to { transform: rotate(360deg); } }
-      .dam-access-denied { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; background: ${this.config.theme.cardBackground}; border-radius: ${this.config.theme.borderRadius}; min-height: 400px; }
-      .dam-access-denied svg { width: 48px; height: 48px; color: ${this.config.theme.errorColor}; margin-bottom: 16px; }
-      .dam-access-denied h2 { font-size: 20px; margin-bottom: 8px; }
-      .dam-access-denied p { color: ${this.config.theme.secondaryColor}; max-width: 400px; }
-      @media (max-width: 768px) {
-        .dam-header { flex-direction: column; align-items: stretch; }
-        .dam-toolbar { flex-direction: column; align-items: stretch; }
-        .dam-search-input { width: 100%; }
-        .dam-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
-        .dam-list .dam-item { grid-template-columns: 40px 1fr; }
-        .dam-list-header { display: none; }
-        .dam-form-row { grid-template-columns: 1fr; }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // ============ Icons ============
+  // ═══════════════════════════════════════════════════════════
+  // ICONS
+  // ═══════════════════════════════════════════════════════════
 
   get icons() {
     return {
-      folder: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>',
-      folderOpen: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><path d="M2 10h20"></path></svg>',
-      folderPlus: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>',
-      file: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>',
-      image: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>',
-      video: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>',
-      pdf: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>',
-      archive: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect></svg>',
-      plus: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
-      search: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
-      grid: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>',
-      list: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>',
-      edit: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
-      trash: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
-      move: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"></polyline><polyline points="9 5 12 2 15 5"></polyline><polyline points="15 19 12 22 9 19"></polyline><polyline points="19 9 22 12 19 15"></polyline><line x1="2" y1="12" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="22"></line></svg>',
-      link: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
-      eye: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
-      download: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>',
-      externalLink: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>',
-      x: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
-      check: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
-      home: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
-      lock: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>'
+      layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+      folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
+      folderOpen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg>',
+      folderPlus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
+      file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+      fileText: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+      image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+      video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
+      archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+      upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
+      download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+      search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+      grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
+      list: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+      home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+      chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+      moreV: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>',
+      moreH: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
+      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+      move: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>',
+      link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+      eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+      x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+      alertCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // STYLES
+  // ═══════════════════════════════════════════════════════════
+
+  injectStyles() {
+    if (document.getElementById('dam-styles-v3')) return;
+    const t = this.config.theme;
+    const style = document.createElement('style');
+    style.id = 'dam-styles-v3';
+    style.textContent = `
+/* ═══════════════════════════════════════════════════════════════════
+   SHOPIFY DAM - Premium Styles
+   ═══════════════════════════════════════════════════════════════════ */
+
+.dam {
+  --primary: ${t.primaryColor};
+  --accent: ${t.accentColor};
+  --danger: ${t.dangerColor};
+  --bg: ${t.backgroundColor};
+  --surface: ${t.surfaceColor};
+  --text: ${t.textPrimary};
+  --text-secondary: ${t.textSecondary};
+  --text-muted: ${t.textMuted};
+  --border: ${t.borderColor};
+  --shadow: ${t.shadowColor};
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  min-height: 600px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+}
+
+.dam *, .dam *::before, .dam *::after { box-sizing: border-box; }
+.dam svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+/* ─── Header ─────────────────────────────────────────────────────── */
+
+.dam__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.dam__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dam__logo {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.dam__logo svg { width: 22px; height: 22px; }
+
+.dam__brand-text { display: flex; flex-direction: column; gap: 2px; }
+.dam__title { font-size: 18px; font-weight: 700; margin: 0; letter-spacing: -0.3px; }
+
+.dam__badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.dam__badge--admin { background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; }
+.dam__badge--viewer { background: var(--bg); color: var(--text-secondary); }
+
+.dam__search {
+  flex: 1;
+  max-width: 400px;
+  position: relative;
+}
+
+.dam__search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.dam__search-icon svg { width: 18px; height: 18px; }
+
+.dam__search-input {
+  width: 100%;
+  padding: 10px 14px 10px 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  transition: all 0.2s;
+}
+
+.dam__search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+  background: var(--surface);
+}
+
+.dam__search-input::placeholder { color: var(--text-muted); }
+
+.dam__search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.dam__search-clear:hover { color: var(--text); background: var(--bg); }
+
+.dam__header-actions { display: flex; gap: 10px; margin-left: auto; }
+
+/* ─── Buttons ────────────────────────────────────────────────────── */
+
+.dam__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.dam__btn svg { width: 18px; height: 18px; }
+
+.dam__btn--primary {
+  background: linear-gradient(135deg, var(--primary), #0052cc);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3);
+}
+
+.dam__btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.4);
+}
+
+.dam__btn--secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.dam__btn--secondary:hover { background: var(--bg); border-color: var(--text-muted); }
+
+.dam__btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.dam__btn--ghost:hover { background: var(--bg); color: var(--text); }
+
+.dam__btn--danger {
+  background: var(--danger);
+  color: white;
+}
+
+.dam__btn--danger:hover { background: #e6354f; }
+
+.dam__btn--sm { padding: 8px 14px; font-size: 13px; }
+.dam__btn--sm svg { width: 16px; height: 16px; }
+
+.dam__icon-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dam__icon-btn:hover { background: var(--bg); color: var(--text); }
+
+/* ─── Selection Bar ──────────────────────────────────────────────── */
+
+.dam__selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--primary), #0052cc);
+  color: white;
+}
+
+.dam__selection-info { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+
+.dam__selection-count {
+  background: rgba(255,255,255,0.2);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.dam__selection-actions { display: flex; gap: 8px; }
+.dam__selection-actions .dam__btn--ghost { color: rgba(255,255,255,0.9); }
+.dam__selection-actions .dam__btn--ghost:hover { background: rgba(255,255,255,0.15); color: white; }
+.dam__selection-actions .dam__btn--danger { background: rgba(255,255,255,0.2); }
+.dam__selection-actions .dam__btn--danger:hover { background: rgba(255,255,255,0.3); }
+
+/* ─── Toolbar ────────────────────────────────────────────────────── */
+
+.dam__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.dam__breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.dam__crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dam__crumb svg { width: 16px; height: 16px; }
+.dam__crumb:hover { background: var(--bg); color: var(--primary); }
+.dam__crumb--active { color: var(--text); font-weight: 600; cursor: default; }
+.dam__crumb--active:hover { background: transparent; color: var(--text); }
+
+.dam__crumb-sep { color: var(--text-muted); }
+.dam__crumb-sep svg { width: 14px; height: 14px; }
+
+.dam__toolbar-actions { display: flex; align-items: center; gap: 12px; }
+
+.dam__view-toggle {
+  display: flex;
+  background: var(--bg);
+  border-radius: var(--radius-xs);
+  padding: 3px;
+}
+
+.dam__view-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dam__view-btn:hover { color: var(--text); }
+.dam__view-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 1px 3px var(--shadow); }
+.dam__view-btn svg { width: 18px; height: 18px; }
+
+/* ─── Body ───────────────────────────────────────────────────────── */
+
+.dam__body {
+  padding: 24px;
+  min-height: 400px;
+}
+
+/* ─── Grid View ──────────────────────────────────────────────────── */
+
+.dam__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.dam__card {
+  position: relative;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  overflow: hidden;
+}
+
+.dam__card:hover {
+  border-color: var(--border);
+  box-shadow: 0 8px 24px var(--shadow);
+  transform: translateY(-2px);
+}
+
+.dam__card--selected {
+  border-color: var(--primary);
+  background: rgba(0, 102, 255, 0.04);
+}
+
+.dam__card-check {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.dam__card:hover .dam__card-check,
+.dam__card--selected .dam__card-check { opacity: 1; }
+
+.dam__checkbox {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.dam__checkbox svg { width: 14px; height: 14px; }
+
+.dam__checkbox--checked {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.dam__card-preview {
+  height: 140px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.dam__card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+
+.dam__card:hover .dam__card-img { transform: scale(1.05); }
+
+.dam__card-icon { color: var(--text-muted); }
+.dam__card-icon svg { width: 48px; height: 48px; }
+.dam__card-icon--folder { color: var(--primary); }
+
+.dam__card-info { padding: 14px 16px; }
+
+.dam__card-name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.dam__card-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dam__card-menu {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.dam__card:hover .dam__card-menu { opacity: 1; }
+.dam__card-menu:hover { color: var(--text); background: var(--bg); }
+.dam__card-menu svg { width: 16px; height: 16px; }
+
+/* ─── List View ──────────────────────────────────────────────────── */
+
+.dam__list { display: flex; flex-direction: column; }
+
+.dam__list-header {
+  display: grid;
+  grid-template-columns: 40px 44px 1fr 100px 120px 48px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.dam__list-header [data-sort] { cursor: pointer; }
+.dam__list-header [data-sort]:hover { color: var(--text); }
+
+.dam__list-row {
+  display: grid;
+  grid-template-columns: 40px 44px 1fr 100px 120px 48px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dam__list-row:hover { background: var(--bg); }
+.dam__list-row--selected { background: rgba(0, 102, 255, 0.06); }
+
+.dam__list-col--icon { display: flex; justify-content: center; }
+.dam__icon { color: var(--text-muted); display: flex; }
+.dam__icon svg { width: 22px; height: 22px; }
+.dam__icon--folder { color: var(--primary); }
+
+.dam__list-col--name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dam__list-col--size, .dam__list-col--date { font-size: 13px; color: var(--text-secondary); }
+.dam__list-col--actions { display: flex; justify-content: flex-end; }
+
+/* ─── Empty State ────────────────────────────────────────────────── */
+
+.dam__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 24px;
+}
+
+.dam__empty-icon {
+  width: 80px;
+  height: 80px;
+  background: var(--bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.dam__empty-icon svg { width: 36px; height: 36px; }
+.dam__empty-title { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
+.dam__empty-text { color: var(--text-secondary); margin: 0 0 24px; max-width: 300px; }
+.dam__empty-actions { display: flex; gap: 12px; }
+
+/* ─── Dropzone ───────────────────────────────────────────────────── */
+
+.dam__dropzone {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 102, 255, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.dam--dragging .dam__dropzone { opacity: 1; pointer-events: auto; }
+
+.dam__dropzone-content { text-align: center; color: white; }
+.dam__dropzone-icon { margin-bottom: 16px; }
+.dam__dropzone-icon svg { width: 64px; height: 64px; }
+.dam__dropzone-text { font-size: 20px; font-weight: 600; }
+
+/* ─── Context Menu ───────────────────────────────────────────────── */
+
+.dam__context-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+  min-width: 180px;
+  padding: 6px;
+  z-index: 1000;
+  animation: damContextIn 0.15s ease;
+}
+
+@keyframes damContextIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.dam__context-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.1s;
+  text-align: left;
+}
+
+.dam__context-item:hover { background: var(--bg); }
+.dam__context-item svg { width: 18px; height: 18px; color: var(--text-secondary); }
+.dam__context-item--danger { color: var(--danger); }
+.dam__context-item--danger:hover { background: rgba(255, 59, 92, 0.08); }
+.dam__context-item--danger svg { color: var(--danger); }
+
+/* ─── Modal ──────────────────────────────────────────────────────── */
+
+.dam__modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 24px;
+  animation: damFadeIn 0.2s ease;
+}
+
+@keyframes damFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.dam__modal {
+  background: var(--surface);
+  border-radius: var(--radius);
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: auto;
+  animation: damSlideUp 0.25s ease;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+}
+
+@keyframes damSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dam__modal--large { max-width: 900px; }
+
+.dam__modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dam__modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dam__modal-close {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dam__modal-close:hover { background: var(--bg); color: var(--text); }
+
+.dam__modal-body { padding: 24px; }
+.dam__modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.dam__modal-warning { color: var(--danger); font-size: 13px; margin-top: 12px; }
+
+.dam__form-group { margin-bottom: 20px; }
+.dam__form-group:last-child { margin-bottom: 0; }
+.dam__label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
+
+.dam__input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  transition: all 0.2s;
+}
+
+.dam__input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+/* ─── Preview ────────────────────────────────────────────────────── */
+
+.dam__preview {
+  background: #0a0a0a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.dam__preview-img { max-width: 100%; max-height: 60vh; object-fit: contain; }
+.dam__preview-video { max-width: 100%; max-height: 60vh; }
+.dam__preview-pdf { width: 100%; height: 60vh; border: none; }
+
+.dam__preview-fallback {
+  text-align: center;
+  color: #666;
+  padding: 60px;
+}
+
+.dam__preview-fallback svg { width: 64px; height: 64px; margin-bottom: 16px; }
+
+.dam__preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #1a1a1a;
+  color: #999;
+  font-size: 13px;
+  margin-top: 16px;
+  border-radius: var(--radius-sm);
+}
+
+.dam__preview-actions { display: flex; gap: 8px; }
+
+/* ─── Toasts ─────────────────────────────────────────────────────── */
+
+.dam__toasts {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dam__toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+  animation: damToastIn 0.3s ease;
+  font-weight: 500;
+}
+
+@keyframes damToastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.dam__toast--exit {
+  animation: damToastOut 0.3s ease forwards;
+}
+
+@keyframes damToastOut {
+  to { opacity: 0; transform: translateX(20px); }
+}
+
+.dam__toast-icon { display: flex; }
+.dam__toast--success .dam__toast-icon { color: var(--accent); }
+.dam__toast--error .dam__toast-icon { color: var(--danger); }
+
+/* ─── Access Denied ──────────────────────────────────────────────── */
+
+.dam--denied { display: flex; align-items: center; justify-content: center; min-height: 500px; }
+
+.dam__denied {
+  text-align: center;
+  padding: 60px;
+}
+
+.dam__denied-icon {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 59, 92, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--danger);
+  margin: 0 auto 24px;
+}
+
+.dam__denied-icon svg { width: 36px; height: 36px; }
+.dam__denied h2 { font-size: 24px; margin: 0 0 12px; }
+.dam__denied p { color: var(--text-secondary); margin: 0; }
+
+/* ─── Responsive ─────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .dam__header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .dam__brand { justify-content: center; }
+  .dam__search { max-width: none; }
+  .dam__header-actions { justify-content: center; }
+
+  .dam__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .dam__toolbar-actions { justify-content: space-between; }
+
+  .dam__body { padding: 16px; }
+
+  .dam__grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .dam__card-preview { height: 100px; }
+  .dam__card-icon svg { width: 36px; height: 36px; }
+  .dam__card-info { padding: 10px 12px; }
+  .dam__card-name { font-size: 13px; }
+
+  .dam__list-header { display: none; }
+
+  .dam__list-row {
+    grid-template-columns: 40px 40px 1fr 40px;
+    padding: 10px 12px;
+  }
+
+  .dam__list-col--size,
+  .dam__list-col--date { display: none; }
+
+  .dam__selection-bar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .dam__btn span { display: none; }
+  .dam__btn--primary span,
+  .dam__toolbar-actions .dam__btn span { display: inline; }
+
+  .dam__modal { margin: 16px; max-height: calc(100vh - 32px); }
+
+  .dam__toasts { bottom: 16px; right: 16px; left: 16px; }
+  .dam__toast { width: 100%; }
+}
+
+@media (max-width: 480px) {
+  .dam__grid { grid-template-columns: repeat(2, 1fr); }
+  .dam__empty { padding: 40px 16px; }
+  .dam__empty-actions { flex-direction: column; width: 100%; }
+  .dam__empty-actions .dam__btn { width: 100%; justify-content: center; }
+}
+`;
+    document.head.appendChild(style);
   }
 }
 
