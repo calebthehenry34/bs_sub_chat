@@ -7,7 +7,32 @@
   Files: Add by URL from Shopify Admin → Settings → Files
 {% endcomment %}
 
-{% if customer %}
+{% if request.design_mode %}
+  {%- comment -%}Theme Editor Mode - Show DAM preview without login{%- endcomment -%}
+  <div id="shopify-dam-container"></div>
+
+  {{ 'shopify-dam-standalone.js' | asset_url | script_tag }}
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var dam = new ShopifyDAM({
+        containerId: 'shopify-dam-container',
+        userEmail: 'theme-editor@preview.local',
+        userTags: ['admin'],
+        isDesignMode: true,
+        theme: {
+          primaryColor: '{{ section.settings.primary_color | default: "#2563eb" }}',
+          secondaryColor: '{{ section.settings.secondary_color | default: "#64748b" }}',
+          backgroundColor: '{{ section.settings.background_color | default: "#f8fafc" }}',
+          cardBackground: '{{ section.settings.card_background | default: "#ffffff" }}',
+          textColor: '{{ section.settings.text_color | default: "#1e293b" }}',
+          borderColor: '{{ section.settings.border_color | default: "#e2e8f0" }}'
+        }
+      });
+      dam.init();
+    });
+  </script>
+{% elsif customer %}
   {% assign has_access = false %}
   {% for tag in customer.tags %}
     {% assign tag_lower = tag | downcase %}
