@@ -120,6 +120,7 @@
       return icons[ext] || '📄';
     }
 
+    // Inject styles
     if (!document.getElementById('dam-hub-styles')) {
       var style = document.createElement('style');
       style.id = 'dam-hub-styles';

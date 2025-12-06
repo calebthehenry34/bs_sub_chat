@@ -1,0 +1,403 @@
+{% comment %}
+  Shopify Digital Asset Management (DAM) Section
+
+  This section provides a Dropbox/Google Drive-like file management interface
+  for managing digital assets. Access is restricted to customers with
+  'admin' or 'affiliate' tags.
+
+  Features:
+  - Folder structure with create/rename/delete
+  - File upload with drag & drop support
+  - File preview and download
+  - Search functionality
+  - Grid and list view modes
+
+  Schema settings:
+  - backend_url: URL to the DAM API backend
+  - max_file_size: Maximum file size in MB (default: 20)
+  - primary_color: Theme primary color
+  - secondary_color: Theme secondary color
+
+  Usage:
+  Add this section to a page template or include it in a custom page.
+  Only customers with 'admin' or 'affiliate' tags will see the DAM interface.
+  Others will see an access denied message.
+{% endcomment %}
+
+<style>
+  .dam-section {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .dam-section-header {
+    margin-bottom: 24px;
+  }
+
+  .dam-section-title {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    color: {{ section.settings.text_color | default: '#1e293b' }};
+  }
+
+  .dam-section-subtitle {
+    font-size: 16px;
+    color: {{ section.settings.secondary_color | default: '#64748b' }};
+    margin: 0;
+  }
+
+  .dam-access-message {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    margin: 60px auto;
+  }
+
+  .dam-access-message svg {
+    width: 48px;
+    height: 48px;
+    color: #ef4444;
+    margin-bottom: 16px;
+  }
+
+  .dam-access-message h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #991b1b;
+    margin: 0 0 8px 0;
+  }
+
+  .dam-access-message p {
+    color: #b91c1c;
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .dam-login-prompt {
+    background: {{ section.settings.background_color | default: '#f8fafc' }};
+    border: 1px solid {{ section.settings.border_color | default: '#e2e8f0' }};
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    max-width: 500px;
+    margin: 60px auto;
+  }
+
+  .dam-login-prompt svg {
+    width: 48px;
+    height: 48px;
+    color: {{ section.settings.primary_color | default: '#2563eb' }};
+    margin-bottom: 16px;
+  }
+
+  .dam-login-prompt h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: {{ section.settings.text_color | default: '#1e293b' }};
+    margin: 0 0 8px 0;
+  }
+
+  .dam-login-prompt p {
+    color: {{ section.settings.secondary_color | default: '#64748b' }};
+    margin: 0 0 20px 0;
+    font-size: 14px;
+  }
+
+  .dam-login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: {{ section.settings.primary_color | default: '#2563eb' }};
+    color: white;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background 0.2s ease;
+  }
+
+  .dam-login-btn:hover {
+    background: {{ section.settings.primary_color | default: '#2563eb' }}dd;
+    color: white;
+  }
+
+  /* Loading state */
+  .dam-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+  }
+
+  .dam-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid {{ section.settings.border_color | default: '#e2e8f0' }};
+    border-top-color: {{ section.settings.primary_color | default: '#2563eb' }};
+    border-radius: 50%;
+    animation: damSectionSpin 0.8s linear infinite;
+    margin-bottom: 16px;
+  }
+
+  @keyframes damSectionSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .dam-section {
+      padding: 16px;
+    }
+
+    .dam-section-title {
+      font-size: 22px;
+    }
+
+    .dam-access-message,
+    .dam-login-prompt {
+      padding: 30px 20px;
+      margin: 40px 16px;
+    }
+  }
+</style>
+
+<div class="dam-section">
+  {% if section.settings.show_header %}
+    <div class="dam-section-header">
+      <h1 class="dam-section-title">{{ section.settings.title | default: 'Digital Asset Manager' }}</h1>
+      {% if section.settings.subtitle != blank %}
+        <p class="dam-section-subtitle">{{ section.settings.subtitle }}</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% comment %} Check if customer is logged in {% endcomment %}
+  {% if customer %}
+    {% comment %} Build user tags array from customer tags {% endcomment %}
+    {% assign has_access = false %}
+    {% assign user_tags_array = "" %}
+
+    {% for tag in customer.tags %}
+      {% assign tag_lower = tag | downcase %}
+      {% if tag_lower == 'admin' or tag_lower == 'affiliate' %}
+        {% assign has_access = true %}
+      {% endif %}
+
+      {% if user_tags_array == "" %}
+        {% assign user_tags_array = tag %}
+      {% else %}
+        {% assign user_tags_array = user_tags_array | append: "," | append: tag %}
+      {% endif %}
+    {% endfor %}
+
+    {% if has_access %}
+      {% comment %} User has access - render the DAM container {% endcomment %}
+      <div id="shopify-dam-container">
+        <div class="dam-loading-state">
+          <div class="dam-loading-spinner"></div>
+          <p>Loading Digital Asset Manager...</p>
+        </div>
+      </div>
+
+      {% comment %} Load the DAM JavaScript {% endcomment %}
+      <script src="{{ 'shopify-dam.js' | asset_url }}" defer></script>
+
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          // Wait for the script to load
+          var checkDAM = setInterval(function() {
+            if (typeof ShopifyDAM !== 'undefined') {
+              clearInterval(checkDAM);
+              initializeDAM();
+            }
+          }, 100);
+
+          // Timeout after 10 seconds
+          setTimeout(function() {
+            clearInterval(checkDAM);
+          }, 10000);
+
+          function initializeDAM() {
+            // Parse user tags
+            var userTags = [];
+            {% for tag in customer.tags %}
+              userTags.push('{{ tag | escape }}');
+            {% endfor %}
+
+            // Initialize the DAM component
+            var dam = new ShopifyDAM({
+              containerId: 'shopify-dam-container',
+              backendUrl: '{{ section.settings.backend_url | default: "https://your-backend-url.vercel.app" }}',
+              userEmail: '{{ customer.email | escape }}',
+              userTags: userTags,
+              allowedTags: ['admin', 'affiliate'],
+              maxFileSize: {{ section.settings.max_file_size | default: 20 }} * 1024 * 1024,
+              theme: {
+                primaryColor: '{{ section.settings.primary_color | default: "#2563eb" }}',
+                secondaryColor: '{{ section.settings.secondary_color | default: "#64748b" }}',
+                backgroundColor: '{{ section.settings.background_color | default: "#f8fafc" }}',
+                cardBackground: '{{ section.settings.card_background | default: "#ffffff" }}',
+                textColor: '{{ section.settings.text_color | default: "#1e293b" }}',
+                borderColor: '{{ section.settings.border_color | default: "#e2e8f0" }}',
+                borderRadius: '{{ section.settings.border_radius | default: "8px" }}',
+                successColor: '{{ section.settings.success_color | default: "#22c55e" }}',
+                errorColor: '{{ section.settings.error_color | default: "#ef4444" }}',
+                warningColor: '{{ section.settings.warning_color | default: "#f59e0b" }}'
+              }
+            });
+
+            dam.init();
+          }
+        });
+      </script>
+    {% else %}
+      {% comment %} User is logged in but doesn't have access {% endcomment %}
+      <div class="dam-access-message">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <h3>Access Restricted</h3>
+        <p>The Digital Asset Manager is only available to administrators and affiliate partners. If you believe you should have access, please contact support.</p>
+      </div>
+    {% endif %}
+  {% else %}
+    {% comment %} User is not logged in {% endcomment %}
+    <div class="dam-login-prompt">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      <h3>Login Required</h3>
+      <p>Please log in to access the Digital Asset Manager. This feature is available to administrators and affiliate partners.</p>
+      <a href="/account/login?return_url={{ request.path | url_encode }}" class="dam-login-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+          <polyline points="10 17 15 12 10 7"></polyline>
+          <line x1="15" y1="12" x2="3" y2="12"></line>
+        </svg>
+        Log In
+      </a>
+    </div>
+  {% endif %}
+</div>
+
+{% schema %}
+{
+  "name": "Digital Asset Manager",
+  "tag": "section",
+  "class": "shopify-dam-section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "backend_url",
+      "label": "Backend API URL",
+      "info": "URL to your DAM API backend (e.g., https://your-app.vercel.app)",
+      "placeholder": "https://your-backend.vercel.app"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_header",
+      "label": "Show section header",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Title",
+      "default": "Digital Asset Manager"
+    },
+    {
+      "type": "text",
+      "id": "subtitle",
+      "label": "Subtitle",
+      "default": "Upload, organize, and manage your digital assets"
+    },
+    {
+      "type": "range",
+      "id": "max_file_size",
+      "label": "Max file size (MB)",
+      "min": 1,
+      "max": 100,
+      "step": 1,
+      "default": 20
+    },
+    {
+      "type": "header",
+      "content": "Theme Colors"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Primary color",
+      "default": "#2563eb"
+    },
+    {
+      "type": "color",
+      "id": "secondary_color",
+      "label": "Secondary color",
+      "default": "#64748b"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#f8fafc"
+    },
+    {
+      "type": "color",
+      "id": "card_background",
+      "label": "Card background",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#1e293b"
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border color",
+      "default": "#e2e8f0"
+    },
+    {
+      "type": "color",
+      "id": "success_color",
+      "label": "Success color",
+      "default": "#22c55e"
+    },
+    {
+      "type": "color",
+      "id": "error_color",
+      "label": "Error color",
+      "default": "#ef4444"
+    },
+    {
+      "type": "color",
+      "id": "warning_color",
+      "label": "Warning color",
+      "default": "#f59e0b"
+    },
+    {
+      "type": "text",
+      "id": "border_radius",
+      "label": "Border radius",
+      "default": "8px"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Digital Asset Manager",
+      "category": "Custom"
+    }
+  ]
+}
+{% endschema %}
