@@ -1,11 +1,13 @@
 {% comment %}
-  Shopify DAM - Premium Digital Asset Manager
+  Marketing Resources - Digital Asset Manager
+  Pure Shopify solution - no external services required
 
-  Features:
-  - Direct file upload (drag & drop)
-  - Admin-only upload/delete permissions
-  - Affiliate read-only access
-  - High-end responsive UI
+  How to use:
+  1. Add this section to a page
+  2. Use Theme Customizer to add folders and files
+  3. For files: Upload to Shopify Files first, then paste the URL here
+  4. Admin users can manage files via "Manage Files" button
+  5. Affiliates get read-only access
 {% endcomment %}
 
 {% if request.design_mode %}
@@ -13,9 +15,36 @@
   {{ 'shopify-dam-standalone.js' | asset_url | script_tag }}
   <script>
     document.addEventListener('DOMContentLoaded', function() {
+      // Build folders array from blocks
+      var folders = [];
+      {% for block in section.blocks %}
+        {% if block.type == 'folder' %}
+          folders.push({
+            id: '{{ block.settings.folder_id | escape }}',
+            name: '{{ block.settings.folder_name | escape }}',
+            parent_id: '{{ block.settings.parent_folder_id | escape }}'
+          });
+        {% endif %}
+      {% endfor %}
+
+      // Build files array from blocks
+      var files = [];
+      {% for block in section.blocks %}
+        {% if block.type == 'file' %}
+          files.push({
+            id: '{{ block.id }}',
+            name: '{{ block.settings.file_name | escape }}',
+            url: '{{ block.settings.file_url | escape }}',
+            folder_id: '{{ block.settings.folder_id | escape }}',
+            description: '{{ block.settings.file_description | escape }}'
+          });
+        {% endif %}
+      {% endfor %}
+
       new ShopifyDAM({
         containerId: 'shopify-dam-container',
-        apiEndpoint: '{{ section.settings.api_endpoint }}',
+        folders: folders,
+        files: files,
         userTags: ['admin'],
         isAdmin: true,
         isDesignMode: true
@@ -47,9 +76,36 @@
           userTags.push('{{ tag | escape }}');
         {% endfor %}
 
+        // Build folders array from blocks
+        var folders = [];
+        {% for block in section.blocks %}
+          {% if block.type == 'folder' %}
+            folders.push({
+              id: '{{ block.settings.folder_id | escape }}',
+              name: '{{ block.settings.folder_name | escape }}',
+              parent_id: '{{ block.settings.parent_folder_id | escape }}'
+            });
+          {% endif %}
+        {% endfor %}
+
+        // Build files array from blocks
+        var files = [];
+        {% for block in section.blocks %}
+          {% if block.type == 'file' %}
+            files.push({
+              id: '{{ block.id }}',
+              name: '{{ block.settings.file_name | escape }}',
+              url: '{{ block.settings.file_url | escape }}',
+              folder_id: '{{ block.settings.folder_id | escape }}',
+              description: '{{ block.settings.file_description | escape }}'
+            });
+          {% endif %}
+        {% endfor %}
+
         new ShopifyDAM({
           containerId: 'shopify-dam-container',
-          apiEndpoint: '{{ section.settings.api_endpoint }}',
+          folders: folders,
+          files: files,
           userEmail: '{{ customer.email | escape }}',
           userTags: userTags,
           isAdmin: {{ is_admin }}
@@ -84,13 +140,97 @@
   "class": "dam-section",
   "settings": [
     {
-      "type": "text",
-      "id": "api_endpoint",
-      "label": "API Endpoint",
-      "info": "Your Vercel backend URL (e.g., https://your-app.vercel.app/api/dam)",
-      "default": ""
+      "type": "header",
+      "content": "Marketing Resources"
+    },
+    {
+      "type": "paragraph",
+      "content": "Add folders and files below. For files, first upload them to Settings > Files in Shopify Admin, then paste the URL here."
     }
   ],
-  "presets": [{ "name": "Marketing Resources" }]
+  "blocks": [
+    {
+      "type": "folder",
+      "name": "Folder",
+      "settings": [
+        {
+          "type": "text",
+          "id": "folder_id",
+          "label": "Folder ID",
+          "info": "Unique identifier (e.g., 'logos', 'banners'). Use lowercase, no spaces.",
+          "default": "folder1"
+        },
+        {
+          "type": "text",
+          "id": "folder_name",
+          "label": "Folder Name",
+          "info": "Display name for this folder",
+          "default": "New Folder"
+        },
+        {
+          "type": "text",
+          "id": "parent_folder_id",
+          "label": "Parent Folder ID",
+          "info": "Leave empty for root level, or enter parent folder's ID for nesting",
+          "default": ""
+        }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "File",
+      "settings": [
+        {
+          "type": "text",
+          "id": "file_name",
+          "label": "File Name",
+          "info": "Display name with extension (e.g., 'logo.png')",
+          "default": "file.png"
+        },
+        {
+          "type": "url",
+          "id": "file_url",
+          "label": "File URL",
+          "info": "Paste the file URL from Shopify Files or any CDN"
+        },
+        {
+          "type": "text",
+          "id": "folder_id",
+          "label": "Folder ID",
+          "info": "Which folder this file belongs to (leave empty for root)",
+          "default": ""
+        },
+        {
+          "type": "textarea",
+          "id": "file_description",
+          "label": "Description",
+          "info": "Optional description for this file"
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "name": "Marketing Resources",
+      "blocks": [
+        {
+          "type": "folder",
+          "settings": {
+            "folder_id": "logos",
+            "folder_name": "Brand Logos",
+            "parent_folder_id": ""
+          }
+        },
+        {
+          "type": "folder",
+          "settings": {
+            "folder_id": "banners",
+            "folder_name": "Marketing Banners",
+            "parent_folder_id": ""
+          }
+        }
+      ]
+    }
+  ]
 }
 {% endschema %}

@@ -1,27 +1,21 @@
 /**
- * Shopify DAM - Premium Digital Asset Manager
- * Frontend client that connects to Vercel backend API
+ * Shopify DAM - Marketing Resources
+ * Pure Shopify solution - no external services
+ * Files managed via Theme Customizer (paste URLs)
  *
- * Features:
- * - Direct file upload via drag & drop
- * - Admin-only upload/delete permissions
- * - Affiliate read-only access
- * - High-end responsive UI
- * - Shared storage via Vercel KV + Shopify Files
- *
- * @version 4.0.0
+ * @version 5.0.0
  */
 
 class ShopifyDAM {
   constructor(config = {}) {
     this.config = {
       containerId: config.containerId || 'shopify-dam-container',
-      apiEndpoint: config.apiEndpoint || 'https://your-backend.vercel.app/api/dam',
-      userEmail: config.userEmail || '',
       userTags: (config.userTags || []).map(t => t.toLowerCase()),
       isAdmin: config.isAdmin || false,
       isDesignMode: config.isDesignMode || false,
-      maxFileSize: config.maxFileSize || 50 * 1024 * 1024,
+      // Data passed from liquid template (from theme settings)
+      folders: config.folders || [],
+      files: config.files || [],
       theme: {
         primaryColor: config.theme?.primaryColor || '#78ABE6',
         accentColor: config.theme?.accentColor || '#00D4AA',
@@ -45,75 +39,108 @@ class ShopifyDAM {
       sortBy: 'name',
       sortOrder: 'asc',
       searchQuery: '',
-      isDragging: false,
-      loading: false,
-      breadcrumbs: []
+      breadcrumbs: [{ id: 'root', name: 'My Files' }]
     };
 
     this.container = null;
-    this.data = { folders: [], files: [], folder: null };
+
+    // Process the data from theme settings
+    this.processData();
   }
 
   // ═══════════════════════════════════════════════════════════
-  // API CALLS
+  // DATA PROCESSING
   // ═══════════════════════════════════════════════════════════
 
-  async api(action, params = {}, method = 'GET', body = null) {
-    const url = new URL(this.config.apiEndpoint);
-    url.searchParams.set('action', action);
-    url.searchParams.set('userTags', JSON.stringify(this.config.userTags));
+  processData() {
+    // Build folder map for quick lookup
+    this.folderMap = { root: { id: 'root', name: 'My Files', parentId: null } };
 
-    for (const [key, value] of Object.entries(params)) {
-      if (value !== undefined && value !== null) {
-        url.searchParams.set(key, value);
+    for (const folder of this.config.folders) {
+      if (folder.id && folder.name) {
+        this.folderMap[folder.id] = {
+          id: folder.id,
+          name: folder.name,
+          parentId: folder.parent_id || 'root',
+          color: folder.color || null
+        };
       }
     }
 
-    const options = {
-      method,
-      headers: { 'Content-Type': 'application/json' }
+    // Build file list with folder assignments
+    this.files = [];
+    for (const file of this.config.files) {
+      if (file.url && file.name) {
+        this.files.push({
+          id: file.id || this.generateId(),
+          name: file.name,
+          url: file.url,
+          folderId: file.folder_id || 'root',
+          mimeType: this.guessMimeType(file.url, file.name),
+          description: file.description || '',
+          size: null // Unknown for external URLs
+        });
+      }
+    }
+  }
+
+  generateId() {
+    return 'file_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  guessMimeType(url, name) {
+    const ext = (name || url).split('.').pop().toLowerCase();
+    const types = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif',
+      webp: 'image/webp', svg: 'image/svg+xml', mp4: 'video/mp4', webm: 'video/webm',
+      mov: 'video/quicktime', pdf: 'application/pdf', doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      xls: 'application/vnd.ms-excel', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      zip: 'application/zip', txt: 'text/plain', csv: 'text/csv'
     };
-
-    if (body && method !== 'GET') {
-      options.body = JSON.stringify({ ...body, userTags: this.config.userTags, userEmail: this.config.userEmail });
-    }
-
-    try {
-      const response = await fetch(url.toString(), options);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'API request failed');
-      }
-
-      return data;
-    } catch (error) {
-      console.error('API Error:', error);
-      throw error;
-    }
+    return types[ext] || 'application/octet-stream';
   }
 
-  async uploadFileToAPI(file, folderId) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folderId', folderId);
-    formData.append('userTags', JSON.stringify(this.config.userTags));
-    formData.append('userEmail', this.config.userEmail);
+  // ═══════════════════════════════════════════════════════════
+  // DATA OPERATIONS
+  // ═══════════════════════════════════════════════════════════
 
-    const url = `${this.config.apiEndpoint}?action=upload`;
+  getFoldersInFolder(folderId) {
+    return Object.values(this.folderMap).filter(f => f.parentId === folderId && f.id !== 'root');
+  }
 
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData
+  getFilesInFolder(folderId) {
+    let files = this.files.filter(f => f.folderId === folderId);
+
+    // Apply search
+    if (this.state.searchQuery) {
+      const q = this.state.searchQuery.toLowerCase();
+      files = files.filter(f => f.name.toLowerCase().includes(q));
+    }
+
+    // Apply sort
+    files.sort((a, b) => {
+      const aVal = a[this.state.sortBy] || a.name;
+      const bVal = b[this.state.sortBy] || b.name;
+      const cmp = String(aVal).localeCompare(String(bVal));
+      return this.state.sortOrder === 'asc' ? cmp : -cmp;
     });
 
-    const data = await response.json();
+    return files;
+  }
 
-    if (!data.success) {
-      throw new Error(data.error || 'Upload failed');
+  getBreadcrumbs(folderId) {
+    const crumbs = [];
+    let currentId = folderId;
+
+    while (currentId) {
+      const folder = this.folderMap[currentId];
+      if (!folder) break;
+      crumbs.unshift({ id: folder.id, name: folder.name });
+      currentId = folder.parentId;
     }
 
-    return data;
+    return crumbs.length ? crumbs : [{ id: 'root', name: 'My Files' }];
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -131,183 +158,39 @@ class ShopifyDAM {
     }
 
     this.injectStyles();
-    this.renderLoading();
-    await this.loadFolder('root');
+    this.loadFolder('root');
     this.bindGlobalEvents();
   }
 
-  // ═══════════════════════════════════════════════════════════
-  // DATA OPERATIONS
-  // ═══════════════════════════════════════════════════════════
-
-  async loadFolder(folderId) {
-    this.state.loading = true;
+  loadFolder(folderId) {
     this.state.currentFolderId = folderId;
     this.state.selectedItems.clear();
-
-    try {
-      const result = await this.api('get-contents', {
-        folderId,
-        sortBy: this.state.sortBy,
-        sortOrder: this.state.sortOrder,
-        search: this.state.searchQuery
-      });
-
-      this.data = {
-        folders: result.subfolders || [],
-        files: result.files || [],
-        folder: result.folder
-      };
-      this.state.breadcrumbs = result.breadcrumbs || [];
-
-    } catch (error) {
-      this.toast('Failed to load folder: ' + error.message, 'error');
-      this.data = { folders: [], files: [], folder: null };
-    }
-
-    this.state.loading = false;
+    this.state.breadcrumbs = this.getBreadcrumbs(folderId);
     this.render();
-  }
-
-  async createFolder(name) {
-    try {
-      await this.api('create-folder', {}, 'POST', {
-        name,
-        parentId: this.state.currentFolderId
-      });
-      this.toast('Folder created');
-      await this.loadFolder(this.state.currentFolderId);
-      return true;
-    } catch (error) {
-      this.toast(error.message, 'error');
-      return false;
-    }
-  }
-
-  async uploadFiles(fileList) {
-    if (!this.isAdmin) {
-      this.toast('Only admins can upload files', 'error');
-      return;
-    }
-
-    const files = Array.from(fileList);
-    let uploaded = 0;
-    let failed = 0;
-
-    this.toast(`Uploading ${files.length} file(s)...`);
-
-    for (const file of files) {
-      if (file.size > this.config.maxFileSize) {
-        this.toast(`${file.name} is too large (max 50MB)`, 'error');
-        failed++;
-        continue;
-      }
-
-      try {
-        await this.uploadFileToAPI(file, this.state.currentFolderId);
-        uploaded++;
-      } catch (error) {
-        this.toast(`Failed to upload ${file.name}: ${error.message}`, 'error');
-        failed++;
-      }
-    }
-
-    if (uploaded > 0) {
-      this.toast(`${uploaded} file(s) uploaded successfully`);
-      await this.loadFolder(this.state.currentFolderId);
-    }
-  }
-
-  async renameItem(id, newName, isFolder) {
-    try {
-      const action = isFolder ? 'rename-folder' : 'rename-file';
-      const body = isFolder ? { folderId: id, newName } : { fileId: id, newName };
-      await this.api(action, {}, 'POST', body);
-      this.toast('Renamed successfully');
-      await this.loadFolder(this.state.currentFolderId);
-    } catch (error) {
-      this.toast(error.message, 'error');
-    }
-  }
-
-  async deleteSelected() {
-    if (!this.isAdmin) {
-      this.toast('Only admins can delete', 'error');
-      return;
-    }
-
-    const items = Array.from(this.state.selectedItems).map(key => {
-      const [type, id] = key.split(':');
-      return { type, id };
-    });
-
-    try {
-      await this.api('bulk-delete', {}, 'POST', { items });
-      this.toast(`${items.length} item(s) deleted`);
-      this.state.selectedItems.clear();
-      await this.loadFolder(this.state.currentFolderId);
-    } catch (error) {
-      this.toast(error.message, 'error');
-    }
-  }
-
-  async moveSelected(destinationFolderId) {
-    const items = Array.from(this.state.selectedItems).map(key => {
-      const [type, id] = key.split(':');
-      return { type, id };
-    });
-
-    try {
-      await this.api('bulk-move', {}, 'POST', { items, destinationFolderId });
-      this.toast('Items moved');
-      this.state.selectedItems.clear();
-      await this.loadFolder(this.state.currentFolderId);
-    } catch (error) {
-      this.toast(error.message, 'error');
-    }
   }
 
   // ═══════════════════════════════════════════════════════════
   // RENDER
   // ═══════════════════════════════════════════════════════════
 
-  renderLoading() {
-    this.container.innerHTML = `
-      <div class="dam">
-        <div class="dam__loading">
-          <div class="dam__spinner"></div>
-          <p>Loading Marketing Resources...</p>
-        </div>
-      </div>
-    `;
-  }
-
   render() {
-    const { folders, files } = this.data;
+    const folders = this.getFoldersInFolder(this.state.currentFolderId);
+    const files = this.getFilesInFolder(this.state.currentFolderId);
     const hasItems = folders.length > 0 || files.length > 0;
     const hasSelection = this.state.selectedItems.size > 0;
 
     this.container.innerHTML = `
-      <div class="dam ${this.state.isDragging ? 'dam--dragging' : ''}">
+      <div class="dam">
         ${this.renderHeader()}
         ${hasSelection ? this.renderSelectionBar() : ''}
         ${this.renderToolbar()}
         <div class="dam__body">
-          ${this.state.loading ? this.renderLoadingInline() : (hasItems ? this.renderItems(folders, files) : this.renderEmpty())}
+          ${hasItems ? this.renderItems(folders, files) : this.renderEmpty()}
         </div>
-        ${this.isAdmin ? this.renderDropZone() : ''}
       </div>
     `;
 
     this.bindEvents();
-  }
-
-  renderLoadingInline() {
-    return `
-      <div class="dam__loading-inline">
-        <div class="dam__spinner"></div>
-      </div>
-    `;
   }
 
   renderHeader() {
@@ -316,12 +199,16 @@ class ShopifyDAM {
         <h1 class="dam__title">Marketing Resources</h1>
         <div class="dam__search">
           <span class="dam__search-icon">${this.icons.search}</span>
-          <input type="text" class="dam__search-input" placeholder="Search files and folders..." value="${this.esc(this.state.searchQuery)}" id="damSearch">
+          <input type="text" class="dam__search-input" placeholder="Search files..." value="${this.esc(this.state.searchQuery)}" id="damSearch">
           ${this.state.searchQuery ? `<button class="dam__search-clear" id="damSearchClear">${this.icons.x}</button>` : ''}
         </div>
-        <div class="dam__header-actions">
-          ${this.isAdmin ? `<button class="dam__btn dam__btn--primary" id="damUploadBtn">${this.icons.upload}<span>Upload</span></button>` : ''}
-        </div>
+        ${this.isAdmin ? `
+          <div class="dam__header-actions">
+            <a href="/admin/themes/current/editor" target="_blank" class="dam__btn dam__btn--primary">
+              ${this.icons.settings}<span>Manage Files</span>
+            </a>
+          </div>
+        ` : ''}
       </header>
     `;
   }
@@ -335,8 +222,7 @@ class ShopifyDAM {
           <span>item${count > 1 ? 's' : ''} selected</span>
         </div>
         <div class="dam__selection-actions">
-          <button class="dam__btn dam__btn--ghost" id="damMoveBtn">${this.icons.move}<span>Move</span></button>
-          ${this.isAdmin ? `<button class="dam__btn dam__btn--danger" id="damDeleteBtn">${this.icons.trash}<span>Delete</span></button>` : ''}
+          <button class="dam__btn dam__btn--ghost" id="damCopyUrls">${this.icons.link}<span>Copy URLs</span></button>
           <button class="dam__btn dam__btn--ghost" id="damClearSelection">${this.icons.x}</button>
         </div>
       </div>
@@ -350,7 +236,6 @@ class ShopifyDAM {
           ${this.renderBreadcrumbs()}
         </nav>
         <div class="dam__toolbar-actions">
-          <button class="dam__btn dam__btn--secondary dam__btn--sm" id="damNewFolder">${this.icons.folderPlus}<span>New Folder</span></button>
           <div class="dam__view-toggle">
             <button class="dam__view-btn ${this.state.viewMode === 'grid' ? 'active' : ''}" data-view="grid" title="Grid view">${this.icons.grid}</button>
             <button class="dam__view-btn ${this.state.viewMode === 'list' ? 'active' : ''}" data-view="list" title="List view">${this.icons.list}</button>
@@ -392,8 +277,7 @@ class ShopifyDAM {
           <div class="dam__list-col dam__list-col--check"></div>
           <div class="dam__list-col dam__list-col--icon"></div>
           <div class="dam__list-col dam__list-col--name" data-sort="name">Name ${this.state.sortBy === 'name' ? (this.state.sortOrder === 'asc' ? '↑' : '↓') : ''}</div>
-          <div class="dam__list-col dam__list-col--size" data-sort="size">Size</div>
-          <div class="dam__list-col dam__list-col--date" data-sort="createdAt">Modified</div>
+          <div class="dam__list-col dam__list-col--type">Type</div>
           <div class="dam__list-col dam__list-col--actions"></div>
         </div>
         ${folders.map(f => this.renderListItem(f, true)).join('')}
@@ -418,7 +302,7 @@ class ShopifyDAM {
         </div>
         <div class="dam__card-info">
           <div class="dam__card-name" title="${this.esc(item.name)}">${this.esc(item.name)}</div>
-          <div class="dam__card-meta">${isFolder ? (item.fileCount || 0) + ' items' : this.formatSize(item.size)}</div>
+          <div class="dam__card-meta">${isFolder ? this.getFilesInFolder(item.id).length + ' items' : this.getFileTypeLabel(item.mimeType)}</div>
         </div>
         <button class="dam__card-menu" data-menu="${key}">${this.icons.moreV}</button>
       </div>
@@ -438,8 +322,7 @@ class ShopifyDAM {
           ${isFolder ? `<span class="dam__icon dam__icon--folder">${this.icons.folder}</span>` : `<span class="dam__icon">${this.getFileIcon(item.mimeType)}</span>`}
         </div>
         <div class="dam__list-col dam__list-col--name">${this.esc(item.name)}</div>
-        <div class="dam__list-col dam__list-col--size">${isFolder ? '—' : this.formatSize(item.size)}</div>
-        <div class="dam__list-col dam__list-col--date">${this.formatDate(item.createdAt)}</div>
+        <div class="dam__list-col dam__list-col--type">${isFolder ? 'Folder' : this.getFileTypeLabel(item.mimeType)}</div>
         <div class="dam__list-col dam__list-col--actions">
           <button class="dam__icon-btn" data-menu="${key}">${this.icons.moreH}</button>
         </div>
@@ -448,8 +331,8 @@ class ShopifyDAM {
   }
 
   renderPreviewThumb(file) {
-    if (file.mimeType?.startsWith('image/') && (file.shopifyUrl || file.previewUrl)) {
-      return `<img class="dam__card-img" src="${file.previewUrl || file.shopifyUrl}" alt="" loading="lazy">`;
+    if (file.mimeType?.startsWith('image/')) {
+      return `<img class="dam__card-img" src="${file.url}" alt="" loading="lazy">`;
     }
     if (file.mimeType?.startsWith('video/')) {
       return `<div class="dam__card-icon">${this.icons.video}</div>`;
@@ -471,26 +354,13 @@ class ShopifyDAM {
       <div class="dam__empty">
         <div class="dam__empty-icon">${this.icons.folder}</div>
         <h3 class="dam__empty-title">This folder is empty</h3>
-        <p class="dam__empty-text">${this.isAdmin ? 'Drop files here or click upload to get started' : 'No files have been added yet'}</p>
+        <p class="dam__empty-text">${this.isAdmin ? 'Add files via the Theme Customizer' : 'No files have been added yet'}</p>
         ${this.isAdmin ? `
           <div class="dam__empty-actions">
-            <button class="dam__btn dam__btn--secondary" id="damNewFolderEmpty">${this.icons.folderPlus} New Folder</button>
-            <button class="dam__btn dam__btn--primary" id="damUploadEmpty">${this.icons.upload} Upload Files</button>
+            <a href="/admin/themes/current/editor" target="_blank" class="dam__btn dam__btn--primary">${this.icons.settings} Manage Files</a>
           </div>
         ` : ''}
       </div>
-    `;
-  }
-
-  renderDropZone() {
-    return `
-      <div class="dam__dropzone" id="damDropzone">
-        <div class="dam__dropzone-content">
-          <div class="dam__dropzone-icon">${this.icons.upload}</div>
-          <div class="dam__dropzone-text">Drop files to upload</div>
-        </div>
-      </div>
-      <input type="file" id="damFileInput" multiple hidden>
     `;
   }
 
@@ -522,9 +392,6 @@ class ShopifyDAM {
         this.closeAllModals();
         this.render();
       }
-      if (e.key === 'Delete' && this.state.selectedItems.size > 0 && this.isAdmin) {
-        this.confirmDelete();
-      }
     });
 
     document.addEventListener('click', (e) => {
@@ -538,23 +405,15 @@ class ShopifyDAM {
     // Search
     const search = document.getElementById('damSearch');
     if (search) {
-      search.addEventListener('input', this.debounce(async e => {
+      search.addEventListener('input', this.debounce(e => {
         this.state.searchQuery = e.target.value;
-        await this.loadFolder(this.state.currentFolderId);
+        this.render();
       }, 300));
     }
-    document.getElementById('damSearchClear')?.addEventListener('click', async () => {
+    document.getElementById('damSearchClear')?.addEventListener('click', () => {
       this.state.searchQuery = '';
-      await this.loadFolder(this.state.currentFolderId);
+      this.render();
     });
-
-    // Upload buttons
-    document.getElementById('damUploadBtn')?.addEventListener('click', () => this.triggerUpload());
-    document.getElementById('damUploadEmpty')?.addEventListener('click', () => this.triggerUpload());
-
-    // New folder
-    document.getElementById('damNewFolder')?.addEventListener('click', () => this.showNewFolderModal());
-    document.getElementById('damNewFolderEmpty')?.addEventListener('click', () => this.showNewFolderModal());
 
     // View toggle
     this.container.querySelectorAll('.dam__view-btn').forEach(btn => {
@@ -585,8 +444,7 @@ class ShopifyDAM {
     });
 
     // Selection bar
-    document.getElementById('damMoveBtn')?.addEventListener('click', () => this.showMoveModal());
-    document.getElementById('damDeleteBtn')?.addEventListener('click', () => this.confirmDelete());
+    document.getElementById('damCopyUrls')?.addEventListener('click', () => this.copySelectedUrls());
     document.getElementById('damClearSelection')?.addEventListener('click', () => {
       this.state.selectedItems.clear();
       this.render();
@@ -594,49 +452,16 @@ class ShopifyDAM {
 
     // Sort headers
     this.container.querySelectorAll('[data-sort]').forEach(el => {
-      el.addEventListener('click', async () => {
+      el.addEventListener('click', () => {
         if (this.state.sortBy === el.dataset.sort) {
           this.state.sortOrder = this.state.sortOrder === 'asc' ? 'desc' : 'asc';
         } else {
           this.state.sortBy = el.dataset.sort;
           this.state.sortOrder = 'asc';
         }
-        await this.loadFolder(this.state.currentFolderId);
+        this.render();
       });
     });
-
-    // File input
-    const fileInput = document.getElementById('damFileInput');
-    if (fileInput) {
-      fileInput.addEventListener('change', e => {
-        if (e.target.files.length) this.uploadFiles(e.target.files);
-        e.target.value = '';
-      });
-    }
-
-    // Drag and drop
-    if (this.isAdmin) {
-      const body = this.container.querySelector('.dam__body');
-      if (body) {
-        body.addEventListener('dragover', e => {
-          e.preventDefault();
-          this.state.isDragging = true;
-          this.container.querySelector('.dam')?.classList.add('dam--dragging');
-        });
-        body.addEventListener('dragleave', e => {
-          if (!body.contains(e.relatedTarget)) {
-            this.state.isDragging = false;
-            this.container.querySelector('.dam')?.classList.remove('dam--dragging');
-          }
-        });
-        body.addEventListener('drop', e => {
-          e.preventDefault();
-          this.state.isDragging = false;
-          this.container.querySelector('.dam')?.classList.remove('dam--dragging');
-          if (e.dataTransfer.files.length) this.uploadFiles(e.dataTransfer.files);
-        });
-      }
-    }
   }
 
   handleItemClick(e, el) {
@@ -662,19 +487,33 @@ class ShopifyDAM {
     if (isFolder) {
       this.loadFolder(id);
     } else {
-      const file = this.data.files.find(f => f.id === id);
+      const file = this.files.find(f => f.id === id);
       if (file) this.showPreview(file);
     }
   }
 
-  triggerUpload() {
-    document.getElementById('damFileInput')?.click();
+  selectAll() {
+    const folders = this.getFoldersInFolder(this.state.currentFolderId);
+    const files = this.getFilesInFolder(this.state.currentFolderId);
+    folders.forEach(f => this.state.selectedItems.add(`folder:${f.id}`));
+    files.forEach(f => this.state.selectedItems.add(`file:${f.id}`));
+    this.render();
   }
 
-  selectAll() {
-    this.data.folders.forEach(f => this.state.selectedItems.add(`folder:${f.id}`));
-    this.data.files.forEach(f => this.state.selectedItems.add(`file:${f.id}`));
-    this.render();
+  copySelectedUrls() {
+    const urls = [];
+    for (const key of this.state.selectedItems) {
+      const [type, id] = key.split(':');
+      if (type === 'file') {
+        const file = this.files.find(f => f.id === id);
+        if (file) urls.push(file.url);
+      }
+    }
+    if (urls.length) {
+      navigator.clipboard.writeText(urls.join('\n')).then(() => {
+        this.toast(`${urls.length} URL${urls.length > 1 ? 's' : ''} copied`);
+      });
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -687,27 +526,23 @@ class ShopifyDAM {
     const [type, id] = key.split(':');
     const isFolder = type === 'folder';
     const item = isFolder
-      ? this.data.folders.find(f => f.id === id)
-      : this.data.files.find(f => f.id === id);
+      ? this.folderMap[id]
+      : this.files.find(f => f.id === id);
     if (!item) return;
 
     const menu = document.createElement('div');
     menu.className = 'dam__context-menu';
 
     const actions = isFolder ? [
-      { icon: 'folderOpen', label: 'Open', action: 'open' },
-      { icon: 'edit', label: 'Rename', action: 'rename' },
-      ...(this.isAdmin ? [{ icon: 'trash', label: 'Delete', action: 'delete', danger: true }] : [])
+      { icon: 'folderOpen', label: 'Open', action: 'open' }
     ] : [
       { icon: 'eye', label: 'Preview', action: 'preview' },
       { icon: 'download', label: 'Download', action: 'download' },
-      { icon: 'link', label: 'Copy URL', action: 'copy' },
-      { icon: 'edit', label: 'Rename', action: 'rename' },
-      ...(this.isAdmin ? [{ icon: 'trash', label: 'Delete', action: 'delete', danger: true }] : [])
+      { icon: 'link', label: 'Copy URL', action: 'copy' }
     ];
 
     menu.innerHTML = actions.map(a => `
-      <button class="dam__context-item ${a.danger ? 'dam__context-item--danger' : ''}" data-action="${a.action}">
+      <button class="dam__context-item" data-action="${a.action}">
         ${this.icons[a.icon]} ${a.label}
       </button>
     `).join('');
@@ -742,153 +577,21 @@ class ShopifyDAM {
         this.downloadFile(item);
         break;
       case 'copy':
-        navigator.clipboard.writeText(item.shopifyUrl || item.previewUrl).then(() => this.toast('URL copied'));
-        break;
-      case 'rename':
-        this.showRenameModal(item, isFolder);
-        break;
-      case 'delete':
-        this.state.selectedItems.clear();
-        this.state.selectedItems.add(`${isFolder ? 'folder' : 'file'}:${item.id}`);
-        this.confirmDelete();
+        navigator.clipboard.writeText(item.url).then(() => this.toast('URL copied'));
         break;
     }
   }
 
   downloadFile(file) {
     const a = document.createElement('a');
-    a.href = file.shopifyUrl || file.previewUrl;
+    a.href = file.url;
     a.download = file.name;
     a.target = '_blank';
     a.click();
   }
 
-  showNewFolderModal() {
-    this.showModal({
-      title: 'New Folder',
-      content: `
-        <div class="dam__form-group">
-          <label class="dam__label">Folder name</label>
-          <input type="text" class="dam__input" id="damFolderName" placeholder="My Folder" autofocus>
-        </div>
-      `,
-      actions: [
-        { label: 'Cancel', type: 'secondary', action: 'close' },
-        { label: 'Create', type: 'primary', action: 'create' }
-      ],
-      onAction: async (action) => {
-        if (action === 'create') {
-          const name = document.getElementById('damFolderName')?.value.trim();
-          if (!name) {
-            this.toast('Enter a folder name', 'error');
-            return false;
-          }
-          return await this.createFolder(name);
-        }
-        return true;
-      }
-    });
-    setTimeout(() => document.getElementById('damFolderName')?.focus(), 100);
-  }
-
-  showRenameModal(item, isFolder) {
-    this.showModal({
-      title: `Rename ${isFolder ? 'Folder' : 'File'}`,
-      content: `
-        <div class="dam__form-group">
-          <label class="dam__label">New name</label>
-          <input type="text" class="dam__input" id="damRenameInput" value="${this.esc(item.name)}">
-        </div>
-      `,
-      actions: [
-        { label: 'Cancel', type: 'secondary', action: 'close' },
-        { label: 'Rename', type: 'primary', action: 'rename' }
-      ],
-      onAction: async (action) => {
-        if (action === 'rename') {
-          const name = document.getElementById('damRenameInput')?.value.trim();
-          if (!name) {
-            this.toast('Enter a name', 'error');
-            return false;
-          }
-          await this.renameItem(item.id, name, isFolder);
-        }
-        return true;
-      }
-    });
-    setTimeout(() => {
-      const input = document.getElementById('damRenameInput');
-      if (input) {
-        input.focus();
-        const dot = item.name.lastIndexOf('.');
-        input.setSelectionRange(0, dot > 0 && !isFolder ? dot : item.name.length);
-      }
-    }, 100);
-  }
-
-  async showMoveModal() {
-    try {
-      const result = await this.api('get-tree');
-      const tree = result.tree;
-
-      const renderOptions = (folder, depth = 0) => {
-        let html = `<option value="${folder.id}">${'— '.repeat(depth)}${this.esc(folder.name)}</option>`;
-        if (folder.children) {
-          for (const child of folder.children) {
-            html += renderOptions(child, depth + 1);
-          }
-        }
-        return html;
-      };
-
-      this.showModal({
-        title: 'Move Items',
-        content: `
-          <div class="dam__form-group">
-            <label class="dam__label">Destination</label>
-            <select class="dam__input" id="damMoveDest">
-              ${renderOptions(tree)}
-            </select>
-          </div>
-        `,
-        actions: [
-          { label: 'Cancel', type: 'secondary', action: 'close' },
-          { label: 'Move', type: 'primary', action: 'move' }
-        ],
-        onAction: async (action) => {
-          if (action === 'move') {
-            const dest = document.getElementById('damMoveDest')?.value;
-            await this.moveSelected(dest);
-          }
-          return true;
-        }
-      });
-    } catch (error) {
-      this.toast('Failed to load folder tree', 'error');
-    }
-  }
-
-  confirmDelete() {
-    const count = this.state.selectedItems.size;
-    this.showModal({
-      title: 'Delete Items',
-      content: `
-        <p>Are you sure you want to delete ${count} item${count > 1 ? 's' : ''}?</p>
-        <p class="dam__modal-warning">This action cannot be undone.</p>
-      `,
-      actions: [
-        { label: 'Cancel', type: 'secondary', action: 'close' },
-        { label: 'Delete', type: 'danger', action: 'delete' }
-      ],
-      onAction: async (action) => {
-        if (action === 'delete') await this.deleteSelected();
-        return true;
-      }
-    });
-  }
-
   showPreview(file) {
-    const url = file.shopifyUrl || file.previewUrl;
+    const url = file.url;
     let content = '';
 
     if (file.mimeType?.startsWith('image/')) {
@@ -911,8 +614,9 @@ class ShopifyDAM {
       content: `
         <div class="dam__preview">${content}</div>
         <div class="dam__preview-bar">
-          <span>${this.formatSize(file.size)}</span>
+          <span>${this.getFileTypeLabel(file.mimeType)}</span>
           <div class="dam__preview-actions">
+            <button class="dam__btn dam__btn--secondary dam__btn--sm" id="damPreviewCopy">${this.icons.link} Copy URL</button>
             <button class="dam__btn dam__btn--secondary dam__btn--sm" id="damPreviewDownload">${this.icons.download} Download</button>
           </div>
         </div>
@@ -921,11 +625,14 @@ class ShopifyDAM {
       large: true,
       onMount: () => {
         document.getElementById('damPreviewDownload')?.addEventListener('click', () => this.downloadFile(file));
+        document.getElementById('damPreviewCopy')?.addEventListener('click', () => {
+          navigator.clipboard.writeText(file.url).then(() => this.toast('URL copied'));
+        });
       }
     });
   }
 
-  showModal({ title, content, actions, onAction, large, onMount }) {
+  showModal({ title, content, actions = [], onAction, large, onMount }) {
     this.closeAllModals();
 
     const modal = document.createElement('div');
@@ -964,16 +671,6 @@ class ShopifyDAM {
       if (e.target === modal) this.closeAllModals();
     });
 
-    modal.querySelector('input')?.addEventListener('keydown', async e => {
-      if (e.key === 'Enter' && onAction) {
-        const primary = actions.find(a => a.type === 'primary' || a.type === 'danger');
-        if (primary) {
-          const shouldClose = await onAction(primary.action);
-          if (shouldClose) this.closeAllModals();
-        }
-      }
-    });
-
     if (onMount) onMount();
   }
 
@@ -1008,26 +705,15 @@ class ShopifyDAM {
   // HELPERS
   // ═══════════════════════════════════════════════════════════
 
-  formatSize(bytes) {
-    if (!bytes) return '—';
-    const units = ['B', 'KB', 'MB', 'GB'];
-    let i = 0;
-    while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++; }
-    return `${bytes.toFixed(i > 0 ? 1 : 0)} ${units[i]}`;
-  }
-
-  formatDate(dateStr) {
-    if (!dateStr) return '—';
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diff = now - d;
-
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-    if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-
-    return d.toLocaleDateString();
+  getFileTypeLabel(mimeType) {
+    if (!mimeType) return 'File';
+    if (mimeType.startsWith('image/')) return 'Image';
+    if (mimeType.startsWith('video/')) return 'Video';
+    if (mimeType === 'application/pdf') return 'PDF';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'Document';
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'Spreadsheet';
+    if (mimeType.includes('zip')) return 'Archive';
+    return 'File';
   }
 
   getFileIcon(mimeType) {
@@ -1057,13 +743,11 @@ class ShopifyDAM {
     return {
       folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
       folderOpen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M2 10h20"/></svg>',
-      folderPlus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
       file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
       fileText: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
       image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
       video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>',
       archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
-      upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
       download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
       search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
       grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>',
@@ -1072,15 +756,13 @@ class ShopifyDAM {
       chevronRight: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
       moreV: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>',
       moreH: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>',
-      edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
-      trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-      move: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>',
       link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
       eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
       x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
       check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
       alertCircle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
-      lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+      lock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+      settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
     };
   }
 
@@ -1089,10 +771,10 @@ class ShopifyDAM {
   // ═══════════════════════════════════════════════════════════
 
   injectStyles() {
-    if (document.getElementById('dam-styles-v4')) return;
+    if (document.getElementById('dam-styles-v5')) return;
     const t = this.config.theme;
     const style = document.createElement('style');
-    style.id = 'dam-styles-v4';
+    style.id = 'dam-styles-v5';
     style.textContent = `
 .dam {
   --primary: ${t.primaryColor};
@@ -1113,56 +795,46 @@ class ShopifyDAM {
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
-  min-height: 600px;
+  min-height: 500px;
   border-radius: var(--radius);
   overflow: hidden;
-  position: relative;
 }
 .dam *, .dam *::before, .dam *::after { box-sizing: border-box; }
 .dam svg { width: 20px; height: 20px; flex-shrink: 0; }
 
-.dam__loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; gap: 16px; color: var(--text-secondary); }
-.dam__loading-inline { display: flex; align-items: center; justify-content: center; padding: 80px; }
-.dam__spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: damSpin 0.8s linear infinite; }
-@keyframes damSpin { to { transform: rotate(360deg); } }
-
-.dam__header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 24px; background: var(--surface); border-bottom: 1px solid var(--border); max-width: 1200px; margin: 0 auto; }
+.dam__header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .dam__title { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.3px; white-space: nowrap; }
-.dam__search { flex: 1; max-width: 500px; position: relative; margin: 0 auto; }
+.dam__search { flex: 1; max-width: 400px; position: relative; }
 .dam__search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
 .dam__search-icon svg { width: 18px; height: 18px; }
 .dam__search-input { width: 100%; padding: 10px 14px 10px 44px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; background: #ffffff; color: var(--text); transition: all 0.2s; }
-.dam__search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(120, 171, 230, 0.2); background: #ffffff; }
+.dam__search-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(120, 171, 230, 0.2); }
 .dam__search-input::placeholder { color: var(--text-muted); }
 .dam__search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; }
 .dam__search-clear:hover { color: var(--text); background: var(--bg); }
 .dam__header-actions { display: flex; gap: 10px; }
 
-.dam__btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; font-size: 14px; font-weight: 600; border-radius: var(--radius-sm); border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.dam__btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 18px; font-size: 14px; font-weight: 600; border-radius: var(--radius-sm); border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; text-decoration: none; }
 .dam__btn svg { width: 18px; height: 18px; }
 .dam__btn--primary { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(120, 171, 230, 0.4); }
 .dam__btn--primary:hover { background: #5a95db; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(120, 171, 230, 0.5); }
 .dam__btn--secondary { background: #ffffff; color: var(--text); border: 1px solid var(--border); }
 .dam__btn--secondary:hover { background: #f3f4f6; border-color: var(--text-muted); }
 .dam__btn--ghost { background: transparent; color: var(--text); }
-.dam__btn--ghost:hover { background: #f3f4f6; color: var(--text); }
-.dam__btn--danger { background: var(--danger); color: white; }
-.dam__btn--danger:hover { background: #e6354f; }
+.dam__btn--ghost:hover { background: #f3f4f6; }
 .dam__btn--sm { padding: 8px 14px; font-size: 13px; }
 .dam__btn--sm svg { width: 16px; height: 16px; }
 .dam__icon-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: none; border-radius: var(--radius-xs); color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
 .dam__icon-btn:hover { background: var(--bg); color: var(--text); }
 
-.dam__selection-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--primary); color: white; border-radius: var(--radius); max-width: 1152px; margin: 12px auto; }
+.dam__selection-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--primary); color: white; }
 .dam__selection-info { display: flex; align-items: center; gap: 8px; font-weight: 500; }
 .dam__selection-count { background: rgba(255,255,255,0.2); padding: 2px 10px; border-radius: 20px; font-weight: 700; }
 .dam__selection-actions { display: flex; gap: 8px; }
 .dam__selection-actions .dam__btn--ghost { color: rgba(255,255,255,0.9); }
 .dam__selection-actions .dam__btn--ghost:hover { background: rgba(255,255,255,0.15); color: white; }
-.dam__selection-actions .dam__btn--danger { background: rgba(255,255,255,0.2); }
-.dam__selection-actions .dam__btn--danger:hover { background: rgba(255,255,255,0.3); }
 
-.dam__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); max-width: 1200px; margin: 0 auto; }
+.dam__toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .dam__breadcrumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .dam__crumb { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: none; border: none; border-radius: var(--radius-xs); cursor: pointer; transition: all 0.15s; }
 .dam__crumb svg { width: 16px; height: 16px; }
@@ -1178,12 +850,12 @@ class ShopifyDAM {
 .dam__view-btn.active { background: var(--surface); color: var(--primary); box-shadow: 0 1px 3px var(--shadow); }
 .dam__view-btn svg { width: 18px; height: 18px; }
 
-.dam__body { padding: 24px; min-height: 400px; max-width: 1200px; margin: 0 auto; }
+.dam__body { padding: 24px; min-height: 300px; }
 
 .dam__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
 .dam__card { position: relative; background: #ffffff; border-radius: 14px; border: 2px solid transparent; cursor: pointer; transition: all 0.2s; overflow: hidden; }
 .dam__card:hover { border-color: var(--border); box-shadow: 0 8px 24px var(--shadow); transform: translateY(-2px); }
-.dam__card--selected { border-color: var(--primary); background: rgba(0, 102, 255, 0.04); }
+.dam__card--selected { border-color: var(--primary); background: rgba(120, 171, 230, 0.04); }
 .dam__card-check { position: absolute; top: 12px; left: 12px; z-index: 2; opacity: 0; transition: opacity 0.15s; }
 .dam__card:hover .dam__card-check, .dam__card--selected .dam__card-check { opacity: 1; }
 .dam__checkbox { width: 22px; height: 22px; border: 2px solid #d1d5db; border-radius: 6px; background: #ffffff; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
@@ -1204,18 +876,18 @@ class ShopifyDAM {
 .dam__card-menu svg { width: 16px; height: 16px; }
 
 .dam__list { display: flex; flex-direction: column; }
-.dam__list-header { display: grid; grid-template-columns: 40px 44px 1fr 100px 120px 48px; gap: 12px; align-items: center; padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.dam__list-header { display: grid; grid-template-columns: 40px 44px 1fr 120px 48px; gap: 12px; align-items: center; padding: 10px 16px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
 .dam__list-header [data-sort] { cursor: pointer; }
 .dam__list-header [data-sort]:hover { color: var(--text); }
-.dam__list-row { display: grid; grid-template-columns: 40px 44px 1fr 100px 120px 48px; gap: 12px; align-items: center; padding: 12px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
+.dam__list-row { display: grid; grid-template-columns: 40px 44px 1fr 120px 48px; gap: 12px; align-items: center; padding: 12px 16px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.15s; }
 .dam__list-row:hover { background: var(--bg); }
-.dam__list-row--selected { background: rgba(0, 102, 255, 0.06); }
+.dam__list-row--selected { background: rgba(120, 171, 230, 0.06); }
 .dam__list-col--icon { display: flex; justify-content: center; }
 .dam__icon { color: var(--text-muted); display: flex; }
 .dam__icon svg { width: 22px; height: 22px; }
 .dam__icon--folder { color: var(--primary); }
 .dam__list-col--name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dam__list-col--size, .dam__list-col--date { font-size: 13px; color: var(--text-secondary); }
+.dam__list-col--type { font-size: 13px; color: var(--text-secondary); }
 .dam__list-col--actions { display: flex; justify-content: flex-end; }
 
 .dam__empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 80px 24px; }
@@ -1225,39 +897,23 @@ class ShopifyDAM {
 .dam__empty-text { color: var(--text-secondary); margin: 0 0 24px; max-width: 300px; }
 .dam__empty-actions { display: flex; gap: 12px; }
 
-.dam__dropzone { position: absolute; inset: 0; background: rgba(0, 102, 255, 0.95); display: flex; align-items: center; justify-content: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
-.dam--dragging .dam__dropzone { opacity: 1; pointer-events: auto; }
-.dam__dropzone-content { text-align: center; color: white; }
-.dam__dropzone-icon { margin-bottom: 16px; }
-.dam__dropzone-icon svg { width: 64px; height: 64px; }
-.dam__dropzone-text { font-size: 20px; font-weight: 600; }
-
 .dam__context-menu { position: fixed; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.15); min-width: 180px; padding: 6px; z-index: 1000; animation: damContextIn 0.15s ease; }
 @keyframes damContextIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 .dam__context-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; font-size: 14px; background: none; border: none; border-radius: var(--radius-xs); color: var(--text); cursor: pointer; transition: all 0.1s; text-align: left; }
 .dam__context-item:hover { background: #f3f4f6; }
 .dam__context-item svg { width: 18px; height: 18px; color: var(--text-secondary); }
-.dam__context-item--danger { color: var(--danger); }
-.dam__context-item--danger:hover { background: rgba(255, 59, 92, 0.08); }
-.dam__context-item--danger svg { color: var(--danger); }
 
 .dam__modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 24px; animation: damFadeIn 0.2s ease; }
 @keyframes damFadeIn { from { opacity: 0; } to { opacity: 1; } }
 .dam__modal { background: #ffffff; border-radius: 16px; max-width: 480px; width: 100%; max-height: 90vh; overflow: auto; animation: damSlideUp 0.25s ease; box-shadow: 0 24px 80px rgba(0,0,0,0.25); }
 @keyframes damSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 .dam__modal--large { max-width: 900px; }
-.dam__modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #e5e7eb; background: #ffffff; border-radius: 16px 16px 0 0; }
+.dam__modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #e5e7eb; }
 .dam__modal-header h3 { font-size: 18px; font-weight: 700; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dam__modal-close { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: none; border: none; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
 .dam__modal-close:hover { background: #f3f4f6; color: var(--text); }
-.dam__modal-body { padding: 24px; background: #ffffff; }
-.dam__modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; border-radius: 0 0 16px 16px; }
-.dam__modal-warning { color: var(--danger); font-size: 13px; margin-top: 12px; }
-.dam__form-group { margin-bottom: 20px; }
-.dam__form-group:last-child { margin-bottom: 0; }
-.dam__label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
-.dam__input { width: 100%; padding: 12px 16px; font-size: 14px; border: 1px solid #e5e7eb; border-radius: 10px; background: #ffffff; color: var(--text); transition: all 0.2s; }
-.dam__input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(120, 171, 230, 0.2); }
+.dam__modal-body { padding: 24px; }
+.dam__modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
 
 .dam__preview { background: #0a0a0a; display: flex; align-items: center; justify-content: center; min-height: 300px; border-radius: var(--radius-sm); overflow: hidden; }
 .dam__preview-img { max-width: 100%; max-height: 60vh; object-fit: contain; }
@@ -1286,7 +942,6 @@ class ShopifyDAM {
 
 @media (max-width: 768px) {
   .dam__header { flex-direction: column; align-items: stretch; gap: 12px; padding: 16px; }
-  .dam__brand { justify-content: center; }
   .dam__search { max-width: none; }
   .dam__header-actions { justify-content: center; }
   .dam__toolbar { flex-direction: column; align-items: stretch; gap: 12px; padding: 12px 16px; }
@@ -1299,10 +954,10 @@ class ShopifyDAM {
   .dam__card-name { font-size: 13px; }
   .dam__list-header { display: none; }
   .dam__list-row { grid-template-columns: 40px 40px 1fr 40px; padding: 10px 12px; }
-  .dam__list-col--size, .dam__list-col--date { display: none; }
+  .dam__list-col--type { display: none; }
   .dam__selection-bar { flex-direction: column; gap: 12px; padding: 12px 16px; }
   .dam__btn span { display: none; }
-  .dam__btn--primary span, .dam__toolbar-actions .dam__btn span { display: inline; }
+  .dam__btn--primary span { display: inline; }
   .dam__modal { margin: 16px; max-height: calc(100vh - 32px); }
   .dam__toasts { bottom: 16px; right: 16px; left: 16px; }
   .dam__toast { width: 100%; }
