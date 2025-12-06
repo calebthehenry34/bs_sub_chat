@@ -1,0 +1,11 @@
+{
+  "sections": {
+    "main": {
+      "type": "shopify-dam-standalone",
+      "settings": {}
+    }
+  },
+  "order": [
+    "main"
+  ]
+}
