@@ -1,17 +1,17 @@
 /**
  * Digital Asset Management (DAM) Library
  * Handles file/folder operations with Shopify Files API integration
+ * Uses Vercel KV for persistent metadata storage
  * Access restricted to users with 'admin' or 'affiliate' tags
  */
 
-const fs = require('fs').promises;
-const path = require('path');
+const { kv } = require('@vercel/kv');
 const crypto = require('crypto');
+
+const METADATA_KEY = 'dam_metadata_v1';
 
 class DAMManager {
   constructor(config = {}) {
-    this.storagePath = config.storagePath || process.env.DAM_STORAGE_PATH || '/tmp/dam-data';
-    this.metadataFile = path.join(this.storagePath, 'metadata.json');
     this.shopifyConfig = {
       shopDomain: config.shopDomain || process.env.SHOPIFY_SHOP_DOMAIN,
       accessToken: config.accessToken || process.env.SHOPIFY_ACCESS_TOKEN,
@@ -31,33 +31,26 @@ class DAMManager {
   }
 
   /**
-   * Initialize storage directory and metadata
+   * Initialize DAM - ensure root folder exists
    */
   async init() {
     if (this.initialized) return;
 
     try {
-      await fs.mkdir(this.storagePath, { recursive: true });
+      const metadata = await this.loadMetadata();
 
-      // Initialize metadata file if doesn't exist
-      try {
-        await fs.access(this.metadataFile);
-      } catch {
-        await this.saveMetadata({
-          folders: {
-            root: {
-              id: 'root',
-              name: 'My Files',
-              parentId: null,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              createdBy: 'system'
-            }
-          },
-          files: {},
-          tags: [],
-          version: 1
-        });
+      // Ensure root folder exists
+      if (!metadata.folders || !metadata.folders.root) {
+        metadata.folders = metadata.folders || {};
+        metadata.folders.root = {
+          id: 'root',
+          name: 'My Files',
+          parentId: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          createdBy: 'system'
+        };
+        await this.saveMetadata(metadata);
       }
 
       this.initialized = true;
@@ -68,24 +61,31 @@ class DAMManager {
   }
 
   /**
-   * Load metadata from file
+   * Load metadata from Vercel KV
    */
   async loadMetadata() {
-    await this.init();
     try {
-      const data = await fs.readFile(this.metadataFile, 'utf8');
-      return JSON.parse(data);
+      const data = await kv.get(METADATA_KEY);
+      if (data) {
+        return typeof data === 'string' ? JSON.parse(data) : data;
+      }
+      return { folders: {}, files: {}, tags: [], version: 1 };
     } catch (error) {
-      console.error('Error loading DAM metadata:', error);
+      console.error('Error loading DAM metadata from KV:', error);
       return { folders: {}, files: {}, tags: [], version: 1 };
     }
   }
 
   /**
-   * Save metadata to file
+   * Save metadata to Vercel KV
    */
   async saveMetadata(metadata) {
-    await fs.writeFile(this.metadataFile, JSON.stringify(metadata, null, 2), 'utf8');
+    try {
+      await kv.set(METADATA_KEY, JSON.stringify(metadata));
+    } catch (error) {
+      console.error('Error saving DAM metadata to KV:', error);
+      throw new Error('Failed to save data');
+    }
   }
 
   /**
@@ -97,8 +97,6 @@ class DAMManager {
 
   /**
    * Check if user has access to DAM
-   * @param {Array} userTags - User's tags
-   * @returns {boolean}
    */
   hasAccess(userTags = []) {
     const allowedTags = ['admin', 'affiliate', 'affiliates'];
@@ -107,8 +105,6 @@ class DAMManager {
 
   /**
    * Check if user is admin
-   * @param {Array} userTags - User's tags
-   * @returns {boolean}
    */
   isAdmin(userTags = []) {
     return userTags.some(tag => tag.toLowerCase() === 'admin');
@@ -116,8 +112,6 @@ class DAMManager {
 
   /**
    * Get file type category
-   * @param {string} mimeType - MIME type
-   * @returns {string}
    */
   getFileCategory(mimeType) {
     if (mimeType.startsWith('image/')) return 'image';
@@ -132,8 +126,6 @@ class DAMManager {
 
   /**
    * Get human readable file size
-   * @param {number} bytes - File size in bytes
-   * @returns {string}
    */
   formatFileSize(bytes) {
     if (bytes === 0) return '0 Bytes';
@@ -147,8 +139,6 @@ class DAMManager {
 
   /**
    * Create a new folder
-   * @param {Object} params - Folder parameters
-   * @returns {Object} Created folder
    */
   async createFolder({ name, parentId = 'root', userEmail, userTags = [] }) {
     if (!this.hasAccess(userTags)) {
@@ -157,12 +147,10 @@ class DAMManager {
 
     const metadata = await this.loadMetadata();
 
-    // Verify parent exists
     if (!metadata.folders[parentId]) {
       throw new Error('Parent folder not found');
     }
 
-    // Check for duplicate name in parent
     const existingFolder = Object.values(metadata.folders).find(
       f => f.parentId === parentId && f.name.toLowerCase() === name.toLowerCase()
     );
@@ -178,7 +166,7 @@ class DAMManager {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       createdBy: userEmail || 'unknown',
-      color: null, // Optional folder color
+      color: null,
       description: null
     };
 
@@ -190,8 +178,6 @@ class DAMManager {
 
   /**
    * Get folder by ID
-   * @param {string} folderId - Folder ID
-   * @returns {Object} Folder data
    */
   async getFolder(folderId) {
     const metadata = await this.loadMetadata();
@@ -200,9 +186,6 @@ class DAMManager {
 
   /**
    * Get folder contents (subfolders and files)
-   * @param {string} folderId - Folder ID
-   * @param {Object} options - Query options
-   * @returns {Object} Folder contents
    */
   async getFolderContents(folderId = 'root', { userTags = [], sortBy = 'name', sortOrder = 'asc', search = '' } = {}) {
     if (!this.hasAccess(userTags)) {
@@ -216,13 +199,9 @@ class DAMManager {
       throw new Error('Folder not found');
     }
 
-    // Get subfolders
     let subfolders = Object.values(metadata.folders).filter(f => f.parentId === folderId);
+    let files = Object.values(metadata.files || {}).filter(f => f.folderId === folderId);
 
-    // Get files in folder
-    let files = Object.values(metadata.files).filter(f => f.folderId === folderId);
-
-    // Apply search filter
     if (search) {
       const searchLower = search.toLowerCase();
       subfolders = subfolders.filter(f => f.name.toLowerCase().includes(searchLower));
@@ -242,19 +221,15 @@ class DAMManager {
 
     // Sort files
     files.sort((a, b) => {
-      let aVal, bVal;
       if (sortBy === 'size') {
-        aVal = a.size || 0;
-        bVal = b.size || 0;
-        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+        return sortOrder === 'asc' ? (a.size || 0) - (b.size || 0) : (b.size || 0) - (a.size || 0);
       }
-      aVal = a[sortBy] || a.name;
-      bVal = b[sortBy] || b.name;
+      const aVal = a[sortBy] || a.name;
+      const bVal = b[sortBy] || b.name;
       const comparison = String(aVal).localeCompare(String(bVal));
       return sortOrder === 'asc' ? comparison : -comparison;
     });
 
-    // Build breadcrumb path
     const breadcrumbs = await this.getBreadcrumbs(folderId);
 
     return {
@@ -269,8 +244,6 @@ class DAMManager {
 
   /**
    * Get breadcrumb path for a folder
-   * @param {string} folderId - Folder ID
-   * @returns {Array} Breadcrumb path
    */
   async getBreadcrumbs(folderId) {
     const metadata = await this.loadMetadata();
@@ -289,10 +262,6 @@ class DAMManager {
 
   /**
    * Rename a folder
-   * @param {string} folderId - Folder ID
-   * @param {string} newName - New folder name
-   * @param {Array} userTags - User tags
-   * @returns {Object} Updated folder
    */
   async renameFolder(folderId, newName, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -310,7 +279,6 @@ class DAMManager {
       throw new Error('Folder not found');
     }
 
-    // Check for duplicate name in parent
     const existingFolder = Object.values(metadata.folders).find(
       f => f.id !== folderId && f.parentId === folder.parentId && f.name.toLowerCase() === newName.toLowerCase()
     );
@@ -327,10 +295,6 @@ class DAMManager {
 
   /**
    * Move a folder to new parent
-   * @param {string} folderId - Folder ID
-   * @param {string} newParentId - New parent folder ID
-   * @param {Array} userTags - User tags
-   * @returns {Object} Updated folder
    */
   async moveFolder(folderId, newParentId, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -345,15 +309,9 @@ class DAMManager {
     const folder = metadata.folders[folderId];
     const newParent = metadata.folders[newParentId];
 
-    if (!folder) {
-      throw new Error('Folder not found');
-    }
+    if (!folder) throw new Error('Folder not found');
+    if (!newParent) throw new Error('Destination folder not found');
 
-    if (!newParent) {
-      throw new Error('Destination folder not found');
-    }
-
-    // Prevent moving folder into itself or its descendants
     const descendants = await this.getFolderDescendants(folderId);
     if (descendants.includes(newParentId)) {
       throw new Error('Cannot move folder into its own subfolder');
@@ -368,8 +326,6 @@ class DAMManager {
 
   /**
    * Get all descendant folder IDs
-   * @param {string} folderId - Folder ID
-   * @returns {Array} Descendant folder IDs
    */
   async getFolderDescendants(folderId) {
     const metadata = await this.loadMetadata();
@@ -389,13 +345,10 @@ class DAMManager {
 
   /**
    * Delete a folder and all its contents
-   * @param {string} folderId - Folder ID
-   * @param {Array} userTags - User tags
-   * @returns {Object} Deletion result
    */
   async deleteFolder(folderId, userTags = []) {
-    if (!this.hasAccess(userTags)) {
-      throw new Error('Access denied: Requires admin or affiliate access');
+    if (!this.isAdmin(userTags)) {
+      throw new Error('Access denied: Only admins can delete folders');
     }
 
     if (folderId === 'root') {
@@ -409,12 +362,10 @@ class DAMManager {
       throw new Error('Folder not found');
     }
 
-    // Get all descendants
     const descendants = await this.getFolderDescendants(folderId);
     const folderIds = [folderId, ...descendants];
 
-    // Collect all files in these folders
-    const filesToDelete = Object.values(metadata.files).filter(f => folderIds.includes(f.folderId));
+    const filesToDelete = Object.values(metadata.files || {}).filter(f => folderIds.includes(f.folderId));
 
     // Delete files from Shopify
     for (const file of filesToDelete) {
@@ -441,10 +392,6 @@ class DAMManager {
 
   /**
    * Update folder metadata (color, description)
-   * @param {string} folderId - Folder ID
-   * @param {Object} updates - Updates to apply
-   * @param {Array} userTags - User tags
-   * @returns {Object} Updated folder
    */
   async updateFolder(folderId, updates, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -474,30 +421,24 @@ class DAMManager {
 
   /**
    * Upload file to Shopify and track in DAM
-   * @param {Object} params - Upload parameters
-   * @returns {Object} Uploaded file metadata
    */
   async uploadFile({ fileData, fileName, mimeType, folderId = 'root', userEmail, userTags = [], description = '', fileTags = [] }) {
-    if (!this.hasAccess(userTags)) {
-      throw new Error('Access denied: Requires admin or affiliate access');
+    if (!this.isAdmin(userTags)) {
+      throw new Error('Access denied: Only admins can upload files');
     }
 
-    // Validate MIME type
     if (!this.allowedMimeTypes.includes(mimeType)) {
       throw new Error(`File type not allowed: ${mimeType}`);
     }
 
-    // Get file size
     const fileSize = Buffer.isBuffer(fileData) ? fileData.length : fileData.byteLength;
 
-    // Validate file size
     if (fileSize > this.maxFileSize) {
       throw new Error(`File too large. Maximum size: ${this.formatFileSize(this.maxFileSize)}`);
     }
 
     const metadata = await this.loadMetadata();
 
-    // Verify folder exists
     if (!metadata.folders[folderId]) {
       throw new Error('Destination folder not found');
     }
@@ -527,6 +468,7 @@ class DAMManager {
       lastDownloaded: null
     };
 
+    metadata.files = metadata.files || {};
     metadata.files[fileId] = file;
     await this.saveMetadata(metadata);
 
@@ -535,26 +477,10 @@ class DAMManager {
 
   /**
    * Upload file to Shopify Files API
-   * @param {Buffer} fileData - File buffer
-   * @param {string} fileName - File name
-   * @param {string} mimeType - MIME type
-   * @returns {Object} Shopify file data
    */
   async uploadToShopify(fileData, fileName, mimeType) {
     if (!this.shopifyConfig.shopDomain || !this.shopifyConfig.accessToken) {
-      // Return mock data if Shopify not configured
-      console.warn('Shopify not configured, using local storage fallback');
-      const fileId = this.generateId('shopify');
-      const localPath = path.join(this.storagePath, 'files', fileId);
-
-      await fs.mkdir(path.join(this.storagePath, 'files'), { recursive: true });
-      await fs.writeFile(localPath, fileData);
-
-      return {
-        id: fileId,
-        url: `/api/dam?action=serve&fileId=${fileId}`,
-        preview: `/api/dam?action=serve&fileId=${fileId}`
-      };
+      throw new Error('Shopify not configured. Please set SHOPIFY_SHOP_DOMAIN and SHOPIFY_ACCESS_TOKEN environment variables.');
     }
 
     try {
@@ -600,12 +526,9 @@ class DAMManager {
       const FormData = require('form-data');
       const form = new FormData();
 
-      // Add all parameters first
       for (const param of target.parameters) {
         form.append(param.name, param.value);
       }
-
-      // Add file last
       form.append('file', fileData, { filename: fileName, contentType: mimeType });
 
       const https = require('https');
@@ -688,7 +611,6 @@ class DAMManager {
         throw new Error('Failed to create file in Shopify');
       }
 
-      // Extract URL based on file type
       let fileUrl = '';
       if (file.image?.url) {
         fileUrl = file.image.url;
@@ -709,18 +631,12 @@ class DAMManager {
     }
   }
 
-  /**
-   * Get Shopify resource type from MIME type
-   */
   getShopifyResourceType(mimeType) {
     if (mimeType.startsWith('image/')) return 'IMAGE';
     if (mimeType.startsWith('video/')) return 'VIDEO';
     return 'FILE';
   }
 
-  /**
-   * Get Shopify content type from MIME type
-   */
   getShopifyContentType(mimeType) {
     if (mimeType.startsWith('image/')) return 'IMAGE';
     if (mimeType.startsWith('video/')) return 'VIDEO';
@@ -767,14 +683,7 @@ class DAMManager {
    */
   async deleteFromShopify(shopifyFileId) {
     if (!this.shopifyConfig.shopDomain || !this.shopifyConfig.accessToken) {
-      // Local storage fallback - delete local file
-      try {
-        const localPath = path.join(this.storagePath, 'files', shopifyFileId);
-        await fs.unlink(localPath);
-      } catch (error) {
-        console.warn('Local file deletion failed:', error);
-      }
-      return;
+      return; // Nothing to delete if Shopify not configured
     }
 
     const deleteQuery = `
@@ -800,9 +709,6 @@ class DAMManager {
 
   /**
    * Get file by ID
-   * @param {string} fileId - File ID
-   * @param {Array} userTags - User tags
-   * @returns {Object} File metadata
    */
   async getFile(fileId, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -810,7 +716,7 @@ class DAMManager {
     }
 
     const metadata = await this.loadMetadata();
-    const file = metadata.files[fileId];
+    const file = metadata.files?.[fileId];
 
     if (!file) {
       throw new Error('File not found');
@@ -821,10 +727,6 @@ class DAMManager {
 
   /**
    * Rename a file
-   * @param {string} fileId - File ID
-   * @param {string} newName - New file name
-   * @param {Array} userTags - User tags
-   * @returns {Object} Updated file
    */
   async renameFile(fileId, newName, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -832,7 +734,7 @@ class DAMManager {
     }
 
     const metadata = await this.loadMetadata();
-    const file = metadata.files[fileId];
+    const file = metadata.files?.[fileId];
 
     if (!file) {
       throw new Error('File not found');
@@ -847,10 +749,6 @@ class DAMManager {
 
   /**
    * Move file to different folder
-   * @param {string} fileId - File ID
-   * @param {string} newFolderId - Destination folder ID
-   * @param {Array} userTags - User tags
-   * @returns {Object} Updated file
    */
   async moveFile(fileId, newFolderId, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -858,7 +756,7 @@ class DAMManager {
     }
 
     const metadata = await this.loadMetadata();
-    const file = metadata.files[fileId];
+    const file = metadata.files?.[fileId];
 
     if (!file) {
       throw new Error('File not found');
@@ -877,10 +775,6 @@ class DAMManager {
 
   /**
    * Update file metadata
-   * @param {string} fileId - File ID
-   * @param {Object} updates - Updates to apply
-   * @param {Array} userTags - User tags
-   * @returns {Object} Updated file
    */
   async updateFile(fileId, updates, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -888,7 +782,7 @@ class DAMManager {
     }
 
     const metadata = await this.loadMetadata();
-    const file = metadata.files[fileId];
+    const file = metadata.files?.[fileId];
 
     if (!file) {
       throw new Error('File not found');
@@ -908,23 +802,19 @@ class DAMManager {
 
   /**
    * Delete a file
-   * @param {string} fileId - File ID
-   * @param {Array} userTags - User tags
-   * @returns {Object} Deletion result
    */
   async deleteFile(fileId, userTags = []) {
-    if (!this.hasAccess(userTags)) {
-      throw new Error('Access denied: Requires admin or affiliate access');
+    if (!this.isAdmin(userTags)) {
+      throw new Error('Access denied: Only admins can delete files');
     }
 
     const metadata = await this.loadMetadata();
-    const file = metadata.files[fileId];
+    const file = metadata.files?.[fileId];
 
     if (!file) {
       throw new Error('File not found');
     }
 
-    // Delete from Shopify
     await this.deleteFromShopify(file.shopifyFileId);
 
     delete metadata.files[fileId];
@@ -935,12 +825,10 @@ class DAMManager {
 
   /**
    * Record file download
-   * @param {string} fileId - File ID
-   * @returns {Object} Updated file
    */
   async recordDownload(fileId) {
     const metadata = await this.loadMetadata();
-    const file = metadata.files[fileId];
+    const file = metadata.files?.[fileId];
 
     if (file) {
       file.downloads = (file.downloads || 0) + 1;
@@ -955,9 +843,6 @@ class DAMManager {
 
   /**
    * Search files and folders
-   * @param {string} query - Search query
-   * @param {Object} options - Search options
-   * @returns {Object} Search results
    */
   async search(query, { userTags = [], fileTypes = [], folderId = null, limit = 50 } = {}) {
     if (!this.hasAccess(userTags)) {
@@ -967,13 +852,11 @@ class DAMManager {
     const metadata = await this.loadMetadata();
     const queryLower = query.toLowerCase();
 
-    // Search folders
     let folders = Object.values(metadata.folders).filter(f =>
       f.id !== 'root' && f.name.toLowerCase().includes(queryLower)
     );
 
-    // Search files
-    let files = Object.values(metadata.files).filter(f => {
+    let files = Object.values(metadata.files || {}).filter(f => {
       const matchesQuery =
         f.name.toLowerCase().includes(queryLower) ||
         (f.description && f.description.toLowerCase().includes(queryLower)) ||
@@ -985,7 +868,6 @@ class DAMManager {
       return matchesQuery && matchesType && matchesFolder;
     });
 
-    // Sort by relevance (exact matches first)
     const sortByRelevance = (items, nameField = 'name') => {
       return items.sort((a, b) => {
         const aExact = a[nameField].toLowerCase() === queryLower;
@@ -1014,9 +896,6 @@ class DAMManager {
 
   /**
    * Get all files of specific type(s)
-   * @param {Array} categories - File categories to filter
-   * @param {Array} userTags - User tags
-   * @returns {Array} Matching files
    */
   async getFilesByCategory(categories, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -1024,14 +903,11 @@ class DAMManager {
     }
 
     const metadata = await this.loadMetadata();
-    return Object.values(metadata.files).filter(f => categories.includes(f.category));
+    return Object.values(metadata.files || {}).filter(f => categories.includes(f.category));
   }
 
   /**
    * Get recently modified files
-   * @param {number} limit - Number of files to return
-   * @param {Array} userTags - User tags
-   * @returns {Array} Recent files
    */
   async getRecentFiles(limit = 20, userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -1039,7 +915,7 @@ class DAMManager {
     }
 
     const metadata = await this.loadMetadata();
-    return Object.values(metadata.files)
+    return Object.values(metadata.files || {})
       .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
       .slice(0, limit);
   }
@@ -1048,8 +924,6 @@ class DAMManager {
 
   /**
    * Get DAM statistics
-   * @param {Array} userTags - User tags
-   * @returns {Object} Statistics
    */
   async getStatistics(userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -1057,7 +931,7 @@ class DAMManager {
     }
 
     const metadata = await this.loadMetadata();
-    const files = Object.values(metadata.files);
+    const files = Object.values(metadata.files || {});
     const folders = Object.values(metadata.folders);
 
     const totalSize = files.reduce((sum, f) => sum + (f.size || 0), 0);
@@ -1070,7 +944,7 @@ class DAMManager {
 
     return {
       totalFiles: files.length,
-      totalFolders: folders.length - 1, // Exclude root
+      totalFolders: folders.length - 1,
       totalSize,
       totalSizeFormatted: this.formatFileSize(totalSize),
       categoryCounts,
@@ -1084,8 +958,6 @@ class DAMManager {
 
   /**
    * Get folder tree structure
-   * @param {Array} userTags - User tags
-   * @returns {Object} Folder tree
    */
   async getFolderTree(userTags = []) {
     if (!this.hasAccess(userTags)) {
@@ -1100,7 +972,7 @@ class DAMManager {
         .sort((a, b) => a.name.localeCompare(b.name))
         .map(folder => ({
           ...folder,
-          fileCount: Object.values(metadata.files).filter(f => f.folderId === folder.id).length,
+          fileCount: Object.values(metadata.files || {}).filter(f => f.folderId === folder.id).length,
           children: buildTree(folder.id)
         }));
       return children;
@@ -1109,20 +981,9 @@ class DAMManager {
     const root = metadata.folders['root'];
     return {
       ...root,
-      fileCount: Object.values(metadata.files).filter(f => f.folderId === 'root').length,
+      fileCount: Object.values(metadata.files || {}).filter(f => f.folderId === 'root').length,
       children: buildTree('root')
     };
-  }
-
-  /**
-   * Serve local file (fallback when Shopify not configured)
-   * @param {string} shopifyFileId - Local file ID
-   * @returns {Object} File data and content type
-   */
-  async serveLocalFile(shopifyFileId) {
-    const localPath = path.join(this.storagePath, 'files', shopifyFileId);
-    const fileData = await fs.readFile(localPath);
-    return { data: fileData };
   }
 }
 
