@@ -370,13 +370,7 @@ class ShopifyDAM {
   renderHeader() {
     return `
       <header class="dam__header">
-        <div class="dam__brand">
-          <div class="dam__logo">${this.icons.layers}</div>
-          <div class="dam__brand-text">
-            <h1 class="dam__title">Asset Manager</h1>
-            <span class="dam__badge ${this.isAdmin ? 'dam__badge--admin' : 'dam__badge--viewer'}">${this.isAdmin ? 'Admin' : 'Viewer'}</span>
-          </div>
-        </div>
+        <h1 class="dam__title">Marketing Resources</h1>
         <div class="dam__search">
           <span class="dam__search-icon">${this.icons.search}</span>
           <input type="text" class="dam__search-input" placeholder="Search files and folders..." value="${this.esc(this.state.searchQuery)}" id="damSearch">
@@ -1170,7 +1164,7 @@ class ShopifyDAM {
   --radius-sm: 8px;
   --radius-xs: 6px;
 
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: inherit;
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);
@@ -1189,51 +1183,22 @@ class ShopifyDAM {
 .dam__header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px 24px;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.dam__brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.dam__logo {
-  width: 40px;
-  height: 40px;
-  background: var(--primary);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.dam__logo svg { width: 22px; height: 22px; }
-
-.dam__brand-text { display: flex; flex-direction: column; gap: 2px; }
-.dam__title { font-size: 18px; font-weight: 700; margin: 0; letter-spacing: -0.3px; }
-
-.dam__badge {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  width: fit-content;
-}
-
-.dam__badge--admin { background: var(--primary); color: white; }
-.dam__badge--viewer { background: var(--bg); color: var(--text-secondary); }
+.dam__title { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.3px; white-space: nowrap; }
 
 .dam__search {
   flex: 1;
-  max-width: 400px;
+  max-width: 500px;
   position: relative;
+  margin: 0 auto;
 }
 
 .dam__search-icon {
@@ -1281,7 +1246,7 @@ class ShopifyDAM {
 
 .dam__search-clear:hover { color: var(--text); background: var(--bg); }
 
-.dam__header-actions { display: flex; gap: 10px; margin-left: auto; }
+.dam__header-actions { display: flex; gap: 10px; }
 
 /* ─── Buttons ────────────────────────────────────────────────────── */
 
@@ -1365,7 +1330,8 @@ class ShopifyDAM {
   background: var(--primary);
   color: white;
   border-radius: var(--radius);
-  margin: 0 16px;
+  max-width: 1152px;
+  margin: 12px auto;
 }
 
 .dam__selection-info { display: flex; align-items: center; gap: 8px; font-weight: 500; }
@@ -1393,6 +1359,8 @@ class ShopifyDAM {
   padding: 12px 24px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .dam__breadcrumbs {
@@ -1457,6 +1425,8 @@ class ShopifyDAM {
 .dam__body {
   padding: 24px;
   min-height: 400px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 /* ─── Grid View ──────────────────────────────────────────────────── */
