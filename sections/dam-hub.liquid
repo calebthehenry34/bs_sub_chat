@@ -1,0 +1,51 @@
+<div id="dam-hub"></div>
+
+{{ 'dam-hub.js' | asset_url | script_tag }}
+
+<script>
+  DAMHub({
+    containerId: 'dam-hub',
+    folders: [
+      {% for block in section.blocks %}
+        {% if block.type == 'folder' %}
+          { id: {{ block.settings.folder_id | json }}, name: {{ block.settings.folder_name | json }}, parent_id: {{ block.settings.parent_folder_id | json }} },
+        {% endif %}
+      {% endfor %}
+    ],
+    files: [
+      {% for block in section.blocks %}
+        {% if block.type == 'file' %}
+          { name: {{ block.settings.file_name | json }}, url: {{ block.settings.file_url | json }}, folder_id: {{ block.settings.folder_id | json }} },
+        {% endif %}
+      {% endfor %}
+    ]
+  });
+</script>
+
+{% schema %}
+{
+  "name": "DAM Hub",
+  "settings": [],
+  "blocks": [
+    {
+      "type": "folder",
+      "name": "Folder",
+      "settings": [
+        { "type": "text", "id": "folder_id", "label": "Folder ID", "default": "folder1" },
+        { "type": "text", "id": "folder_name", "label": "Folder Name", "default": "New Folder" },
+        { "type": "text", "id": "parent_folder_id", "label": "Parent Folder ID" }
+      ]
+    },
+    {
+      "type": "file",
+      "name": "File",
+      "settings": [
+        { "type": "text", "id": "file_name", "label": "File Name", "default": "file.pdf" },
+        { "type": "url", "id": "file_url", "label": "File URL" },
+        { "type": "text", "id": "folder_id", "label": "Folder ID" }
+      ]
+    }
+  ],
+  "presets": [{ "name": "DAM Hub" }]
+}
+{% endschema %}
