@@ -1,7 +1,7 @@
 {
   "sections": {
     "main": {
-      "type": "shopify-dam-standalone",
+      "type": "dam-hub",
       "settings": {}
     }
   },

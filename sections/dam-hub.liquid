@@ -1,5 +1,5 @@
 {% comment %}
-  Marketing Resources - Digital Asset Manager
+  DAM Hub - Marketing Resources
   Pure Shopify solution - no external services required
 
   How to use:
@@ -11,8 +11,8 @@
 {% endcomment %}
 
 {% if request.design_mode %}
-  <div id="shopify-dam-container"></div>
-  {{ 'shopify-dam-standalone.js' | asset_url | script_tag }}
+  <div id="dam-hub-container"></div>
+  {{ 'dam-hub.js' | asset_url | script_tag }}
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       // Build folders array from blocks
@@ -41,8 +41,8 @@
         {% endif %}
       {% endfor %}
 
-      new ShopifyDAM({
-        containerId: 'shopify-dam-container',
+      new DAMHub({
+        containerId: 'dam-hub-container',
         folders: folders,
         files: files,
         userTags: ['admin'],
@@ -67,8 +67,8 @@
   {% endfor %}
 
   {% if has_access %}
-    <div id="shopify-dam-container"></div>
-    {{ 'shopify-dam-standalone.js' | asset_url | script_tag }}
+    <div id="dam-hub-container"></div>
+    {{ 'dam-hub.js' | asset_url | script_tag }}
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         var userTags = [];
@@ -102,8 +102,8 @@
           {% endif %}
         {% endfor %}
 
-        new ShopifyDAM({
-          containerId: 'shopify-dam-container',
+        new DAMHub({
+          containerId: 'dam-hub-container',
           folders: folders,
           files: files,
           userEmail: '{{ customer.email | escape }}',

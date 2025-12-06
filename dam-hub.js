@@ -1,15 +1,15 @@
 /**
- * Shopify DAM - Marketing Resources
+ * DAM Hub - Marketing Resources
  * Pure Shopify solution - no external services
  * Files managed via Theme Customizer (paste URLs)
  *
  * @version 5.0.0
  */
 
-class ShopifyDAM {
+class DAMHub {
   constructor(config = {}) {
     this.config = {
-      containerId: config.containerId || 'shopify-dam-container',
+      containerId: config.containerId || 'dam-hub-container',
       userTags: (config.userTags || []).map(t => t.toLowerCase()),
       isAdmin: config.isAdmin || false,
       isDesignMode: config.isDesignMode || false,
@@ -771,10 +771,10 @@ class ShopifyDAM {
   // ═══════════════════════════════════════════════════════════
 
   injectStyles() {
-    if (document.getElementById('dam-styles-v5')) return;
+    if (document.getElementById('dam-hub-styles')) return;
     const t = this.config.theme;
     const style = document.createElement('style');
-    style.id = 'dam-styles-v5';
+    style.id = 'dam-hub-styles';
     style.textContent = `
 .dam {
   --primary: ${t.primaryColor};
@@ -976,7 +976,7 @@ class ShopifyDAM {
 
 // Export
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = ShopifyDAM;
+  module.exports = DAMHub;
 } else if (typeof window !== 'undefined') {
-  window.ShopifyDAM = ShopifyDAM;
+  window.DAMHub = DAMHub;
 }
