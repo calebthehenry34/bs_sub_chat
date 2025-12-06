@@ -21,7 +21,7 @@ class ShopifyDAM {
       storageKey: config.storageKey || 'shopify_dam_data_v3',
       maxFileSize: config.maxFileSize || 50 * 1024 * 1024, // 50MB
       theme: {
-        primaryColor: config.theme?.primaryColor || '#0066FF',
+        primaryColor: config.theme?.primaryColor || '#78ABE6',
         accentColor: config.theme?.accentColor || '#00D4AA',
         dangerColor: config.theme?.dangerColor || '#FF3B5C',
         backgroundColor: config.theme?.backgroundColor || '#F7F8FA',
@@ -1204,8 +1204,8 @@ class ShopifyDAM {
 .dam__logo {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, var(--primary), var(--accent));
-  border-radius: 10px;
+  background: var(--primary);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1227,7 +1227,7 @@ class ShopifyDAM {
   width: fit-content;
 }
 
-.dam__badge--admin { background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; }
+.dam__badge--admin { background: var(--primary); color: white; }
 .dam__badge--viewer { background: var(--bg); color: var(--text-secondary); }
 
 .dam__search {
@@ -1249,10 +1249,10 @@ class ShopifyDAM {
 .dam__search-input {
   width: 100%;
   padding: 10px 14px 10px 44px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   font-size: 14px;
-  background: var(--bg);
+  background: #ffffff;
   color: var(--text);
   transition: all 0.2s;
 }
@@ -1260,8 +1260,8 @@ class ShopifyDAM {
 .dam__search-input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
-  background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(120, 171, 230, 0.2);
+  background: #ffffff;
 }
 
 .dam__search-input::placeholder { color: var(--text-muted); }
@@ -1303,30 +1303,31 @@ class ShopifyDAM {
 .dam__btn svg { width: 18px; height: 18px; }
 
 .dam__btn--primary {
-  background: linear-gradient(135deg, var(--primary), #0052cc);
+  background: var(--primary);
   color: white;
-  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(120, 171, 230, 0.4);
 }
 
 .dam__btn--primary:hover {
+  background: #5a95db;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(120, 171, 230, 0.5);
 }
 
 .dam__btn--secondary {
-  background: var(--surface);
+  background: #ffffff;
   color: var(--text);
   border: 1px solid var(--border);
 }
 
-.dam__btn--secondary:hover { background: var(--bg); border-color: var(--text-muted); }
+.dam__btn--secondary:hover { background: #f3f4f6; border-color: var(--text-muted); }
 
 .dam__btn--ghost {
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text);
 }
 
-.dam__btn--ghost:hover { background: var(--bg); color: var(--text); }
+.dam__btn--ghost:hover { background: #f3f4f6; color: var(--text); }
 
 .dam__btn--danger {
   background: var(--danger);
@@ -1361,8 +1362,10 @@ class ShopifyDAM {
   align-items: center;
   justify-content: space-between;
   padding: 12px 24px;
-  background: linear-gradient(135deg, var(--primary), #0052cc);
+  background: var(--primary);
   color: white;
+  border-radius: var(--radius);
+  margin: 0 16px;
 }
 
 .dam__selection-info { display: flex; align-items: center; gap: 8px; font-weight: 500; }
@@ -1466,8 +1469,8 @@ class ShopifyDAM {
 
 .dam__card {
   position: relative;
-  background: var(--surface);
-  border-radius: var(--radius);
+  background: #ffffff;
+  border-radius: 14px;
   border: 2px solid transparent;
   cursor: pointer;
   transition: all 0.2s;
@@ -1500,9 +1503,9 @@ class ShopifyDAM {
 .dam__checkbox {
   width: 22px;
   height: 22px;
-  border: 2px solid var(--border);
+  border: 2px solid #d1d5db;
   border-radius: 6px;
-  background: var(--surface);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1564,18 +1567,18 @@ class ShopifyDAM {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface);
+  background: #ffffff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--text-muted);
   cursor: pointer;
   opacity: 0;
   transition: all 0.15s;
-  box-shadow: 0 2px 8px var(--shadow);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .dam__card:hover .dam__card-menu { opacity: 1; }
-.dam__card-menu:hover { color: var(--text); background: var(--bg); }
+.dam__card-menu:hover { color: var(--text); background: #f3f4f6; }
 .dam__card-menu svg { width: 16px; height: 16px; }
 
 /* ─── List View ──────────────────────────────────────────────────── */
@@ -1676,9 +1679,9 @@ class ShopifyDAM {
 
 .dam__context-menu {
   position: fixed;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.15);
   min-width: 180px;
   padding: 6px;
@@ -1707,7 +1710,7 @@ class ShopifyDAM {
   text-align: left;
 }
 
-.dam__context-item:hover { background: var(--bg); }
+.dam__context-item:hover { background: #f3f4f6; }
 .dam__context-item svg { width: 18px; height: 18px; color: var(--text-secondary); }
 .dam__context-item--danger { color: var(--danger); }
 .dam__context-item--danger:hover { background: rgba(255, 59, 92, 0.08); }
@@ -1731,14 +1734,14 @@ class ShopifyDAM {
 @keyframes damFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .dam__modal {
-  background: var(--surface);
-  border-radius: var(--radius);
+  background: #ffffff;
+  border-radius: 16px;
   max-width: 480px;
   width: 100%;
   max-height: 90vh;
   overflow: auto;
   animation: damSlideUp 0.25s ease;
-  box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.25);
 }
 
 @keyframes damSlideUp {
@@ -1753,7 +1756,9 @@ class ShopifyDAM {
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
 }
 
 .dam__modal-header h3 {
@@ -1779,16 +1784,17 @@ class ShopifyDAM {
   transition: all 0.15s;
 }
 
-.dam__modal-close:hover { background: var(--bg); color: var(--text); }
+.dam__modal-close:hover { background: #f3f4f6; color: var(--text); }
 
-.dam__modal-body { padding: 24px; }
+.dam__modal-body { padding: 24px; background: #ffffff; }
 .dam__modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 0 0 16px 16px;
 }
 
 .dam__modal-warning { color: var(--danger); font-size: 13px; margin-top: 12px; }
@@ -1801,9 +1807,9 @@ class ShopifyDAM {
   width: 100%;
   padding: 12px 16px;
   font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
   color: var(--text);
   transition: all 0.2s;
 }
@@ -1811,7 +1817,7 @@ class ShopifyDAM {
 .dam__input:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(120, 171, 230, 0.2);
 }
 
 /* ─── Preview ────────────────────────────────────────────────────── */
@@ -1869,8 +1875,8 @@ class ShopifyDAM {
   align-items: center;
   gap: 12px;
   padding: 14px 20px;
-  background: var(--surface);
-  border-radius: var(--radius-sm);
+  background: #ffffff;
+  border-radius: 12px;
   box-shadow: 0 12px 40px rgba(0,0,0,0.2);
   animation: damToastIn 0.3s ease;
   font-weight: 500;
