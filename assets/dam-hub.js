@@ -119,12 +119,8 @@ class DAMHub {
 
   async init() {
     this.container = document.getElementById(this.config.containerId);
-    if (!this.container) return console.error('DAM: Container not found');
-
-    const hasAccess = this.config.userTags.includes('admin') || this.config.userTags.includes('affiliate');
-    if (!hasAccess && !this.config.isDesignMode) {
-      this.container.innerHTML = this.renderAccessDenied();
-      this.injectStyles();
+    if (!this.container) {
+      console.error('DAM: Container not found');
       return;
     }
 

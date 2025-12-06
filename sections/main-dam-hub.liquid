@@ -1,153 +1,44 @@
-{% comment %}
-  DAM Hub - Marketing Resources
-  Pure Shopify solution - no external services required
+<div id="dam-hub-container"></div>
 
-  How to use:
-  1. Add this section to a page
-  2. Use Theme Customizer to add folders and files
-  3. For files: Upload to Shopify Files first, then paste the URL here
-  4. Admin users can manage files via "Manage Files" button
-  5. Affiliates get read-only access
-{% endcomment %}
+{{ 'dam-hub.js' | asset_url | script_tag }}
 
-{% if request.design_mode %}
-  <div id="dam-hub-container"></div>
-  {{ 'dam-hub.js' | asset_url | script_tag }}
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Build folders array from blocks
-      var folders = [];
-      {% for block in section.blocks %}
-        {% if block.type == 'folder' %}
-          folders.push({
-            id: '{{ block.settings.folder_id | escape }}',
-            name: '{{ block.settings.folder_name | escape }}',
-            parent_id: '{{ block.settings.parent_folder_id | escape }}'
-          });
-        {% endif %}
-      {% endfor %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var folders = [];
+    var files = [];
 
-      // Build files array from blocks
-      var files = [];
-      {% for block in section.blocks %}
-        {% if block.type == 'file' %}
-          files.push({
-            id: '{{ block.id }}',
-            name: '{{ block.settings.file_name | escape }}',
-            url: '{{ block.settings.file_url | escape }}',
-            folder_id: '{{ block.settings.folder_id | escape }}',
-            description: '{{ block.settings.file_description | escape }}'
-          });
-        {% endif %}
-      {% endfor %}
+    {% for block in section.blocks %}
+      {% if block.type == 'folder' %}
+        folders.push({
+          id: '{{ block.settings.folder_id | escape }}',
+          name: '{{ block.settings.folder_name | escape }}',
+          parent_id: '{{ block.settings.parent_folder_id | escape }}'
+        });
+      {% elsif block.type == 'file' %}
+        files.push({
+          id: '{{ block.id }}',
+          name: '{{ block.settings.file_name | escape }}',
+          url: '{{ block.settings.file_url }}',
+          folder_id: '{{ block.settings.folder_id | escape }}',
+          description: '{{ block.settings.file_description | escape }}'
+        });
+      {% endif %}
+    {% endfor %}
 
-      new DAMHub({
-        containerId: 'dam-hub-container',
-        folders: folders,
-        files: files,
-        userTags: ['admin'],
-        isAdmin: true,
-        isDesignMode: true
-      }).init();
-    });
-  </script>
-
-{% elsif customer %}
-  {% assign is_admin = false %}
-  {% assign has_access = false %}
-
-  {% for tag in customer.tags %}
-    {% assign tag_lower = tag | downcase %}
-    {% if tag_lower == 'admin' %}
-      {% assign is_admin = true %}
-      {% assign has_access = true %}
-    {% elsif tag_lower == 'affiliate' %}
-      {% assign has_access = true %}
-    {% endif %}
-  {% endfor %}
-
-  {% if has_access %}
-    <div id="dam-hub-container"></div>
-    {{ 'dam-hub.js' | asset_url | script_tag }}
-    <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        var userTags = [];
-        {% for tag in customer.tags %}
-          userTags.push('{{ tag | escape }}');
-        {% endfor %}
-
-        // Build folders array from blocks
-        var folders = [];
-        {% for block in section.blocks %}
-          {% if block.type == 'folder' %}
-            folders.push({
-              id: '{{ block.settings.folder_id | escape }}',
-              name: '{{ block.settings.folder_name | escape }}',
-              parent_id: '{{ block.settings.parent_folder_id | escape }}'
-            });
-          {% endif %}
-        {% endfor %}
-
-        // Build files array from blocks
-        var files = [];
-        {% for block in section.blocks %}
-          {% if block.type == 'file' %}
-            files.push({
-              id: '{{ block.id }}',
-              name: '{{ block.settings.file_name | escape }}',
-              url: '{{ block.settings.file_url | escape }}',
-              folder_id: '{{ block.settings.folder_id | escape }}',
-              description: '{{ block.settings.file_description | escape }}'
-            });
-          {% endif %}
-        {% endfor %}
-
-        new DAMHub({
-          containerId: 'dam-hub-container',
-          folders: folders,
-          files: files,
-          userEmail: '{{ customer.email | escape }}',
-          userTags: userTags,
-          isAdmin: {{ is_admin }}
-        }).init();
-      });
-    </script>
-  {% else %}
-    <div style="max-width:420px;margin:60px auto;text-align:center;padding:48px 32px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-      <div style="width:72px;height:72px;background:#FEE2E2;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-      </div>
-      <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#1F2937;">Access Restricted</h2>
-      <p style="color:#6B7280;margin:0;line-height:1.6;">This area is only available to administrators and affiliates.</p>
-    </div>
-  {% endif %}
-
-{% else %}
-  <div style="max-width:420px;margin:60px auto;text-align:center;padding:48px 32px;background:#fff;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
-    <div style="width:72px;height:72px;background:#E8F1FA;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#78ABE6" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    </div>
-    <h2 style="font-size:22px;font-weight:700;margin:0 0 8px;color:#1F2937;">Login Required</h2>
-    <p style="color:#6B7280;margin:0 0 28px;line-height:1.6;">Please log in to access Marketing Resources.</p>
-    <a href="/account/login?return_url={{ request.path | url_encode }}" style="display:inline-block;padding:14px 32px;background:#78ABE6;color:white;text-decoration:none;border-radius:10px;font-weight:600;font-size:15px;box-shadow:0 4px 12px rgba(120,171,230,0.4);transition:transform 0.2s,box-shadow 0.2s;">Log In</a>
-  </div>
-{% endif %}
+    new DAMHub({
+      containerId: 'dam-hub-container',
+      folders: folders,
+      files: files,
+      isAdmin: {% if customer.tags contains 'admin' %}true{% else %}false{% endif %}
+    }).init();
+  });
+</script>
 
 {% schema %}
 {
   "name": "Marketing Resources",
   "tag": "section",
-  "class": "dam-section",
-  "settings": [
-    {
-      "type": "header",
-      "content": "Marketing Resources"
-    },
-    {
-      "type": "paragraph",
-      "content": "Add folders and files below. For files, first upload them to Settings > Files in Shopify Admin, then paste the URL here."
-    }
-  ],
+  "settings": [],
   "blocks": [
     {
       "type": "folder",
@@ -157,21 +48,18 @@
           "type": "text",
           "id": "folder_id",
           "label": "Folder ID",
-          "info": "Unique identifier (e.g., 'logos', 'banners'). Use lowercase, no spaces.",
           "default": "folder1"
         },
         {
           "type": "text",
           "id": "folder_name",
           "label": "Folder Name",
-          "info": "Display name for this folder",
           "default": "New Folder"
         },
         {
           "type": "text",
           "id": "parent_folder_id",
-          "label": "Parent Folder ID",
-          "info": "Leave empty for root level, or enter parent folder's ID for nesting"
+          "label": "Parent Folder ID"
         }
       ]
     },
@@ -183,51 +71,29 @@
           "type": "text",
           "id": "file_name",
           "label": "File Name",
-          "info": "Display name with extension (e.g., 'logo.png')",
           "default": "file.png"
         },
         {
           "type": "url",
           "id": "file_url",
-          "label": "File URL",
-          "info": "Paste the file URL from Shopify Files or any CDN"
+          "label": "File URL"
         },
         {
           "type": "text",
           "id": "folder_id",
-          "label": "Folder ID",
-          "info": "Which folder this file belongs to (leave empty for root)"
+          "label": "Folder ID"
         },
         {
           "type": "textarea",
           "id": "file_description",
-          "label": "Description",
-          "info": "Optional description for this file"
+          "label": "Description"
         }
       ]
     }
   ],
   "presets": [
     {
-      "name": "Marketing Resources",
-      "blocks": [
-        {
-          "type": "folder",
-          "settings": {
-            "folder_id": "logos",
-            "folder_name": "Brand Logos",
-            "parent_folder_id": ""
-          }
-        },
-        {
-          "type": "folder",
-          "settings": {
-            "folder_id": "banners",
-            "folder_name": "Marketing Banners",
-            "parent_folder_id": ""
-          }
-        }
-      ]
+      "name": "Marketing Resources"
     }
   ]
 }
