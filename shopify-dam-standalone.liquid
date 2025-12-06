@@ -15,6 +15,7 @@
     document.addEventListener('DOMContentLoaded', function() {
       new ShopifyDAM({
         containerId: 'shopify-dam-container',
+        apiEndpoint: '{{ section.settings.api_endpoint }}',
         userTags: ['admin'],
         isAdmin: true,
         isDesignMode: true
@@ -48,6 +49,7 @@
 
         new ShopifyDAM({
           containerId: 'shopify-dam-container',
+          apiEndpoint: '{{ section.settings.api_endpoint }}',
           userEmail: '{{ customer.email | escape }}',
           userTags: userTags,
           isAdmin: {{ is_admin }}
@@ -80,7 +82,15 @@
   "name": "Marketing Resources",
   "tag": "section",
   "class": "dam-section",
-  "settings": [],
+  "settings": [
+    {
+      "type": "text",
+      "id": "api_endpoint",
+      "label": "API Endpoint",
+      "info": "Your Vercel backend URL (e.g., https://your-app.vercel.app/api/dam)",
+      "default": ""
+    }
+  ],
   "presets": [{ "name": "Marketing Resources" }]
 }
 {% endschema %}
