@@ -25,7 +25,26 @@
     </div>
   {% endif %}
 
-  {% comment %} Search Bar {% endcomment %}
+
+
+  {% comment %} Category Filters {% endcomment %}
+  {% if section.settings.enable_categories %}
+    <div class="kc-categories" id="kc-categories-{{ section.id }}">
+      {% assign categories = section.settings.categories | split: ',' %}
+      {% for category in categories %}
+        {% assign cat_trimmed = category | strip %}
+        {% if cat_trimmed != blank %}
+          <button class="kc-category-btn{% if forloop.first %} active{% endif %}" data-category="{{ cat_trimmed | handleize }}">
+            {{ cat_trimmed }}
+          </button>
+        {% endif %}
+      {% endfor %}
+      <button class="kc-category-btn" data-category="all">
+        All
+      </button>
+    </div>
+  {% endif %}
+   {% comment %} Search Bar {% endcomment %}
   {% if section.settings.enable_search %}
     <div class="kc-search">
       <input
@@ -35,24 +54,6 @@
         id="kc-search-{{ section.id }}"
       >
       <span class="kc-search-icon">🔍</span>
-    </div>
-  {% endif %}
-
-  {% comment %} Category Filters {% endcomment %}
-  {% if section.settings.enable_categories %}
-    <div class="kc-categories" id="kc-categories-{{ section.id }}">
-      <button class="kc-category-btn active" data-category="all">
-        All
-      </button>
-      {% assign categories = section.settings.categories | split: ',' %}
-      {% for category in categories %}
-        {% assign cat_trimmed = category | strip %}
-        {% if cat_trimmed != blank %}
-          <button class="kc-category-btn" data-category="{{ cat_trimmed | handleize }}">
-            {{ cat_trimmed }}
-          </button>
-        {% endif %}
-      {% endfor %}
     </div>
   {% endif %}
 
@@ -85,100 +86,106 @@
 
         {% if has_content %}
           {% comment %} Tile with expandable content {% endcomment %}
-          <div
-            class="kc-tile kc-tile-expandable"
-            data-tile-id="tile-{{ block.id }}"
-            data-category="{{ block.settings.category | handleize }}"
-            data-title="{{ block.settings.title | escape }}"
-            data-description="{{ block.settings.description | escape }}"
-            {{ block.shopify_attributes }}
-          >
-            {% if block.settings.image != blank %}
-              <div class="kc-tile-image">
-                {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+          <div class="kc-tile-wrapper" {{ block.shopify_attributes }}>
+            <div
+              class="kc-tile kc-tile-expandable"
+              data-tile-id="tile-{{ block.id }}"
+              data-category="{{ block.settings.category | handleize }}"
+              data-title="{{ block.settings.title | escape }}"
+              data-description="{{ block.settings.description | escape }}"
+            >
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
+
+                <span class="kc-tile-expand-icon">+</span>
               </div>
-            {% endif %}
-
-            <div class="kc-tile-content">
-              {% if block.settings.category != blank %}
-                <span class="kc-tile-category">{{ block.settings.category }}</span>
-              {% endif %}
-
-              <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
-
-              {% if block.settings.description != blank %}
-                <p class="kc-tile-description">{{ block.settings.description }}</p>
-              {% endif %}
-
-              <span class="kc-tile-expand-icon">+</span>
-            </div>
-
-            {% comment %} Store content as hidden data {% endcomment %}
-            <div class="kc-tile-content-data" id="content-{{ block.id }}" style="display: none;">
-              {{ block.settings.content }}
+              {% comment %} Store content as hidden but SEO-friendly div {% endcomment %}
+              <div class="kc-tile-content-data" id="content-{{ block.id }}" aria-hidden="true">
+                {%- if block.settings.html_embed != blank -%}
+                  {{ block.settings.html_embed }}
+                {%- else -%}
+                  {{ block.settings.content }}
+                {%- endif -%}
+              </div>
             </div>
           </div>
 
         {% elsif has_link %}
           {% comment %} Tile with link {% endcomment %}
-          <a
-            href="{{ block.settings.link }}"
-            class="kc-tile kc-tile-link"
-            data-category="{{ block.settings.category | handleize }}"
-            data-title="{{ block.settings.title | escape }}"
-            data-description="{{ block.settings.description | escape }}"
-            {{ block.shopify_attributes }}
-          >
-            {% if block.settings.image != blank %}
-              <div class="kc-tile-image">
-                {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+          <div class="kc-tile-wrapper" {{ block.shopify_attributes }}>
+            <a
+              href="{{ block.settings.link }}"
+              class="kc-tile kc-tile-link"
+              data-category="{{ block.settings.category | handleize }}"
+              data-title="{{ block.settings.title | escape }}"
+              data-description="{{ block.settings.description | escape }}"
+            >
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
+
+                <span class="kc-tile-link-icon">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
               </div>
-            {% endif %}
-
-            <div class="kc-tile-content">
-              {% if block.settings.category != blank %}
-                <span class="kc-tile-category">{{ block.settings.category }}</span>
-              {% endif %}
-
-              <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
-
-              {% if block.settings.description != blank %}
-                <p class="kc-tile-description">{{ block.settings.description }}</p>
-              {% endif %}
-
-              <span class="kc-tile-link-icon">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-            </div>
-          </a>
+            </a>
+          </div>
 
         {% else %}
           {% comment %} Basic tile (no content, no link) {% endcomment %}
-          <div
-            class="kc-tile"
-            data-category="{{ block.settings.category | handleize }}"
-            data-title="{{ block.settings.title | escape }}"
-            data-description="{{ block.settings.description | escape }}"
-            {{ block.shopify_attributes }}
-          >
-            {% if block.settings.image != blank %}
-              <div class="kc-tile-image">
-                {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+          <div class="kc-tile-wrapper" {{ block.shopify_attributes }}>
+            <div
+              class="kc-tile"
+              data-category="{{ block.settings.category | handleize }}"
+              data-title="{{ block.settings.title | escape }}"
+              data-description="{{ block.settings.description | escape }}"
+            >
+              {% if block.settings.image != blank %}
+                <div class="kc-tile-image">
+                  {{ block.settings.image | image_url: width: 600 | image_tag: alt: block.settings.title, loading: 'lazy' }}
+                </div>
+              {% endif %}
+
+              <div class="kc-tile-content">
+                {% if block.settings.category != blank %}
+                  <span class="kc-tile-category">{{ block.settings.category }}</span>
+                {% endif %}
+
+                <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
+
+                {% if block.settings.description != blank %}
+                  <p class="kc-tile-description">{{ block.settings.description }}</p>
+                {% endif %}
               </div>
-            {% endif %}
-
-            <div class="kc-tile-content">
-              {% if block.settings.category != blank %}
-                <span class="kc-tile-category">{{ block.settings.category }}</span>
-              {% endif %}
-
-              <h3 class="kc-tile-title">{{ block.settings.title }}</h3>
-
-              {% if block.settings.description != blank %}
-                <p class="kc-tile-description">{{ block.settings.description }}</p>
-              {% endif %}
             </div>
           </div>
         {% endif %}
@@ -204,6 +211,45 @@
   </div>
 </div>
 
+{% comment %} Schema.org Structured Data {% endcomment %}
+{% assign schema_enabled_blocks = section.blocks | where: 'settings.enable_schema', true %}
+{% if schema_enabled_blocks.size > 0 %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {%- for block in schema_enabled_blocks -%}
+        {%- if block.settings.content != blank and block.settings.html_embed == blank -%}
+          {%- assign show_in_schema = true -%}
+          {%- if block.settings.required_tags != blank -%}
+            {%- assign required_tags = block.settings.required_tags | split: ',' -%}
+            {%- for required_tag in required_tags -%}
+              {%- assign req_tag_trimmed = required_tag | strip -%}
+              {%- unless customer.tags contains req_tag_trimmed -%}
+                {%- assign show_in_schema = false -%}
+                {%- break -%}
+              {%- endunless -%}
+            {%- endfor -%}
+          {%- endif -%}
+
+          {%- if show_in_schema -%}
+            {
+              "@type": "Question",
+              "name": {{ block.settings.title | json }},
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": {{ block.settings.content | strip_html | strip | json }}
+              }
+            }{%- unless forloop.last -%},{%- endunless -%}
+          {%- endif -%}
+        {%- endif -%}
+      {%- endfor -%}
+    ]
+  }
+  </script>
+{% endif %}
+
 <style>
   .knowledge-center {
     max-width: {{ section.settings.max_width }}px;
@@ -212,7 +258,7 @@
   }
 
   .kc-welcome {
-    text-align: center;
+    text-align: left;
     margin-bottom: 40px;
   }
 
@@ -230,8 +276,10 @@
 
   .kc-search {
     max-width: 600px;
-    margin: 0 auto 30px;
+    margin-bottom: 30px;
     position: relative;
+    display: flex;
+    justify-content: flex-start;
   }
 
   .kc-search-input {
@@ -259,9 +307,9 @@
 
   .kc-categories {
     display: flex;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 12px;
-    justify-content: center;
     margin-bottom: 40px;
   }
 
@@ -295,6 +343,11 @@
     margin-bottom: 20px;
   }
 
+  .kc-tile-wrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
   .kc-tile {
     background: white;
     border: 1px solid {{ section.settings.border_color }};
@@ -305,13 +358,9 @@
     color: inherit;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
   }
 
-  .kc-tile:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  }
+  
 
   .kc-tile-expandable {
     cursor: pointer;
@@ -328,7 +377,15 @@
   }
 
   .kc-tile-content-data {
-    display: none !important;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
 
   .kc-tile-image {
@@ -382,8 +439,8 @@
     position: absolute;
     top: 20px;
     right: 20px;
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -592,10 +649,15 @@
   const categoryBtns = document.querySelectorAll('#kc-categories-' + sectionId + ' .kc-category-btn');
   const contentFrame = document.getElementById('kc-content-frame-' + sectionId);
   const contentBody = document.getElementById('kc-content-body-' + sectionId);
-  const allTiles = grid.querySelectorAll('.kc-tile');
+  const tileWrappers = grid.querySelectorAll('.kc-tile-wrapper');
 
-  let currentCategory = 'all';
+  // Set initial category to the first active button
+  const activeBtn = document.querySelector('#kc-categories-' + sectionId + ' .kc-category-btn.active');
+  let currentCategory = activeBtn ? activeBtn.dataset.category : 'all';
   let currentSearch = '';
+
+  // Run initial filter to show only first category
+  filterTiles();
 
   // Category filtering
   categoryBtns.forEach(btn => {
@@ -632,8 +694,9 @@
         // Close if clicking the same tile
         closeContentFrame();
       } else {
-        // Open with new content
-        openContentFrame(this, contentData.innerHTML);
+        // Open with new content - trim to remove whitespace
+        const content = contentData.innerHTML.trim();
+        openContentFrame(this, content);
       }
     });
   });
@@ -683,7 +746,10 @@
   function filterTiles() {
     let visibleCount = 0;
 
-    allTiles.forEach(tile => {
+    tileWrappers.forEach(wrapper => {
+      const tile = wrapper.querySelector('.kc-tile, .kc-tile-link');
+      if (!tile) return;
+
       const category = tile.dataset.category || '';
       const title = (tile.dataset.title || '').toLowerCase();
       const description = (tile.dataset.description || '').toLowerCase();
@@ -694,10 +760,10 @@
                            description.includes(currentSearch);
 
       if (matchesCategory && matchesSearch) {
-        tile.style.display = 'flex';
+        wrapper.style.display = 'flex';
         visibleCount++;
       } else {
-        tile.style.display = 'none';
+        wrapper.style.display = 'none';
       }
     });
 
@@ -914,6 +980,17 @@
           "id": "required_tags",
           "label": "Required Customer Tags (for gated access)",
           "info": "Comma-separated. Leave empty for public. Example: affiliates, vip"
+        },
+        {
+          "type": "header",
+          "content": "SEO & Schema"
+        },
+        {
+          "type": "checkbox",
+          "id": "enable_schema",
+          "label": "Enable FAQ Schema (for Google Rich Results)",
+          "default": false,
+          "info": "Adds structured data for search engines. Only works with Rich Text content (not HTML embeds). Helps your tile appear in Google's FAQ rich results."
         }
       ]
     }
